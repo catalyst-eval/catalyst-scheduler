@@ -1,0 +1,23 @@
+echo "# Dependencies
+node_modules/
+
+# Environment variables - IMPORTANT!
+.env
+.env.*
+!.env.sample
+
+# Build output
+dist/
+build/
+
+# Operating System Files
+.DS_Store
+Thumbs.db
+
+# Logs
+logs
+*.log
+
+# IDE and editor folders
+.idea/
+.vscode/" > .gitignore

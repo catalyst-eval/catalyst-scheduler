@@ -1,0 +1,30 @@
+# Create render.yaml file
+cat > render.yaml << 'EOF'
+services:
+  - type: web
+    name: catalyst-scheduler
+    env: node
+    plan: starter
+    buildCommand: npm install && npm run build
+    startCommand: node dist/server.js
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: GOOGLE_SHEETS_PRIVATE_KEY
+        sync: false
+      - key: GOOGLE_SHEETS_CLIENT_EMAIL
+        sync: false
+      - key: GOOGLE_SHEETS_SPREADSHEET_ID
+        sync: false
+      - key: INTAKEQ_API_KEY
+        sync: false
+      - key: INTAKEQ_WEBHOOK_SECRET
+        sync: false
+      - key: SENDGRID_API_KEY
+        sync: false
+      - key: EMAIL_FROM_ADDRESS
+        value: scheduler@catalysthealth.care
+      - key: EMAIL_FROM_NAME
+        value: "Catalyst Scheduler"
+EOF
