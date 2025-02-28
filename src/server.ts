@@ -1,11 +1,21 @@
 // src/server.ts
-import express, { Request, Response } from 'express';
 import dotenv from 'dotenv';
+import path from 'path';
+
+// Load .env file - explicitly set the path
+dotenv.config({
+  path: path.resolve(process.cwd(), '.env')
+});
+
+// Log to verify variables are loaded
+console.log('ENV check on startup:');
+console.log('- GOOGLE_SHEETS_PRIVATE_KEY exists:', !!process.env.GOOGLE_SHEETS_PRIVATE_KEY);
+console.log('- GOOGLE_SHEETS_CLIENT_EMAIL exists:', !!process.env.GOOGLE_SHEETS_CLIENT_EMAIL);
+
+// Import the rest of the modules
+import express, { Request, Response } from 'express';
 import apiRoutes from './routes/index';
 import { validateIntakeQWebhook } from './middleware/verify-signature';
-
-// Load environment variables
-dotenv.config();
 
 // Create Express app
 const app = express();

@@ -1,49 +1,21 @@
 // src/google-auth-test.ts
 import dotenv from 'dotenv';
-import { JWT } from 'google-auth-library';
+import path from 'path';
 
-dotenv.config();
+// Log the current directory
+console.log('Current directory:', process.cwd());
 
-async function testAuth() {
-  try {
-    console.log('Testing Google Auth...');
-    console.log('Private key exists:', !!process.env.GOOGLE_SHEETS_PRIVATE_KEY);
-    console.log('Client email exists:', !!process.env.GOOGLE_SHEETS_CLIENT_EMAIL);
-    
-    // Handle different formats of private key
-    let privateKey = process.env.GOOGLE_SHEETS_PRIVATE_KEY || '';
-    
-    // Replace literal \n with actual newlines
-    privateKey = privateKey.replace(/\\n/g, '\n');
-    
-    // If key is enclosed in quotes, remove them
-    if (privateKey.startsWith('"') && privateKey.endsWith('"')) {
-      privateKey = privateKey.slice(1, -1);
-    }
-    
-    console.log('Private key length:', privateKey.length);
-    console.log('Private key starts with:', privateKey.substring(0, 20) + '...');
-    
-    // Create a client with the credentials
-    const client = new JWT({
-      email: process.env.GOOGLE_SHEETS_CLIENT_EMAIL,
-      key: privateKey,
-      scopes: ['https://www.googleapis.com/auth/spreadsheets']
-    });
-    
-    // Attempt to get an access token
-    console.log('Attempting to get access token...');
-    const token = await client.getAccessToken();
-    console.log('Successfully obtained access token:', !!token);
-    
-    return true;
-  } catch (error) {
-    console.error('Authentication error:', error);
-    return false;
-  }
-}
-
-testAuth().then(success => {
-  console.log('Authentication test completed, success:', success);
-  process.exit(success ? 0 : 1);
+// Load environment variables with explicit path
+const result = dotenv.config({ 
+  path: path.resolve(process.cwd(), '.env') 
 });
+
+// Log the dotenv result
+console.log('Dotenv result:', result);
+
+// Check for environment variables
+console.log('GOOGLE_SHEETS_PRIVATE_KEY exists:', !!process.env.GOOGLE_SHEETS_PRIVATE_KEY);
+console.log('GOOGLE_SHEETS_CLIENT_EMAIL exists:', !!process.env.GOOGLE_SHEETS_CLIENT_EMAIL);
+console.log('GOOGLE_SHEETS_PRIVATE_KEY first 10 chars:', 
+  process.env.GOOGLE_SHEETS_PRIVATE_KEY ? 
+  process.env.GOOGLE_SHEETS_PRIVATE_KEY.substring(0, 10) : 'not found');
