@@ -1,5 +1,6 @@
+
 {
-  "name": "catalyst-scheduler-railway",
+  "name": "catalyst-scheduler",
   "version": "1.0.0",
   "main": "dist/server.js",
   "scripts": {
@@ -14,21 +15,22 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": "Railway deployment of Catalyst Scheduler",
+  "description": "Catalyst Scheduler for therapy practice",
   "dependencies": {
     "@google-cloud/local-auth": "^3.0.1",
     "@sendgrid/mail": "^8.1.4",
+    "@types/express": "^4.17.17",
+    "@types/node": "^22.13.5",
     "axios": "^1.6.0",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
     "google-auth-library": "^9.15.1",
     "googleapis": "^133.0.0",
-    "node-cron": "^3.0.3"
+    "node-cron": "^3.0.3",
+    "typescript": "^5.7.3"
   },
   "devDependencies": {
-    "@types/express": "^4.17.17",
     "@types/jest": "^29.5.14",
-    "@types/node": "^22.13.5",
     "@types/node-cron": "^3.0.11",
     "@types/supertest": "^6.0.2",
     "@typescript-eslint/eslint-plugin": "^7.0.1",
@@ -37,8 +39,7 @@
     "jest": "^29.7.0",
     "supertest": "^7.0.0",
     "ts-jest": "^29.1.2",
-    "ts-node-dev": "^2.0.0",
-    "typescript": "^5.7.3"
+    "ts-node-dev": "^2.0.0"
   },
   "engines": {
     "node": ">=18.0.0"
