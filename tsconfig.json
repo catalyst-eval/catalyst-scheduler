@@ -11,6 +11,6 @@
     "resolveJsonModule": true,
     "typeRoots": ["./node_modules/@types", "./src/types"]
   },
-  "include": ["src/**/*"],
+  "include": ["src/**/*", "google-auth-test.ts", "debug-env.ts"],
   "exclude": ["node_modules", "**/*.test.ts", "dist"]
 }

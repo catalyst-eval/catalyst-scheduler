@@ -76,8 +76,13 @@ export class GoogleSheetsService implements IGoogleSheetsService {
         // Handle different formats of private key
         let privateKey = process.env.GOOGLE_SHEETS_PRIVATE_KEY;
         
-        // Replace literal \n with actual newlines
-        privateKey = privateKey.replace(/\\n/g, '\n');
+        // Replace literal \n with actual newlines if needed
+        if (privateKey.includes('\\n')) {
+          privateKey = privateKey.replace(/\\n/g, '\n');
+          console.log('Replaced escaped newlines in private key');
+        } else {
+          console.log('Private key already has proper newlines, no replacement needed');
+        }
         
         // If key is enclosed in quotes, remove them
         if (privateKey.startsWith('"') && privateKey.endsWith('"')) {

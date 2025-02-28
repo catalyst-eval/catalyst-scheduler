@@ -1,12 +1,12 @@
-// src/google-auth-test.ts
+// test-auth.ts
 import dotenv from 'dotenv';
 import { JWT } from 'google-auth-library';
 
 // Load environment variables
 dotenv.config();
 
-// Log environment variables
-console.log('ENV check:');
+// Log environment variables (without showing full values for security)
+console.log('Environment variables check:');
 console.log('- GOOGLE_SHEETS_PRIVATE_KEY exists:', !!process.env.GOOGLE_SHEETS_PRIVATE_KEY);
 console.log('- GOOGLE_SHEETS_CLIENT_EMAIL exists:', !!process.env.GOOGLE_SHEETS_CLIENT_EMAIL);
 console.log('- GOOGLE_SHEETS_SPREADSHEET_ID exists:', !!process.env.GOOGLE_SHEETS_SPREADSHEET_ID);
@@ -39,7 +39,7 @@ async function testAuth() {
     // Attempt to get an access token
     console.log('Attempting to get access token...');
     const token = await client.getAccessToken();
-    console.log('Successfully obtained access token:', !!token);
+    console.log('Successfully obtained access token');
     
     return true;
   } catch (error) {
