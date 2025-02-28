@@ -9,7 +9,6 @@ import { GoogleSheetsService, AuditEventType } from '../google/sheets';
 export class SchedulerService {
   private dailyScheduleService: DailyScheduleService;
   private emailService: EmailService;
-  // Use EmailService instead since it contains the recipient methods
   private sheetsService: GoogleSheetsService;
   private scheduledTasks: cron.ScheduledTask[] = [];
   
@@ -18,7 +17,6 @@ export class SchedulerService {
     this.sheetsService = new GoogleSheetsService();
     this.dailyScheduleService = new DailyScheduleService(this.sheetsService);
     this.emailService = new EmailService(this.sheetsService);
-    // No need to initialize recipientService as we'll use emailService
   }
 
   /**
@@ -211,6 +209,131 @@ export class SchedulerService {
       
       return false;
     }
+  }
+
+  /**
+   * Bulk import appointments from IntakeQ for a date range
+   */
+  async bulkImportAppointments(
+    startDate: string = new Date().toISOString().split('T')[0],
+    endDate?: string
+  ): Promise<{
+    success: boolean;
+    processed: number;
+    errors: number;
+    dates: string[];
+  }> {
+    try {
+      // If no end date provided, default to 6 months in the future
+      if (!endDate) {
+        const futureDate = new Date(startDate);
+        futureDate.setMonth(futureDate.getMonth() + 6);
+        endDate = futureDate.toISOString().split('T')[0];
+      }
+      
+      console.log(`Starting bulk import from ${startDate} to ${endDate}`);
+      
+      // Log the start of bulk import
+      await this.sheetsService.addAuditLog({
+        timestamp: new Date().toISOString(),
+        eventType: AuditEventType.INTEGRATION_UPDATED,
+        description: `Starting bulk import from ${startDate} to ${endDate}`,
+        user: 'SYSTEM',
+        systemNotes: JSON.stringify({ startDate, endDate })
+      });
+      
+      // Generate all dates in the range
+      const dates = this.generateDateRange(startDate, endDate);
+      console.log(`Processing ${dates.length} days of appointments`);
+      
+      let totalProcessed = 0;
+      let totalErrors = 0;
+      const processedDates: string[] = [];
+      
+      // Process each date
+      for (const date of dates) {
+        try {
+          console.log(`Processing appointments for ${date}`);
+          
+          // Use the existing refresh function to process each date
+          const processed = await this.dailyScheduleService.refreshAppointmentsFromIntakeQ(date);
+          
+          if (processed > 0) {
+            totalProcessed += processed;
+            processedDates.push(date);
+          }
+          
+          // Small delay to avoid API rate limits
+          await new Promise(resolve => setTimeout(resolve, 500));
+        } catch (error) {
+          console.error(`Error processing date ${date}:`, error);
+          totalErrors++;
+          
+          // Log error but continue with other dates
+          await this.sheetsService.addAuditLog({
+            timestamp: new Date().toISOString(),
+            eventType: AuditEventType.SYSTEM_ERROR,
+            description: `Failed to process appointments for ${date} during bulk import`,
+            user: 'SYSTEM',
+            systemNotes: error instanceof Error ? error.message : 'Unknown error'
+          });
+        }
+      }
+      
+      // Log completion
+      await this.sheetsService.addAuditLog({
+        timestamp: new Date().toISOString(),
+        eventType: AuditEventType.INTEGRATION_UPDATED,
+        description: `Completed bulk import from ${startDate} to ${endDate}`,
+        user: 'SYSTEM',
+        systemNotes: JSON.stringify({
+          totalProcessed,
+          totalErrors,
+          processedDates
+        })
+      });
+      
+      return {
+        success: true,
+        processed: totalProcessed,
+        errors: totalErrors,
+        dates: processedDates
+      };
+    } catch (error) {
+      console.error('Error in bulk import:', error);
+      
+      // Log overall error
+      await this.sheetsService.addAuditLog({
+        timestamp: new Date().toISOString(),
+        eventType: AuditEventType.SYSTEM_ERROR,
+        description: `Bulk import failed`,
+        user: 'SYSTEM',
+        systemNotes: error instanceof Error ? error.message : 'Unknown error'
+      });
+      
+      throw error;
+    }
+  }
+
+  /**
+   * Generate an array of dates between startDate and endDate (inclusive)
+   */
+  private generateDateRange(startDate: string, endDate: string): string[] {
+    const dates: string[] = [];
+    const currentDate = new Date(startDate);
+    const endDateObj = new Date(endDate);
+    
+    // Set times to midnight to avoid time issues
+    currentDate.setHours(0, 0, 0, 0);
+    endDateObj.setHours(0, 0, 0, 0);
+    
+    // Add each date until we reach the end date
+    while (currentDate <= endDateObj) {
+      dates.push(currentDate.toISOString().split('T')[0]);
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+    
+    return dates;
   }
 
   /**

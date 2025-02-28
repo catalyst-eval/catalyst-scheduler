@@ -1,9 +1,33 @@
 // src/lib/scheduling/daily-schedule-service.ts
 
 import { GoogleSheetsService, AuditEventType } from '../google/sheets';
-import { AppointmentRecord } from '../../types/scheduling';
 import { formatESTTime, getESTDayRange, getDisplayDate } from '../util/date-helpers';
 import { standardizeOfficeId } from '../util/office-id';
+import { IntakeQService } from '../intakeq/service';
+import { AppointmentSyncHandler } from '../intakeq/appointment-sync';
+import type { IntakeQWebhookPayload } from '../../types/webhooks';
+
+// Define the AppointmentRecord interface locally since we can't import it
+interface AppointmentRecord {
+  appointmentId: string;
+  clientId: string;
+  clientName: string;
+  clinicianId: string;
+  clinicianName: string;
+  officeId: string;
+  suggestedOfficeId?: string;
+  sessionType: 'in-person' | 'telehealth' | 'group' | 'family';
+  startTime: string;
+  endTime: string;
+  status: 'scheduled' | 'completed' | 'cancelled' | 'rescheduled';
+  lastUpdated: string;
+  source: 'intakeq' | 'manual';
+  requirements?: {
+    accessibility?: boolean;
+    specialFeatures?: string[];
+  };
+  notes?: string;
+}
 
 export interface DailyScheduleData {
   date: string;
@@ -124,20 +148,68 @@ export class DailyScheduleService {
    */
   async refreshAppointmentsFromIntakeQ(date: string): Promise<number> {
     try {
-      // This would be implemented to call the IntakeQ service
-      // and fetch the latest appointments for the date
       console.log(`Refreshing appointments from IntakeQ for ${date}`);
       
-      // For now, we'll just log this requirement
+      // 1. Initialize the IntakeQ service
+      const intakeQService = new IntakeQService(this.sheetsService);
+      
+      // 2. Get the date range for the target day
+      const { start, end } = getESTDayRange(date);
+      
+      // 3. Fetch appointments from IntakeQ
+      const appointments = await intakeQService.getAppointments(start, end);
+      console.log(`Found ${appointments.length} appointments for ${date}`);
+      
+      if (appointments.length === 0) {
+        return 0;
+      }
+      
+      // 4. Initialize the AppointmentSyncHandler
+      const appointmentSyncHandler = new AppointmentSyncHandler(this.sheetsService);
+      
+      let processed = 0;
+      let errors = 0;
+      
+      // 5. Process each appointment
+      for (const appointment of appointments) {
+        try {
+          // Format appointment for webhook processing
+          const webhookPayload: IntakeQWebhookPayload = {
+            Type: 'AppointmentCreated',
+            ClientId: appointment.ClientId,
+            Appointment: appointment
+          };
+          
+          // Process as if it came from a webhook
+          const result = await appointmentSyncHandler.processAppointmentEvent(webhookPayload);
+          
+          if (result.success) {
+            processed++;
+          } else {
+            console.error(`Error processing appointment ${appointment.Id}:`, result.error);
+            errors++;
+          }
+        } catch (error) {
+          console.error(`Error processing appointment ${appointment.Id}:`, error);
+          errors++;
+        }
+      }
+      
+      // 6. Log completion
       await this.sheetsService.addAuditLog({
         timestamp: new Date().toISOString(),
-        eventType: AuditEventType.SYSTEM_ERROR,
-        description: `IntakeQ appointment refresh requested for ${date}`,
+        eventType: AuditEventType.DAILY_ASSIGNMENTS_UPDATED,
+        description: `IntakeQ appointment refresh for ${date} completed`,
         user: 'SYSTEM',
-        systemNotes: 'This functionality needs to be implemented to call IntakeQ API'
+        systemNotes: JSON.stringify({
+          date,
+          total: appointments.length,
+          processed,
+          errors
+        })
       });
       
-      return 0; // Return number of appointments processed
+      return processed;
     } catch (error) {
       console.error('Error refreshing appointments from IntakeQ:', error);
       
