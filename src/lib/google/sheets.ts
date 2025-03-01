@@ -452,8 +452,13 @@ async getAllAppointments(): Promise<AppointmentRecord[]> {
         return [];
       }
   
+      // Parse the target date for better comparison
+      const startDateObj = new Date(startDate);
+      const targetDateStr = startDateObj.toISOString().split('T')[0];
+      
       console.log('Processing appointments from sheet:', {
         rowCount: values.length,
+        targetDate: targetDateStr,
         dateRange: { startDate, endDate }
       });
   
@@ -503,87 +508,102 @@ async getAllAppointments(): Promise<AppointmentRecord[]> {
           }
         })
         .filter((appt): appt is AppointmentRecord => appt !== null);
-
-        const mappedAppointments = initialAppointments.filter(appt => {
-            try {
-              const apptDate = new Date(appt.startTime).toISOString().split('T')[0];
-              const targetDate = new Date(startDate).toISOString().split('T')[0];
-              
-              console.log('Filtering appointment:', {
-                id: appt.appointmentId,
-                date: apptDate,
-                target: targetDate,
-                match: apptDate === targetDate,
-                startTime: appt.startTime
-              });
-              
-              return apptDate === targetDate;
-            } catch (error) {
-              console.error('Error filtering appointment:', error, { appt });
-              return false;
-            }
-          });
-    
-          console.log('Appointment processing complete:', {
-            totalFound: mappedAppointments.length,
-            dateRange: { startDate, endDate }
-          });
-    
-          return mappedAppointments;
-        } catch (error) {
-          console.error('Error reading appointments:', error);
-          throw new Error('Failed to read appointments');
-        }
-      }
-    
-      async updateAppointment(appointment: AppointmentRecord): Promise<void> {
+  
+      // Improved filtering logic:
+      // 1. Extract date in a consistent format (YYYY-MM-DD) 
+      // 2. Compare directly with the target date
+      const mappedAppointments = initialAppointments.filter(appt => {
         try {
-          const values = await this.readSheet('Appointments!A:A');
-          const appointmentRow = values?.findIndex((row: SheetRow) => row[0] === appointment.appointmentId);
-    
-          if (!values || !appointmentRow || appointmentRow < 0) {
-            throw new Error(`Appointment ${appointment.appointmentId} not found`);
+          if (!appt.startTime) {
+            console.warn(`Appointment ${appt.appointmentId} has no start time, skipping`);
+            return false;
           }
-    
-          const rowData = [
-            appointment.appointmentId,
-            appointment.clientId,
-            appointment.clinicianId,
-            appointment.officeId,
-            appointment.sessionType,
-            appointment.startTime,
-            appointment.endTime,
-            appointment.status,
-            appointment.lastUpdated,
-            appointment.source,
-            JSON.stringify(appointment.requirements || {}),
-            appointment.notes || ''
-          ];
-    
-          await this.sheets.spreadsheets.values.update({
-            spreadsheetId: this.spreadsheetId,
-            range: `Appointments!A${appointmentRow + 1}:L${appointmentRow + 1}`,
-            valueInputOption: 'RAW',
-            requestBody: {
-              values: [rowData]
-            }
+          
+          // Extract just the date part (YYYY-MM-DD) for comparison
+          const apptDate = new Date(appt.startTime);
+          const apptDateStr = apptDate.toISOString().split('T')[0];
+          const matches = apptDateStr === targetDateStr;
+          
+          console.log(`Appointment ${appt.appointmentId} date comparison:`, {
+            appointmentDate: apptDateStr,
+            targetDate: targetDateStr,
+            matches: matches
           });
-    
-          await this.addAuditLog({
-            timestamp: new Date().toISOString(),
-            eventType: AuditEventType.APPOINTMENT_UPDATED,
-            description: `Updated appointment ${appointment.appointmentId}`,
-            user: 'SYSTEM',
-            previousValue: JSON.stringify(values[appointmentRow]),
-            newValue: JSON.stringify(rowData)
-          });
-    
-          await this.refreshCache('Appointments!A2:N');
+          
+          return matches;
         } catch (error) {
-          console.error('Error updating appointment:', error);
-          throw new Error('Failed to update appointment');
+          console.error(`Error filtering appointment ${appt.appointmentId}:`, error);
+          return false;
         }
+      });
+  
+      console.log('Appointment processing complete:', {
+        totalFound: mappedAppointments.length,
+        targetDate: targetDateStr
+      });
+  
+      return mappedAppointments;
+    } catch (error) {
+      console.error('Error reading appointments:', error);
+      throw new Error('Failed to read appointments');
+    }
+  }
+
+  async updateAppointment(appointment: AppointmentRecord): Promise<void> {
+    try {
+      const values = await this.readSheet('Appointments!A:A');
+      const appointmentRow = values?.findIndex((row: SheetRow) => row[0] === appointment.appointmentId);
+  
+      if (!values || !appointmentRow || appointmentRow < 0) {
+        throw new Error(`Appointment ${appointment.appointmentId} not found`);
       }
+  
+      const standardizedOfficeId = standardizeOfficeId(appointment.officeId);
+      const standardizedSuggestedId = appointment.suggestedOfficeId ? 
+        standardizeOfficeId(appointment.suggestedOfficeId) : standardizedOfficeId;
+  
+      const rowData = [
+        appointment.appointmentId,
+        appointment.clientId,
+        appointment.clientName,
+        appointment.clinicianId,
+        appointment.clinicianName,
+        standardizedOfficeId,
+        appointment.sessionType,
+        appointment.startTime,
+        appointment.endTime,
+        appointment.status,
+        appointment.lastUpdated,
+        appointment.source,
+        JSON.stringify(appointment.requirements || {}),
+        appointment.notes || '',
+        standardizedSuggestedId
+      ];
+  
+      await this.sheets.spreadsheets.values.update({
+        spreadsheetId: this.spreadsheetId,
+        range: `Appointments!A${appointmentRow + 1}:O${appointmentRow + 1}`,
+        valueInputOption: 'RAW',
+        requestBody: {
+          values: [rowData]
+        }
+      });
+  
+      await this.addAuditLog({
+        timestamp: new Date().toISOString(),
+        eventType: AuditEventType.APPOINTMENT_UPDATED,
+        description: `Updated appointment ${appointment.appointmentId}`,
+        user: 'SYSTEM',
+        previousValue: JSON.stringify(values[appointmentRow]),
+        newValue: JSON.stringify(rowData)
+      });
+  
+      await this.refreshCache('Appointments!A2:O');
+    } catch (error) {
+      console.error('Error updating appointment:', error);
+      throw new Error('Failed to update appointment');
+    }
+  }
     
       async getAppointment(appointmentId: string): Promise<AppointmentRecord | null> {
         try {

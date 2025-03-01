@@ -4,38 +4,24 @@
  * Convert a date to Eastern Time
  */
 export function toEST(date: string | Date): Date {
-  const d = typeof date === 'string' ? new Date(date) : date;
-  
-  // Use the Intl.DateTimeFormat for more reliable timezone conversion
-  const formatter = new Intl.DateTimeFormat('en-US', {
-    timeZone: 'America/New_York',
-    year: 'numeric',
-    month: 'numeric',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: 'numeric',
-    second: 'numeric',
-    hour12: false
-  });
-  
-  const parts = formatter.formatToParts(d);
-  const dateObj: Record<string, number> = {};
-  
-  parts.forEach(part => {
-    if (part.type !== 'literal') {
-      dateObj[part.type] = parseInt(part.value, 10);
-    }
-  });
-  
-  // Create a new date with the components in Eastern Time
-  return new Date(
-    dateObj.year,
-    dateObj.month - 1, // JavaScript months are 0-indexed
-    dateObj.day,
-    dateObj.hour,
-    dateObj.minute,
-    dateObj.second
-  );
+  try {
+    // Create a new date object if string is provided
+    const inputDate = typeof date === 'string' ? new Date(date) : new Date(date);
+    
+    // Use direct UTC date methods for more reliable conversion
+    // This avoids issues with browser's local timezone
+    return new Date(
+      inputDate.getUTCFullYear(),
+      inputDate.getUTCMonth(),
+      inputDate.getUTCDate(),
+      inputDate.getUTCHours(),
+      inputDate.getUTCMinutes(),
+      inputDate.getUTCSeconds()
+    );
+  } catch (error) {
+    console.error('Error in toEST:', error);
+    return new Date(); // Return current date as fallback
+  }
 }
 
 /**
@@ -43,7 +29,15 @@ export function toEST(date: string | Date): Date {
  */
 export function formatESTTime(isoTime: string): string {
   try {
-    const date = toEST(isoTime);
+    // Parse the date directly
+    const date = new Date(isoTime);
+    
+    // Ensure it's a valid date
+    if (isNaN(date.getTime())) {
+      return 'Invalid Time';
+    }
+    
+    // Format using locale options
     return date.toLocaleTimeString('en-US', {
       hour: 'numeric',
       minute: '2-digit',
@@ -63,34 +57,34 @@ export function getESTDayRange(dateString: string): { start: string; end: string
     // Parse the input date
     const inputDate = new Date(dateString);
     if (isNaN(inputDate.getTime())) {
-      throw new Error(`Invalid date format: ${dateString}`);
+      console.warn(`Invalid date format: ${dateString}, using current date`);
+      return getESTDayRange(new Date().toISOString());
     }
     
-    // Convert to Eastern Time
-    const estDate = toEST(inputDate);
+    // Use the date directly (already in UTC from ISO string)
+    const startOfDay = new Date(inputDate);
+    startOfDay.setUTCHours(0, 0, 0, 0);
     
-    // Create start of day in EST
-    const startOfDay = new Date(estDate);
-    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(inputDate);
+    endOfDay.setUTCHours(23, 59, 59, 999);
     
-    // Create end of day in EST
-    const endOfDay = new Date(estDate);
-    endOfDay.setHours(23, 59, 59, 999);
+    // Log for debugging
+    console.log(`Date range for ${dateString}:`, {
+      start: startOfDay.toISOString(),
+      end: endOfDay.toISOString()
+    });
     
-    // Convert back to ISO strings
     return {
       start: startOfDay.toISOString(),
       end: endOfDay.toISOString()
     };
   } catch (error) {
     console.error('Error in getESTDayRange:', error);
-    // Fallback to current day if there's an error
-    const today = new Date();
-    const startOfToday = new Date(today);
-    startOfToday.setHours(0, 0, 0, 0);
     
-    const endOfToday = new Date(today);
-    endOfToday.setHours(23, 59, 59, 999);
+    // Fallback to current day
+    const today = new Date();
+    const startOfToday = new Date(today.setUTCHours(0, 0, 0, 0));
+    const endOfToday = new Date(today.setUTCHours(23, 59, 59, 999));
     
     return {
       start: startOfToday.toISOString(),
@@ -104,13 +98,7 @@ export function getESTDayRange(dateString: string): { start: string; end: string
  */
 export function getTodayEST(): string {
   const now = new Date();
-  const estDate = toEST(now);
-  
-  const year = estDate.getFullYear();
-  const month = String(estDate.getMonth() + 1).padStart(2, '0');
-  const day = String(estDate.getDate()).padStart(2, '0');
-  
-  return `${year}-${month}-${day}`;
+  return now.toISOString().split('T')[0];
 }
 
 /**
@@ -118,12 +106,11 @@ export function getTodayEST(): string {
  */
 export function isSameESTDay(date1: string | Date, date2: string | Date): boolean {
   try {
-    const d1 = toEST(date1);
-    const d2 = toEST(date2);
+    // Extract just the date portions
+    const d1Str = new Date(date1).toISOString().split('T')[0];
+    const d2Str = new Date(date2).toISOString().split('T')[0];
     
-    return d1.getFullYear() === d2.getFullYear() &&
-            d1.getMonth() === d2.getMonth() &&
-            d1.getDate() === d2.getDate();
+    return d1Str === d2Str;
   } catch (error) {
     console.error('Error in isSameESTDay:', error);
     return false;
@@ -143,12 +130,15 @@ export function formatDateRange(startTime: string, endTime: string): string {
 }
 
 /**
- * Get a user-friendly date string in EST
+ * Get a user-friendly date string for display
  */
 export function getDisplayDate(date: string): string {
   try {
-    const estDate = toEST(date);
-    return estDate.toLocaleDateString('en-US', {
+    // Parse the date
+    const displayDate = new Date(date);
+    
+    // Format using toLocaleDateString for consistent results
+    return displayDate.toLocaleDateString('en-US', {
       weekday: 'long',
       year: 'numeric',
       month: 'long',
@@ -163,7 +153,7 @@ export function getDisplayDate(date: string): string {
 /**
  * Validate if a string is a valid ISO date
  */
-export function isValidISODate(dateString: string): boolean {
+export function isValidISODate(dateString: string | null | undefined): boolean {
   if (!dateString) return false;
   
   try {
