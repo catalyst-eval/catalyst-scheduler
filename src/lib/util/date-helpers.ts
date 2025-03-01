@@ -29,16 +29,15 @@ export function toEST(date: string | Date): Date {
  */
 export function formatESTTime(isoTime: string): string {
   try {
-    // Parse the date directly
+    // Parse the input date
     const date = new Date(isoTime);
     
-    // Ensure it's a valid date
-    if (isNaN(date.getTime())) {
-      return 'Invalid Time';
-    }
+    // Calculate EST time (UTC-5) - adjust hours for timezone
+    const estDate = new Date(date);
+    estDate.setHours(date.getUTCHours() - 5); // Adjust for EST (UTC-5)
     
-    // Format using locale options
-    return date.toLocaleTimeString('en-US', {
+    // Format with hours and minutes
+    return estDate.toLocaleTimeString('en-US', {
       hour: 'numeric',
       minute: '2-digit',
       hour12: true
