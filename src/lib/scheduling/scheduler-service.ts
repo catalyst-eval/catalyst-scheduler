@@ -5,6 +5,9 @@ import { DailyScheduleService } from './daily-schedule-service';
 import { EmailService } from '../email/service';
 import { EmailTemplates } from '../email/templates';
 import { GoogleSheetsService, AuditEventType } from '../google/sheets';
+import { AppointmentSyncHandler } from '../intakeq/appointment-sync';
+import { WebhookEventType } from '../../types/webhooks';
+import { AppointmentRecord } from '../../types/scheduling';
 
 export class SchedulerService {
   private dailyScheduleService: DailyScheduleService;
@@ -25,6 +28,9 @@ export class SchedulerService {
   initialize(): void {
     try {
       console.log('Initializing scheduler service');
+      
+      // Schedule unassigned appointments processing - 5:45 AM EST
+      this.scheduleUnassignedAppointmentsTask();
       
       // Schedule daily report - 6:00 AM EST every day
       this.scheduleDailyReportTask();
@@ -68,6 +74,156 @@ export class SchedulerService {
     
     this.scheduledTasks.push(task);
     console.log('IntakeQ refresh task scheduled for 5:30 AM');
+  }
+
+  /**
+   * Schedule the unassigned appointments processing task
+   */
+  private scheduleUnassignedAppointmentsTask(): void {
+    // Schedule for 5:45 AM EST
+    const task = cron.schedule('45 5 * * *', () => {
+      console.log('Executing unassigned appointments task');
+      this.processUnassignedAppointments()
+        .catch(error => console.error('Error in unassigned appointments task:', error));
+    });
+    
+    this.scheduledTasks.push(task);
+    console.log('Unassigned appointments task scheduled for 5:45 AM');
+  }
+
+  /**
+   * Process all appointments that need office assignment
+   */
+  async processUnassignedAppointments(): Promise<number> {
+    try {
+      console.log('Processing unassigned appointments');
+      
+      // 1. Get appointments that need assignment from Google Sheets
+      const unassignedAppointments = await this.getAppointmentsNeedingAssignment();
+      
+      if (unassignedAppointments.length === 0) {
+        console.log('No appointments need assignment');
+        return 0;
+      }
+      
+      console.log(`Found ${unassignedAppointments.length} appointments needing assignment`);
+      
+      // 2. Initialize the appointment sync handler
+      const appointmentSyncHandler = new AppointmentSyncHandler(this.sheetsService);
+      
+      // 3. Process each appointment
+      let processedCount = 0;
+      for (const appointment of unassignedAppointments) {
+        try {
+          // Convert to webhook format for processing
+          const webhookPayload = {
+            Type: 'AppointmentUpdated' as WebhookEventType,
+            ClientId: parseInt(appointment.clientId),
+            Appointment: this.convertToIntakeQFormat(appointment)
+          };
+          
+          // Process the appointment
+          const result = await appointmentSyncHandler.processAppointmentEvent(webhookPayload);
+          
+          if (result.success) {
+            processedCount++;
+            console.log(`Successfully assigned office for appointment ${appointment.appointmentId}`);
+          } else {
+            console.error(`Failed to assign office for appointment ${appointment.appointmentId}:`, result.error);
+          }
+        } catch (error) {
+          console.error(`Error processing appointment ${appointment.appointmentId}:`, error);
+        }
+      }
+      
+      console.log(`Processed ${processedCount} of ${unassignedAppointments.length} appointments`);
+      
+      // 4. Log success
+      await this.sheetsService.addAuditLog({
+        timestamp: new Date().toISOString(),
+        eventType: AuditEventType.DAILY_ASSIGNMENTS_UPDATED,
+        description: `Processed ${processedCount} unassigned appointments`,
+        user: 'SYSTEM',
+        systemNotes: JSON.stringify({
+          total: unassignedAppointments.length,
+          processed: processedCount
+        })
+      });
+      
+      return processedCount;
+    } catch (error) {
+      console.error('Error processing unassigned appointments:', error);
+      
+      // Log error
+      await this.sheetsService.addAuditLog({
+        timestamp: new Date().toISOString(),
+        eventType: AuditEventType.SYSTEM_ERROR,
+        description: 'Failed to process unassigned appointments',
+        user: 'SYSTEM',
+        systemNotes: error instanceof Error ? error.message : 'Unknown error'
+      });
+      
+      return 0;
+    }
+  }
+
+  /**
+   * Get appointments that need assignment
+   */
+  private async getAppointmentsNeedingAssignment(): Promise<AppointmentRecord[]> {
+    try {
+      // Get all appointments
+      const allAppointments = await this.sheetsService.getAllAppointments();
+      
+      // Filter to just unassigned appointments
+      return allAppointments.filter(appt => 
+        // Include appointments with no office ID or TBD
+        (!appt.officeId || appt.officeId === 'TBD') &&
+        // Exclude cancelled or completed appointments
+        appt.status !== 'cancelled' && 
+        appt.status !== 'completed'
+      );
+    } catch (error) {
+      console.error('Error getting appointments needing assignment:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Convert our appointment format to IntakeQ format for processing
+   */
+  private convertToIntakeQFormat(appointment: AppointmentRecord): any {
+    return {
+      Id: appointment.appointmentId,
+      ClientName: appointment.clientName,
+      ClientId: parseInt(appointment.clientId) || 0,
+      StartDateIso: appointment.startTime,
+      EndDateIso: appointment.endTime,
+      PractitionerId: appointment.clinicianId,
+      PractitionerName: appointment.clinicianName,
+      ServiceName: appointment.notes?.replace('Service: ', '') || 'Therapy Session',
+      // Add other required fields with default values
+      Status: 'Confirmed',
+      StartDate: new Date(appointment.startTime).getTime(),
+      EndDate: new Date(appointment.endTime).getTime(),
+      Duration: Math.round((new Date(appointment.endTime).getTime() - new Date(appointment.startTime).getTime()) / 60000),
+      // Add other fields as needed
+      ClientEmail: '',
+      ClientPhone: '',
+      ClientDateOfBirth: '',
+      ServiceId: '',
+      LocationName: '',
+      LocationId: '',
+      Price: 0,
+      PractitionerEmail: '',
+      IntakeId: null,
+      DateCreated: new Date().getTime(),
+      CreatedBy: 'SYSTEM',
+      BookedByClient: false,
+      StartDateLocal: '',
+      EndDateLocal: '',
+      StartDateLocalFormatted: ''
+    };
   }
 
   /**

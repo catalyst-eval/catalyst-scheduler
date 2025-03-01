@@ -307,6 +307,76 @@ export class GoogleSheetsService implements IGoogleSheetsService {
       return [];
     }
   }
+  
+  /**
+ * Get all appointments regardless of date range
+ */
+async getAllAppointments(): Promise<AppointmentRecord[]> {
+  try {
+    const values = await this.readSheet('Appointments!A2:O');
+    
+    if (!values || !Array.isArray(values)) {
+      console.log('No appointments found in sheet');
+      return [];
+    }
+
+    console.log(`Processing all appointments from sheet: ${values.length} rows`);
+
+    const mappedAppointments = values
+      .map((row: SheetRow) => {
+        try {
+          const assignedOffice = row[5] || 'A-a';
+          const suggestedOffice = row[14] || assignedOffice;
+          
+          const standardizedOfficeId = standardizeOfficeId(assignedOffice);
+          const standardizedSuggestedId = standardizeOfficeId(suggestedOffice);
+  
+          let requirements = { accessibility: false, specialFeatures: [] };
+          try {
+            const requirementsStr = row[12]?.toString().trim();
+            if (requirementsStr) {
+              const cleanJson = requirementsStr
+                .replace(/[\u0000-\u0019]+/g, '')
+                .replace(/\s+/g, ' ')
+                .trim();
+              requirements = JSON.parse(cleanJson);
+            }
+          } catch (err) {
+            console.error('Error parsing requirements JSON:', err, {value: row[12]});
+          }
+          
+          return {
+            appointmentId: row[0] || '',
+            clientId: row[1] || '',
+            clientName: row[2] || row[1] || '',
+            clinicianId: row[3] || '',
+            clinicianName: row[4] || row[3] || '',
+            officeId: standardizedOfficeId,
+            suggestedOfficeId: standardizedSuggestedId,
+            sessionType: (row[6] || 'in-person') as 'in-person' | 'telehealth' | 'group' | 'family',
+            startTime: row[7] || '',
+            endTime: row[8] || '',
+            status: (row[9] || 'scheduled') as 'scheduled' | 'completed' | 'cancelled' | 'rescheduled',
+            lastUpdated: row[10] || new Date().toISOString(),
+            source: (row[11] || 'manual') as 'intakeq' | 'manual',
+            requirements,
+            notes: row[13] || ''
+          } as AppointmentRecord;
+        } catch (error) {
+          console.error('Error mapping appointment row:', error, { row });
+          return null;
+        }
+      })
+      .filter((appt): appt is AppointmentRecord => appt !== null);
+
+    console.log(`Successfully mapped ${mappedAppointments.length} appointments`);
+    return mappedAppointments;
+    
+  } catch (error) {
+    console.error('Error reading all appointments:', error);
+    throw new Error('Failed to read all appointments');
+  }
+}
 
   async getOfficeAppointments(officeId: string, date: string): Promise<AppointmentRecord[]> {
     const startOfDay = new Date(date);

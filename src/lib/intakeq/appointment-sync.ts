@@ -22,8 +22,7 @@ export interface WebhookResponse {
 // Interface for office assignment result
 interface OfficeAssignmentResult {
   officeId: string;
-  score?: number;
-  reasons?: string[];
+  reasons: string[];
 }
 
 export class AppointmentSyncHandler {
@@ -424,104 +423,177 @@ export class AppointmentSyncHandler {
    * This is a simplified version until we implement the full office assignment logic
    */
   private async determineOfficeAssignment(
-    appointment: IntakeQAppointment
-  ): Promise<OfficeAssignmentResult> {
-    try {
-      // Get all offices
-      const offices = await this.sheetsService.getOffices();
-      
-      // Get client preferences
-      const preferences = await this.sheetsService.getClientPreferences();
-      const clientPreference = preferences.find(
-        p => p.clientId === appointment.ClientId.toString()
-      );
-      
-      // Check if client has a preferred or previously assigned office
-      if (clientPreference?.assignedOffice) {
-        const office = offices.find(
-          o => standardizeOfficeId(o.officeId) === standardizeOfficeId(clientPreference.assignedOffice as string)
-        );
-        
-        if (office && office.inService) {
-          return {
-            officeId: standardizeOfficeId(clientPreference.assignedOffice as string),
-            reasons: ['Client has preferred office']
-          };
-        }
-      }
-      
-      // Find all active offices
-      const activeOffices = offices.filter(o => o.inService);
-      
-      if (activeOffices.length === 0) {
-        return {
-          officeId: 'B-1',
-          reasons: ['No active offices found, using default']
-        };
-      }
-      
-      // Get clinicians to find office preferences
-      const clinicians = await this.sheetsService.getClinicians();
-      const clinician = clinicians.find(
-        c => c.intakeQPractitionerId === appointment.PractitionerId
-      );
-      
-      // If clinician has preferred offices, use the first available one
-      if (clinician && clinician.preferredOffices.length > 0) {
-        for (const preferredId of clinician.preferredOffices) {
-          const office = activeOffices.find(
-            o => standardizeOfficeId(o.officeId) === standardizeOfficeId(preferredId)
-          );
-          
-          if (office) {
-            return {
-              officeId: standardizeOfficeId(office.officeId),
-              reasons: ['Clinician preferred office']
-            };
-          }
-        }
-      }
-      
-      // Check if client has accessibility needs
-      const hasAccessibilityNeeds = 
-        clientPreference && 
-        Array.isArray(clientPreference.mobilityNeeds) && 
-        clientPreference.mobilityNeeds.length > 0;
-      
-      if (hasAccessibilityNeeds) {
-        const accessibleOffices = activeOffices.filter(o => o.isAccessible);
-        
-        if (accessibleOffices.length > 0) {
-          return {
-            officeId: standardizeOfficeId(accessibleOffices[0].officeId),
-            reasons: ['Accessible office for client with mobility needs']
-          };
-        }
-      }
-      
-      // For telehealth, assign a virtual office
-      if (this.determineSessionType(appointment) === 'telehealth') {
-        return {
-          officeId: 'A-v',
-          reasons: ['Telehealth session']
-        };
-      }
-      
-      // Default: assign first available office
-      return {
-        officeId: standardizeOfficeId(activeOffices[0].officeId),
-        reasons: ['Default assignment']
-      };
-    } catch (error) {
-      console.error('Error determining office assignment:', error);
-      
-      // Fall back to default office
+  appointment: IntakeQAppointment
+): Promise<OfficeAssignmentResult> {
+  try {
+    console.log(`Determining office assignment for appointment ${appointment.Id}`);
+    
+    // 1. Get all offices
+    const offices = await this.sheetsService.getOffices();
+    const activeOffices = offices.filter(o => o.inService);
+    
+    if (activeOffices.length === 0) {
+      console.log('No active offices found, using default B-1');
       return {
         officeId: 'B-1',
-        reasons: ['Error in assignment process, using default']
+        reasons: ['No active offices found, using default']
       };
     }
+
+    // 2. Check appointment type
+    const sessionType = this.determineSessionType(appointment);
+    if (sessionType === 'telehealth') {
+      console.log('Telehealth session, assigning virtual office A-v');
+      return {
+        officeId: 'A-v',
+        reasons: ['Telehealth session']
+      };
+    }
+    
+    // 3. Get client preferences
+    const preferences = await this.sheetsService.getClientPreferences();
+    const clientPreference = preferences.find(
+      p => p.clientId === appointment.ClientId.toString()
+    );
+    
+    // 4. Get clinician data
+    const clinicians = await this.sheetsService.getClinicians();
+    const clinician = clinicians.find(
+      c => c.intakeQPractitionerId === appointment.PractitionerId
+    );
+    
+    if (!clinician) {
+      console.warn(`No clinician mapping found for IntakeQ practitioner ID: ${appointment.PractitionerId}`);
+    }
+    
+    // 5. Create scored office candidates
+    const officeCandidates = activeOffices.map(office => {
+      return {
+        office,
+        score: 0,
+        reasons: [] as string[]
+      };
+    });
+    
+    // 6. Apply scoring rules to each office
+    
+    // 6.1 Client has assigned office
+    if (clientPreference?.assignedOffice) {
+      const preferredOffice = officeCandidates.find(c => 
+        standardizeOfficeId(c.office.officeId) === standardizeOfficeId(clientPreference.assignedOffice as string)
+      );
+      
+      if (preferredOffice) {
+        preferredOffice.score += 50;
+        preferredOffice.reasons.push('Client has assigned office');
+        console.log(`Client has assigned office: ${preferredOffice.office.officeId}, adding 50 points`);
+      }
+    }
+    
+    // 6.2 Accessibility requirements
+    const hasAccessibilityNeeds = clientPreference && 
+      Array.isArray(clientPreference.mobilityNeeds) && 
+      clientPreference.mobilityNeeds.length > 0;
+    
+    if (hasAccessibilityNeeds) {
+      console.log('Client has accessibility needs');
+      
+      // Boost accessible offices
+      officeCandidates.forEach(candidate => {
+        if (candidate.office.isAccessible) {
+          candidate.score += 100;
+          candidate.reasons.push('Office meets accessibility needs');
+          console.log(`Office ${candidate.office.officeId} is accessible, adding 100 points`);
+        } else {
+          // Penalize non-accessible offices when accessibility is required
+          candidate.score -= 200;
+          candidate.reasons.push('Office does not meet accessibility needs');
+          console.log(`Office ${candidate.office.officeId} is not accessible, deducting 200 points`);
+        }
+      });
+    }
+    
+    // 6.3 Clinician preferred offices
+    if (clinician && clinician.preferredOffices.length > 0) {
+      console.log(`Clinician has preferred offices: ${clinician.preferredOffices.join(', ')}`);
+      
+      officeCandidates.forEach(candidate => {
+        if (clinician.preferredOffices.includes(candidate.office.officeId)) {
+          candidate.score += 30;
+          candidate.reasons.push('Clinician preferred office');
+          console.log(`Office ${candidate.office.officeId} is clinician preferred, adding 30 points`);
+        }
+      });
+    }
+    
+    // 6.4 Primary clinician
+    if (clinician) {
+      officeCandidates.forEach(candidate => {
+        if (candidate.office.primaryClinician === clinician.clinicianId) {
+          candidate.score += 40;
+          candidate.reasons.push('Clinician is primary for this office');
+          console.log(`Office ${candidate.office.officeId} has clinician as primary, adding 40 points`);
+        }
+      });
+    }
+    
+    // 6.5 Alternative clinicians
+    if (clinician) {
+      officeCandidates.forEach(candidate => {
+        if (Array.isArray(candidate.office.alternativeClinicians) && 
+            candidate.office.alternativeClinicians.includes(clinician.clinicianId)) {
+          candidate.score += 20;
+          candidate.reasons.push('Clinician is alternative for this office');
+          console.log(`Office ${candidate.office.officeId} has clinician as alternative, adding 20 points`);
+        }
+      });
+    }
+    
+    // 6.6 Client special features needed
+    if (clientPreference && 
+        clientPreference.sensoryPreferences && 
+        clientPreference.sensoryPreferences.length > 0) {
+      
+      console.log(`Client has sensory preferences: ${clientPreference.sensoryPreferences.join(', ')}`);
+      
+      officeCandidates.forEach(candidate => {
+        const matchingFeatures = clientPreference.sensoryPreferences.filter(
+          pref => candidate.office.specialFeatures.includes(pref)
+        );
+        
+        if (matchingFeatures.length > 0) {
+          const points = 10 * matchingFeatures.length;
+          candidate.score += points;
+          candidate.reasons.push(`Office has ${matchingFeatures.length} matching special features`);
+          console.log(`Office ${candidate.office.officeId} has ${matchingFeatures.length} matching features, adding ${points} points`);
+        }
+      });
+    }
+    
+    // 7. Sort by score and select best match
+    officeCandidates.sort((a, b) => b.score - a.score);
+    
+    // Log scores for debugging
+    console.log('Office scores:');
+    officeCandidates.forEach(candidate => {
+      console.log(`- ${candidate.office.officeId}: ${candidate.score} points (${candidate.reasons.join(', ')})`);
+    });
+    
+    const bestMatch = officeCandidates[0];
+    console.log(`Selected office ${bestMatch.office.officeId} with score ${bestMatch.score}`);
+    
+    return {
+      officeId: standardizeOfficeId(bestMatch.office.officeId),
+      reasons: bestMatch.reasons
+    };
+  } catch (error) {
+    console.error('Error determining office assignment:', error);
+    
+    // Fall back to default office
+    return {
+      officeId: 'B-1',
+      reasons: ['Error in assignment process, using default']
+    };
   }
 }
-
-export default AppointmentSyncHandler;
+}
