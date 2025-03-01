@@ -8,6 +8,7 @@ import { GoogleSheetsService, AuditEventType } from '../google/sheets';
 import { AppointmentSyncHandler } from '../intakeq/appointment-sync';
 import { WebhookEventType } from '../../types/webhooks';
 import { AppointmentRecord } from '../../types/scheduling';
+import { getTodayEST, getDisplayDate } from '../util/date-helpers';
 
 export class SchedulerService {
   private dailyScheduleService: DailyScheduleService;
@@ -227,84 +228,85 @@ export class SchedulerService {
   }
 
   /**
-   * Generate and send the daily schedule report
-   */
-  async generateAndSendDailyReport(targetDate?: string): Promise<boolean> {
-    try {
-      // Use today's date if no target date provided
-      const date = targetDate || new Date().toISOString().split('T')[0];
-      console.log(`Generating daily report for ${date}`);
-      
-      // 1. Generate the daily schedule
-      const scheduleData = await this.dailyScheduleService.generateDailySchedule(date);
-      
-      // 2. Create email template
-      const emailTemplate = EmailTemplates.dailySchedule(scheduleData);
-      
-      // 3. Get recipients
-      const recipients = await this.emailService.getScheduleRecipients();
-      
-      if (recipients.length === 0) {
-        console.warn('No recipients configured for daily schedule email');
-        return false;
-      }
-      
-      // 4. Send email
-      const success = await this.emailService.sendEmail(recipients, emailTemplate, {
-        category: 'daily_schedule',
-        priority: 'normal'
-      });
-      
-      // 5. Log result
-      await this.sheetsService.addAuditLog({
-        timestamp: new Date().toISOString(),
-        eventType: AuditEventType.DAILY_ASSIGNMENTS_UPDATED,
-        description: `Daily schedule email for ${date} ${success ? 'sent' : 'failed'}`,
-        user: 'SYSTEM',
-        systemNotes: JSON.stringify({
-          date,
-          recipients: recipients.map((r: { email: string }) => r.email),
-          appointmentCount: scheduleData.appointments.length,
-          conflictCount: scheduleData.conflicts.length,
-          success
-        })
-      });
-      
-      return success;
-    } catch (error) {
-      console.error('Error generating and sending daily report:', error);
-      
-      // Log error to audit system
-      await this.sheetsService.addAuditLog({
-        timestamp: new Date().toISOString(),
-        eventType: AuditEventType.SYSTEM_ERROR,
-        description: 'Failed to generate and send daily report',
-        user: 'SYSTEM',
-        systemNotes: error instanceof Error ? error.message : 'Unknown error'
-      });
-      
-      // Try to send error notification
-      try {
-        const errorTemplate = EmailTemplates.errorNotification(
-          error instanceof Error ? error : new Error('Unknown error'),
-          'Daily Schedule Generation',
-          { targetDate }
-        );
-        
-        // Just use the same recipients for errors
-        const errorRecipients = await this.emailService.getScheduleRecipients();
-        
-        await this.emailService.sendEmail(errorRecipients, errorTemplate, {
-          priority: 'high',
-          category: 'error_notification'
-        });
-      } catch (emailError) {
-        console.error('Failed to send error notification:', emailError);
-      }
-      
+ * Generate and send the daily schedule report
+ */
+async generateAndSendDailyReport(targetDate?: string): Promise<boolean> {
+  try {
+    // Use today's date if no target date provided, ensuring it's in EST
+    const date = targetDate || getTodayEST();
+    console.log(`Generating daily report for ${date} (EST)`);
+    
+    // 1. Generate the daily schedule
+    const scheduleData = await this.dailyScheduleService.generateDailySchedule(date);
+    
+    // 2. Create email template
+    const emailTemplate = EmailTemplates.dailySchedule(scheduleData);
+    
+    // 3. Get recipients
+    const recipients = await this.emailService.getScheduleRecipients();
+    
+    if (recipients.length === 0) {
+      console.warn('No recipients configured for daily schedule email');
       return false;
     }
+    
+    // 4. Send email
+    const success = await this.emailService.sendEmail(recipients, emailTemplate, {
+      category: 'daily_schedule',
+      priority: 'normal'
+    });
+    
+    // 5. Log result
+    await this.sheetsService.addAuditLog({
+      timestamp: new Date().toISOString(),
+      eventType: AuditEventType.DAILY_ASSIGNMENTS_UPDATED,
+      description: `Daily schedule email for ${date} ${success ? 'sent' : 'failed'}`,
+      user: 'SYSTEM',
+      systemNotes: JSON.stringify({
+        date,
+        displayDate: getDisplayDate(date),
+        recipients: recipients.map((r: { email: string }) => r.email),
+        appointmentCount: scheduleData.appointments.length,
+        conflictCount: scheduleData.conflicts.length,
+        success
+      })
+    });
+    
+    return success;
+  } catch (error) {
+    console.error('Error generating and sending daily report:', error);
+    
+    // Log error to audit system
+    await this.sheetsService.addAuditLog({
+      timestamp: new Date().toISOString(),
+      eventType: AuditEventType.SYSTEM_ERROR,
+      description: 'Failed to generate and send daily report',
+      user: 'SYSTEM',
+      systemNotes: error instanceof Error ? error.message : 'Unknown error'
+    });
+    
+    // Try to send error notification
+    try {
+      const errorTemplate = EmailTemplates.errorNotification(
+        error instanceof Error ? error : new Error('Unknown error'),
+        'Daily Schedule Generation',
+        { targetDate }
+      );
+      
+      // Just use the same recipients for errors
+      const errorRecipients = await this.emailService.getScheduleRecipients();
+      
+      await this.emailService.sendEmail(errorRecipients, errorTemplate, {
+        priority: 'high',
+        category: 'error_notification'
+      });
+    } catch (emailError) {
+      console.error('Failed to send error notification:', emailError);
+    }
+    
+    return false;
   }
+}
 
   /**
    * Refresh appointments from IntakeQ

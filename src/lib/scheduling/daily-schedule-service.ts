@@ -1,7 +1,13 @@
 // src/lib/scheduling/daily-schedule-service.ts
 
 import { GoogleSheetsService, AuditEventType } from '../google/sheets';
-import { formatESTTime, getESTDayRange, getDisplayDate } from '../util/date-helpers';
+import { 
+  formatESTTime, 
+  getESTDayRange, 
+  getDisplayDate, 
+  isValidISODate,
+  getTodayEST
+} from '../util/date-helpers';
 import { standardizeOfficeId } from '../util/office-id';
 import { IntakeQService } from '../intakeq/service';
 import { AppointmentSyncHandler } from '../intakeq/appointment-sync';
@@ -79,151 +85,176 @@ export class DailyScheduleService {
   }
 
   /**
-   * Fetch and process schedule data for a specific date
-   */
-  async generateDailySchedule(date: string): Promise<DailyScheduleData> {
-    try {
-      console.log(`Generating daily schedule for ${date}`);
-      
-      // 1. Get the date range for the target day
-      const { start, end } = getESTDayRange(date);
-      console.log(`Date range: ${start} to ${end}`);
-      
-      // 2. Get all appointments for the date
-      const appointments = await this.sheetsService.getAppointments(start, end);
-      console.log(`Found ${appointments.length} appointments for ${date}`);
-      
-      // 3. Get all offices for reference
-      const offices = await this.sheetsService.getOffices();
-      console.log(`Found ${offices.length} offices`);
-      
-      // 4. Process appointments
-      const processedAppointments = this.processAppointments(appointments, offices);
-      
-      // 5. Detect conflicts
-      const conflicts = this.detectConflicts(processedAppointments);
-      
-      // 6. Calculate stats
-      const stats = this.calculateStats(processedAppointments);
-      
-      // 7. Log audit entry for schedule generation
-      await this.sheetsService.addAuditLog({
-        timestamp: new Date().toISOString(),
-        eventType: AuditEventType.DAILY_ASSIGNMENTS_UPDATED,
-        description: `Generated daily schedule for ${date}`,
-        user: 'SYSTEM',
-        systemNotes: JSON.stringify({
-          date,
-          appointmentCount: appointments.length,
-          conflictCount: conflicts.length
-        })
-      });
-      
-      // 8. Return compiled data
-      return {
+ * Fetch and process schedule data for a specific date
+ */
+async generateDailySchedule(date: string): Promise<DailyScheduleData> {
+  try {
+    console.log(`Generating daily schedule for ${date}`);
+    
+    // Validate the date parameter
+    if (!isValidISODate(date)) {
+      const today = getTodayEST();
+      console.warn(`Invalid date provided: ${date}, using today's date (${today}) instead`);
+      date = today;
+    }
+    
+    // 1. Get the date range for the target day
+    const { start, end } = getESTDayRange(date);
+    console.log(`Date range in EST: ${start} to ${end}`);
+    
+    // 2. Get all appointments for the date
+    const appointments = await this.sheetsService.getAppointments(start, end);
+    console.log(`Found ${appointments.length} appointments for ${date}`);
+    
+    // 3. Get all offices for reference
+    const offices = await this.sheetsService.getOffices();
+    console.log(`Found ${offices.length} offices`);
+    
+    // 4. Process appointments
+    const processedAppointments = this.processAppointments(appointments, offices);
+    
+    // 5. Detect conflicts
+    const conflicts = this.detectConflicts(processedAppointments);
+    
+    // 6. Calculate stats
+    const stats = this.calculateStats(processedAppointments);
+    
+    // 7. Log audit entry for schedule generation
+    await this.sheetsService.addAuditLog({
+      timestamp: new Date().toISOString(),
+      eventType: AuditEventType.DAILY_ASSIGNMENTS_UPDATED,
+      description: `Generated daily schedule for ${date}`,
+      user: 'SYSTEM',
+      systemNotes: JSON.stringify({
         date,
         displayDate: getDisplayDate(date),
-        appointments: processedAppointments,
-        conflicts,
-        stats
-      };
-    } catch (error) {
-      console.error('Error generating daily schedule:', error);
-      
-      // Log error to audit system
-      await this.sheetsService.addAuditLog({
-        timestamp: new Date().toISOString(),
-        eventType: AuditEventType.SYSTEM_ERROR,
-        description: `Failed to generate daily schedule for ${date}`,
-        user: 'SYSTEM',
-        systemNotes: error instanceof Error ? error.message : 'Unknown error'
-      });
-      
-      throw error;
-    }
+        appointmentCount: appointments.length,
+        conflictCount: conflicts.length
+      })
+    });
+    
+    // 8. Return compiled data
+    return {
+      date,
+      displayDate: getDisplayDate(date),
+      appointments: processedAppointments,
+      conflicts,
+      stats
+    };
+  } catch (error) {
+    console.error('Error generating daily schedule:', error);
+    
+    // Log error to audit system
+    await this.sheetsService.addAuditLog({
+      timestamp: new Date().toISOString(),
+      eventType: AuditEventType.SYSTEM_ERROR,
+      description: `Failed to generate daily schedule for ${date}`,
+      user: 'SYSTEM',
+      systemNotes: error instanceof Error ? error.message : 'Unknown error'
+    });
+    
+    throw error;
   }
+}
 
   /**
-   * Refresh IntakeQ appointments for a given date
-   */
-  async refreshAppointmentsFromIntakeQ(date: string): Promise<number> {
-    try {
-      console.log(`Refreshing appointments from IntakeQ for ${date}`);
-      
-      // 1. Initialize the IntakeQ service
-      const intakeQService = new IntakeQService(this.sheetsService);
-      
-      // 2. Get the date range for the target day
-      const { start, end } = getESTDayRange(date);
-      
-      // 3. Fetch appointments from IntakeQ
-      const appointments = await intakeQService.getAppointments(start, end);
-      console.log(`Found ${appointments.length} appointments for ${date}`);
-      
-      if (appointments.length === 0) {
-        return 0;
-      }
-      
-      // 4. Initialize the AppointmentSyncHandler
-      const appointmentSyncHandler = new AppointmentSyncHandler(this.sheetsService);
-      
-      let processed = 0;
-      let errors = 0;
-      
-      // 5. Process each appointment
-      for (const appointment of appointments) {
-        try {
-          // Format appointment for webhook processing
-          const webhookPayload: IntakeQWebhookPayload = {
-            Type: 'AppointmentCreated',
-            ClientId: appointment.ClientId,
-            Appointment: appointment
-          };
-          
-          // Process as if it came from a webhook
-          const result = await appointmentSyncHandler.processAppointmentEvent(webhookPayload);
-          
-          if (result.success) {
-            processed++;
-          } else {
-            console.error(`Error processing appointment ${appointment.Id}:`, result.error);
-            errors++;
-          }
-        } catch (error) {
-          console.error(`Error processing appointment ${appointment.Id}:`, error);
+ * Refresh IntakeQ appointments for a given date
+ */
+async refreshAppointmentsFromIntakeQ(date: string): Promise<number> {
+  try {
+    // Validate date parameter
+    if (!isValidISODate(date)) {
+      const today = getTodayEST();
+      console.warn(`Invalid date provided: ${date}, using today's date (${today}) instead`);
+      date = today;
+    }
+    
+    console.log(`Refreshing appointments from IntakeQ for ${date}`);
+    
+    // 1. Initialize the IntakeQ service
+    const intakeQService = new IntakeQService(this.sheetsService);
+    
+    // 2. Get the date range for the target day
+    const { start, end } = getESTDayRange(date);
+    console.log(`Date range in EST: ${start} to ${end}`);
+    
+    // 3. Fetch appointments from IntakeQ
+    const appointments = await intakeQService.getAppointments(start, end);
+    console.log(`Found ${appointments.length} appointments for ${date}`);
+    
+    if (appointments.length === 0) {
+      return 0;
+    }
+    
+    // 4. Initialize the AppointmentSyncHandler
+    const appointmentSyncHandler = new AppointmentSyncHandler(this.sheetsService);
+    
+    let processed = 0;
+    let errors = 0;
+    
+    // 5. Process each appointment
+    for (const appointment of appointments) {
+      try {
+        // Ensure appointment has valid dates
+        if (!appointment.StartDateIso || !isValidISODate(appointment.StartDateIso) ||
+            !appointment.EndDateIso || !isValidISODate(appointment.EndDateIso)) {
+          console.warn(`Skipping appointment ${appointment.Id} with invalid date format`);
+          errors++;
+          continue;
+        }
+        
+        // Format appointment for webhook processing
+        const webhookPayload: IntakeQWebhookPayload = {
+          Type: 'AppointmentCreated',
+          ClientId: appointment.ClientId,
+          Appointment: appointment
+        };
+        
+        // Process as if it came from a webhook
+        const result = await appointmentSyncHandler.processAppointmentEvent(webhookPayload);
+        
+        if (result.success) {
+          processed++;
+        } else {
+          console.error(`Error processing appointment ${appointment.Id}:`, result.error);
           errors++;
         }
+      } catch (error) {
+        console.error(`Error processing appointment ${appointment.Id}:`, error);
+        errors++;
       }
-      
-      // 6. Log completion
-      await this.sheetsService.addAuditLog({
-        timestamp: new Date().toISOString(),
-        eventType: AuditEventType.DAILY_ASSIGNMENTS_UPDATED,
-        description: `IntakeQ appointment refresh for ${date} completed`,
-        user: 'SYSTEM',
-        systemNotes: JSON.stringify({
-          date,
-          total: appointments.length,
-          processed,
-          errors
-        })
-      });
-      
-      return processed;
-    } catch (error) {
-      console.error('Error refreshing appointments from IntakeQ:', error);
-      
-      await this.sheetsService.addAuditLog({
-        timestamp: new Date().toISOString(),
-        eventType: AuditEventType.SYSTEM_ERROR,
-        description: `Failed to refresh appointments from IntakeQ for ${date}`,
-        user: 'SYSTEM',
-        systemNotes: error instanceof Error ? error.message : 'Unknown error'
-      });
-      
-      throw error;
     }
+    
+    // 6. Log completion
+    await this.sheetsService.addAuditLog({
+      timestamp: new Date().toISOString(),
+      eventType: AuditEventType.DAILY_ASSIGNMENTS_UPDATED,
+      description: `IntakeQ appointment refresh for ${date} completed`,
+      user: 'SYSTEM',
+      systemNotes: JSON.stringify({
+        date,
+        displayDate: getDisplayDate(date),
+        total: appointments.length,
+        processed,
+        errors
+      })
+    });
+    
+    return processed;
+  } catch (error) {
+    console.error('Error refreshing appointments from IntakeQ:', error);
+    
+    await this.sheetsService.addAuditLog({
+      timestamp: new Date().toISOString(),
+      eventType: AuditEventType.SYSTEM_ERROR,
+      description: `Failed to refresh appointments from IntakeQ for ${date}`,
+      user: 'SYSTEM',
+      systemNotes: error instanceof Error ? error.message : 'Unknown error'
+    });
+    
+    throw error;
   }
+}
 
   /**
    * Process appointments for display

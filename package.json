@@ -3,13 +3,15 @@
   "version": "1.0.0",
   "main": "dist/server.js",
   "scripts": {
-    "clean": "rm -rf dist",
-    "build": "npm run clean && tsc",
-    "start": "node dist/server.js",
-    "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
-    "test": "jest",
-    "test:watch": "jest --watch",
-    "lint": "eslint src/**/*.ts"
+  "clean": "rm -rf dist",
+  "build": "npm run clean && tsc",
+  "start": "node dist/server.js",
+  "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
+  "test": "jest",
+  "test:js": "jest --testMatch=\"**/*.test.js\"",
+  "test:ts": "jest --config=jest.config.js",
+  "test:watch": "jest --watch",
+  "lint": "eslint src/**/*.ts"
   },
   "keywords": [],
   "author": "",
