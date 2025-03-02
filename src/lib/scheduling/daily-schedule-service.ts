@@ -257,7 +257,7 @@ async refreshAppointmentsFromIntakeQ(date: string): Promise<number> {
 }
 
   /**
-   * Process appointments for display
+   * Process appointments for display - UPDATED to use suggestedOfficeId
    */
   private processAppointments(
     appointments: AppointmentRecord[],
@@ -266,21 +266,30 @@ async refreshAppointmentsFromIntakeQ(date: string): Promise<number> {
     return appointments
       .filter(appt => appt.status !== 'cancelled' && appt.status !== 'rescheduled')
       .map(appt => {
+        // Use suggestedOfficeId if available, otherwise fall back to officeId
+        const displayOfficeId = standardizeOfficeId(appt.suggestedOfficeId || appt.officeId);
+        
         // Find office details
-        const officeId = standardizeOfficeId(appt.officeId);
-        const office = offices.find(o => standardizeOfficeId(o.officeId) === officeId);
+        const office = offices.find(o => standardizeOfficeId(o.officeId) === displayOfficeId);
         
         const hasSpecialRequirements = !!(
           appt.requirements?.accessibility || 
           (appt.requirements?.specialFeatures && appt.requirements.specialFeatures.length > 0)
         );
         
+        // Add debug logging to trace office ID values
+        console.log(`Processing appointment ${appt.appointmentId}:`, {
+          originalOfficeId: appt.officeId,
+          suggestedOfficeId: appt.suggestedOfficeId,
+          finalOfficeId: displayOfficeId
+        });
+        
         return {
           appointmentId: appt.appointmentId,
           clientName: appt.clientName,
           clinicianName: appt.clinicianName,
-          officeId: officeId,
-          officeDisplay: office ? `${office.name} (${officeId})` : officeId,
+          officeId: displayOfficeId, // Use the display office ID
+          officeDisplay: office ? `${office.name} (${displayOfficeId})` : displayOfficeId,
           startTime: appt.startTime,
           endTime: appt.endTime,
           formattedTime: `${formatESTTime(appt.startTime)} - ${formatESTTime(appt.endTime)}`,
@@ -361,7 +370,7 @@ async refreshAppointmentsFromIntakeQ(date: string): Promise<number> {
   }
 
   /**
-   * Calculate schedule statistics
+   * Calculate schedule statistics - UPDATED to use the corrected office IDs
    */
   private calculateStats(appointments: ProcessedAppointment[]): DailyScheduleData['stats'] {
     // Count by session type
@@ -370,13 +379,17 @@ async refreshAppointmentsFromIntakeQ(date: string): Promise<number> {
     const groupCount = appointments.filter(a => a.sessionType === 'group').length;
     const familyCount = appointments.filter(a => a.sessionType === 'family').length;
     
-    // Calculate office utilization
+    // Calculate office utilization using the updated officeId (which should be suggestedOfficeId if available)
     const officeUtilization: Record<string, number> = {};
     appointments.forEach(appt => {
       if (appt.sessionType === 'in-person') {
+        // Use the officeId which is now the suggested/display office ID
         officeUtilization[appt.officeId] = (officeUtilization[appt.officeId] || 0) + 1;
       }
     });
+    
+    // Debug logging for office utilization
+    console.log('Office utilization stats:', officeUtilization);
     
     return {
       totalAppointments: appointments.length,

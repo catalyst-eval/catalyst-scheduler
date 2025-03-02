@@ -156,29 +156,35 @@ export class EmailTemplates {
   }
   
   /**
-   * Generate HTML for an appointment row
-   */
-  private static renderAppointmentRow(appt: ProcessedAppointment): string {
-    const requirementsHtml = appt.hasSpecialRequirements 
-      ? `<div class="special-requirements">
-           ${appt.requirements?.accessibility ? '<div>♿ Accessibility needed</div>' : ''}
-           ${appt.requirements?.specialFeatures?.length 
-             ? `<div>🔍 Special features: ${appt.requirements.specialFeatures.join(', ')}</div>` 
-             : ''}
-           ${appt.notes ? `<div>📝 ${appt.notes}</div>` : ''}
-         </div>`
-      : '';
-    
-    return `
-      <tr>
-        <td>${appt.formattedTime}</td>
-        <td>${appt.clientName}${requirementsHtml}</td>
-        <td>${appt.clinicianName}</td>
-        <td>${appt.officeDisplay}</td>
-        <td>${this.formatSessionType(appt.sessionType)}</td>
-      </tr>
-    `;
-  }
+ * Generate HTML for an appointment row
+ */
+private static renderAppointmentRow(appt: ProcessedAppointment): string {
+  const requirementsHtml = appt.hasSpecialRequirements 
+    ? `<div class="special-requirements">
+         ${appt.requirements?.accessibility ? '<div>♿ Accessibility needed</div>' : ''}
+         ${appt.requirements?.specialFeatures?.length 
+           ? `<div>🔍 Special features: ${appt.requirements.specialFeatures.join(', ')}</div>` 
+           : ''}
+         ${appt.notes ? `<div>📝 ${appt.notes}</div>` : ''}
+       </div>`
+    : '';
+  
+  // Log for debugging
+  console.log(`Rendering appointment row for ${appt.appointmentId}:`, {
+    officeId: appt.officeId,
+    officeDisplay: appt.officeDisplay
+  });
+  
+  return `
+    <tr>
+      <td>${appt.formattedTime}</td>
+      <td>${appt.clientName}${requirementsHtml}</td>
+      <td>${appt.clinicianName}</td>
+      <td>${appt.officeDisplay}</td>
+      <td>${this.formatSessionType(appt.sessionType)}</td>
+    </tr>
+  `;
+}
   
   /**
    * Generate HTML for conflicts section

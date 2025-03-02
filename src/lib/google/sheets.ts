@@ -465,12 +465,21 @@ async getAllAppointments(): Promise<AppointmentRecord[]> {
       const initialAppointments = values
         .map((row: SheetRow) => {
           try {
+            // Ensure we properly get the assigned and suggested office IDs
             const assignedOffice = row[5] || 'A-a';
-            const suggestedOffice = row[14] || assignedOffice;
+            const suggestedOffice = row[14] || ''; // Column O, suggested office ID
             
             const standardizedOfficeId = standardizeOfficeId(assignedOffice);
-            const standardizedSuggestedId = standardizeOfficeId(suggestedOffice);
+            const standardizedSuggestedId = suggestedOffice ? standardizeOfficeId(suggestedOffice) : '';
     
+            // Log for debugging
+            console.log(`Processing row for appointment ${row[0]}:`, {
+              assignedOffice: assignedOffice,
+              suggestedOffice: suggestedOffice,
+              standardizedOfficeId: standardizedOfficeId,
+              standardizedSuggestedId: standardizedSuggestedId
+            });
+  
             let requirements = { accessibility: false, specialFeatures: [] };
             try {
               const requirementsStr = row[12]?.toString().trim();
@@ -491,8 +500,8 @@ async getAllAppointments(): Promise<AppointmentRecord[]> {
               clientName: row[2] || row[1] || '',
               clinicianId: row[3] || '',
               clinicianName: row[4] || row[3] || '',
-              officeId: standardizedOfficeId,
-              suggestedOfficeId: standardizedSuggestedId,
+              officeId: standardizedOfficeId, 
+              suggestedOfficeId: standardizedSuggestedId || standardizedOfficeId, // Use suggestedOfficeId or fall back to officeId
               sessionType: (row[6] || 'in-person') as 'in-person' | 'telehealth' | 'group' | 'family',
               startTime: row[7] || '',
               endTime: row[8] || '',
@@ -527,7 +536,9 @@ async getAllAppointments(): Promise<AppointmentRecord[]> {
           console.log(`Appointment ${appt.appointmentId} date comparison:`, {
             appointmentDate: apptDateStr,
             targetDate: targetDateStr,
-            matches: matches
+            matches: matches,
+            officeId: appt.officeId,
+            suggestedOfficeId: appt.suggestedOfficeId
           });
           
           return matches;
