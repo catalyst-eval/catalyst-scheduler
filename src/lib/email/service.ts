@@ -145,30 +145,64 @@ export class EmailService {
   }
 
   /**
-   * Get recipients from configuration 
-   */
-  async getScheduleRecipients(): Promise<EmailRecipient[]> {
-    // This would ideally fetch from configuration in Google Sheets
-    // For now, use environment variables as a fallback
+ * Get recipients for daily schedule emails
+ */
+async getScheduleRecipients(): Promise<EmailRecipient[]> {
+  try {
+    // First check if there's a configuration in Google Sheets
+    const settings = await this.sheetsService.getIntegrationSettings();
+    const emailSetting = settings.find(s => 
+      s.serviceName === 'email' && s.settingType === 'daily_schedule_recipients'
+    );
     
-    const defaultRecipients = process.env.SCHEDULE_EMAIL_RECIPIENTS;
-    
-    if (defaultRecipients) {
-      // Parse comma-separated list of emails
-      return defaultRecipients.split(',').map(email => ({
+    if (emailSetting?.value) {
+      // Parse comma-separated list of emails from settings
+      return emailSetting.value.split(',').map(email => ({
         email: email.trim()
       }));
     }
     
-    // Return admin email as fallback
-    return [{ email: process.env.EMAIL_FROM_ADDRESS || 'admin@catalysthealth.care' }];
+    // Fall back to environment variable
+    const envRecipients = process.env.SCHEDULE_EMAIL_RECIPIENTS;
+    if (envRecipients) {
+      return envRecipients.split(',').map(email => ({
+        email: email.trim()
+      }));
+    }
+    
+    // Default to Bridge Family Therapy email if no other configuration is found
+    return [{ email: 'admin@bridgefamilytherapy.com' }];
+  } catch (error) {
+    console.error('Error getting schedule recipients:', error);
+    // Fallback to Bridge email on error
+    return [{ email: 'admin@bridgefamilytherapy.com' }];
   }
-  
-  /**
-   * Get recipients for error notifications - for compatibility
-   */
-  async getErrorNotificationRecipients(): Promise<EmailRecipient[]> {
-    // Just use the same recipients as the schedule for now
+}
+
+/**
+ * Get recipients for error notifications - use the same logic for consistency
+ */
+async getErrorNotificationRecipients(): Promise<EmailRecipient[]> {
+  try {
+    // First check if there's a configuration in Google Sheets
+    const settings = await this.sheetsService.getIntegrationSettings();
+    const emailSetting = settings.find(s => 
+      s.serviceName === 'email' && s.settingType === 'error_notification_recipients'
+    );
+    
+    if (emailSetting?.value) {
+      // Parse comma-separated list of emails from settings
+      return emailSetting.value.split(',').map(email => ({
+        email: email.trim()
+      }));
+    }
+    
+    // Fall back to the same recipients as the schedule
     return this.getScheduleRecipients();
+  } catch (error) {
+    console.error('Error getting error notification recipients:', error);
+    // Fallback to Bridge email on error
+    return [{ email: 'admin@bridgefamilytherapy.com' }];
   }
+}
 }
