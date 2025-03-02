@@ -6,6 +6,7 @@ import { EmailService } from '../email/service';
 import { EmailTemplates } from '../email/templates';
 import { GoogleSheetsService, AuditEventType } from '../google/sheets';
 import { AppointmentSyncHandler } from '../intakeq/appointment-sync';
+import { IntakeQService } from '../intakeq/service'; // Add this import
 import { WebhookEventType } from '../../types/webhooks';
 import { AppointmentRecord } from '../../types/scheduling';
 import { getTodayEST, getDisplayDate } from '../util/date-helpers';
@@ -30,14 +31,20 @@ export class SchedulerService {
     try {
       console.log('Initializing scheduler service');
       
+      // Schedule status sync - 4:30 AM EST
+      this.scheduleStatusSyncTask();
+      
+      // Schedule IntakeQ refresh - 5:30 AM EST every day
+      this.scheduleIntakeQRefreshTask();
+      
       // Schedule unassigned appointments processing - 5:45 AM EST
       this.scheduleUnassignedAppointmentsTask();
       
       // Schedule daily report - 6:00 AM EST every day
       this.scheduleDailyReportTask();
       
-      // Schedule IntakeQ refresh - 5:30 AM EST every day
-      this.scheduleIntakeQRefreshTask();
+      // Schedule data cleanup - 3:30 AM EST on Sundays
+      this.scheduleDataCleanupTask();
       
       console.log('Scheduler service initialized successfully');
     } catch (error) {
@@ -90,6 +97,36 @@ export class SchedulerService {
     
     this.scheduledTasks.push(task);
     console.log('Unassigned appointments task scheduled for 5:45 AM');
+  }
+
+  /**
+   * Schedule the appointment status sync task
+   */
+  private scheduleStatusSyncTask(): void {
+    // Schedule for 4:30 AM EST (before other processes)
+    const task = cron.schedule('30 4 * * *', () => {
+      console.log('Executing appointment status sync task');
+      this.syncAppointmentStatuses()
+        .catch(error => console.error('Error in status sync task:', error));
+    });
+    
+    this.scheduledTasks.push(task);
+    console.log('Status sync task scheduled for 4:30 AM');
+  }
+
+  /**
+   * Schedule data cleanup task
+   */
+  private scheduleDataCleanupTask(): void {
+    // Schedule for 3:30 AM EST (once per week on Sunday)
+    const task = cron.schedule('30 3 * * 0', () => {
+      console.log('Executing data cleanup task');
+      this.cleanupOldAppointments()
+        .catch(error => console.error('Error in data cleanup task:', error));
+    });
+    
+    this.scheduledTasks.push(task);
+    console.log('Data cleanup task scheduled for 3:30 AM on Sundays');
   }
 
   /**
@@ -323,6 +360,104 @@ export class SchedulerService {
   }
 }
 
+/**
+   * Sync appointment statuses from IntakeQ
+   */
+async syncAppointmentStatuses(): Promise<number> {
+  try {
+    console.log('Syncing appointment statuses from IntakeQ');
+    
+    // Get all appointments from the last 7 days
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    
+    const startDate = sevenDaysAgo.toISOString().split('T')[0];
+    const endDate = new Date().toISOString().split('T')[0];
+    
+    // Initialize needed services
+    const intakeQService = new IntakeQService(this.sheetsService);
+    const appointmentSyncHandler = new AppointmentSyncHandler(this.sheetsService, intakeQService);
+    
+    // Get appointments from Google Sheets
+    const sheetAppointments = await this.sheetsService.getAllAppointments();
+    
+    // Filter to appointments in the date range
+    const recentAppointments = sheetAppointments.filter(appt => {
+      const apptDate = new Date(appt.startTime);
+      return apptDate >= sevenDaysAgo;
+    });
+    
+    console.log(`Found ${recentAppointments.length} recent appointments to check`);
+    
+    let updatedCount = 0;
+    
+    // Get appointments from IntakeQ for each day
+    for (let i = 0; i <= 7; i++) {
+      const currentDate = new Date(sevenDaysAgo);
+      currentDate.setDate(currentDate.getDate() + i);
+      const dateString = currentDate.toISOString().split('T')[0];
+      
+      const intakeQAppointments = await intakeQService.getAppointments(dateString, dateString);
+      
+      // Update status for each appointment
+      for (const intakeQAppt of intakeQAppointments) {
+        const matchingAppt = recentAppointments.find(
+          appt => appt.appointmentId === intakeQAppt.Id
+        );
+        
+        if (matchingAppt) {
+          // Need to access the private method through any type assertion
+          const newStatus = (appointmentSyncHandler as any).mapIntakeQStatus(intakeQAppt.Status);
+          
+          if (matchingAppt.status !== newStatus) {
+            // Status has changed, update it
+            const updatedAppointment = {
+              ...matchingAppt,
+              status: newStatus,
+              lastUpdated: new Date().toISOString()
+            };
+            
+            await this.sheetsService.updateAppointment(updatedAppointment);
+            updatedCount++;
+            
+            console.log(`Updated status for appointment ${matchingAppt.appointmentId} from ${matchingAppt.status} to ${newStatus}`);
+          }
+        }
+      }
+    }
+    
+    // Log results
+    console.log(`Status sync complete: ${updatedCount} appointments updated`);
+    
+    // Log audit entry
+    await this.sheetsService.addAuditLog({
+      timestamp: new Date().toISOString(),
+      eventType: AuditEventType.DAILY_ASSIGNMENTS_UPDATED,
+      description: `Synced appointment statuses`,
+      user: 'SYSTEM',
+      systemNotes: JSON.stringify({
+        appointmentsProcessed: recentAppointments.length,
+        appointmentsUpdated: updatedCount
+      })
+    });
+    
+    return updatedCount;
+  } catch (error) {
+    console.error('Error syncing appointment statuses:', error);
+    
+    // Log error to audit system
+    await this.sheetsService.addAuditLog({
+      timestamp: new Date().toISOString(),
+      eventType: AuditEventType.SYSTEM_ERROR,
+      description: 'Failed to sync appointment statuses',
+      user: 'SYSTEM',
+      systemNotes: error instanceof Error ? error.message : 'Unknown error'
+    });
+    
+    throw error;
+  }
+}
+
   /**
    * Refresh appointments from IntakeQ
    */
@@ -516,6 +651,59 @@ export class SchedulerService {
     console.log('Stopping scheduler service');
     this.scheduledTasks.forEach(task => task.stop());
     this.scheduledTasks = [];
+  }
+  
+  /**
+   * Clean up old appointments
+   */
+  async cleanupOldAppointments(): Promise<number> {
+    try {
+      console.log('Cleaning up old appointment data');
+      
+      // Get all appointments
+      const allAppointments = await this.sheetsService.getAllAppointments();
+      
+      // Set cutoff date (appointments older than 3 months)
+      const cutoffDate = new Date();
+      cutoffDate.setMonth(cutoffDate.getMonth() - 3);
+      
+      // Filter appointments older than cutoff date
+      const oldAppointments = allAppointments.filter(appt => {
+        const apptDate = new Date(appt.startTime);
+        return apptDate < cutoffDate;
+      });
+      
+      console.log(`Found ${oldAppointments.length} appointments older than ${cutoffDate.toISOString()}`);
+      
+      // Archive and delete old appointments
+      let deletedCount = 0;
+      
+      for (const appointment of oldAppointments) {
+        try {
+          // Log to audit as archived
+          await this.sheetsService.addAuditLog({
+            timestamp: new Date().toISOString(),
+            eventType: AuditEventType.APPOINTMENT_DELETED,
+            description: `Archived old appointment ${appointment.appointmentId}`,
+            user: 'SYSTEM',
+            systemNotes: JSON.stringify(appointment)
+          });
+          
+          // Delete from appointments sheet
+          await this.sheetsService.deleteAppointment(appointment.appointmentId);
+          deletedCount++;
+        } catch (error) {
+          console.error(`Error deleting appointment ${appointment.appointmentId}:`, error);
+        }
+      }
+      
+      console.log(`Successfully archived and deleted ${deletedCount} old appointments`);
+      
+      return deletedCount;
+    } catch (error) {
+      console.error('Error cleaning up old appointments:', error);
+      throw error;
+    }
   }
 }
 

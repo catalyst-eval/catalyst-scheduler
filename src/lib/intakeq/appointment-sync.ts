@@ -323,6 +323,24 @@ export class AppointmentSyncHandler {
   }
 
   /**
+   * Map IntakeQ status to our internal status format
+   */
+  private mapIntakeQStatus(intakeQStatus: string): 'scheduled' | 'completed' | 'cancelled' | 'rescheduled' {
+    const status = intakeQStatus.toLowerCase();
+    
+    if (status.includes('cancel') || status.includes('declined')) {
+      return 'cancelled';
+    } else if (status.includes('complet') || status.includes('attended')) {
+      return 'completed';
+    } else if (status.includes('reschedul')) {
+      return 'rescheduled';
+    }
+    
+    // Default to scheduled for any other status
+    return 'scheduled';
+  }
+
+  /**
    * Convert IntakeQ appointment to our AppointmentRecord format
    */
   private async convertToAppointmentRecord(
@@ -392,6 +410,31 @@ export class AppointmentSyncHandler {
   }
 
   /**
+   * Check if client has any special requirements
+   */
+  private async hasSpecialRequirements(appointment: IntakeQAppointment): Promise<boolean> {
+    // Get client preferences
+    const preferences = await this.sheetsService.getClientPreferences();
+    const clientPreference = preferences.find(
+      p => p.clientId === appointment.ClientId.toString()
+    );
+    
+    if (!clientPreference) return false;
+    
+    // Check for special requirements
+    const hasAccessibilityNeeds = Array.isArray(clientPreference.mobilityNeeds) && 
+                                 clientPreference.mobilityNeeds.length > 0;
+    
+    const hasSensoryPreferences = Array.isArray(clientPreference.sensoryPreferences) && 
+                                 clientPreference.sensoryPreferences.length > 0;
+    
+    const hasPhysicalNeeds = Array.isArray(clientPreference.physicalNeeds) && 
+                            clientPreference.physicalNeeds.length > 0;
+    
+    return hasAccessibilityNeeds || hasSensoryPreferences || hasPhysicalNeeds;
+  }
+
+  /**
    * Determine the session type based on appointment details
    */
   private determineSessionType(
@@ -443,11 +486,21 @@ export class AppointmentSyncHandler {
     // 2. Check appointment type
     const sessionType = this.determineSessionType(appointment);
     if (sessionType === 'telehealth') {
-      console.log('Telehealth session, assigning virtual office A-v');
-      return {
-        officeId: 'A-v',
-        reasons: ['Telehealth session']
-      };
+      // Check if there are accessibility needs or other special requirements
+      // that would override the default telehealth assignment
+      const hasSpecialRequirements = await this.hasSpecialRequirements(appointment);
+      
+      if (!hasSpecialRequirements) {
+        // Default telehealth assignment
+        console.log('Telehealth session with no special requirements, assigning to A-v');
+        return {
+          officeId: 'A-v',
+          reasons: ['Telehealth session']
+        };
+      } else {
+        console.log('Telehealth session with special requirements, proceeding with standard assignment');
+        // Continue with standard assignment process for telehealth with special requirements
+      }
     }
     
     // 3. Get client preferences
@@ -491,6 +544,39 @@ const activeRules = rules.filter(r => r.active)
 
 // Process age-based rules first (highest priority)
 if (clientAge !== undefined) {
+  console.log(`Processing age-based rules for client age: ${clientAge}`);
+  
+  // Explicit handling for children 10 and under (B-5)
+  if (clientAge <= 10) {
+    console.log(`Client age ${clientAge} <= 10, assigning to B-5`);
+    const childOffice = activeOffices.find(o => 
+      standardizeOfficeId(o.officeId) === 'B-5'
+    );
+    
+    if (childOffice) {
+      return {
+        officeId: 'B-5',
+        reasons: [`Age-based rule: client age ${clientAge} ≤ 10`]
+      };
+    }
+  }
+  
+  // Explicit handling for clients 11 and older (C-1)
+  if (clientAge >= 11) {
+    console.log(`Client age ${clientAge} >= 11, assigning to C-1`);
+    const adultOffice = activeOffices.find(o => 
+      standardizeOfficeId(o.officeId) === 'C-1'
+    );
+    
+    if (adultOffice) {
+      return {
+        officeId: 'C-1',
+        reasons: [`Age-based rule: client age ${clientAge} ≥ 11`]
+      };
+    }
+  }
+  
+  // Fall back to configured rules if explicit rules don't match or offices not found
   for (const rule of activeRules) {
     if (rule.ruleType === 'age') {
       let matches = false;
