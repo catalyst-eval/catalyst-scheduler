@@ -466,6 +466,66 @@ export class AppointmentSyncHandler {
       console.warn(`No clinician mapping found for IntakeQ practitioner ID: ${appointment.PractitionerId}`);
     }
     
+    // Add after line 315 where client preferences are retrieved:
+
+// 3. Get client age if available
+let clientAge: number | undefined;
+if (appointment.ClientDateOfBirth) {
+  const dob = new Date(appointment.ClientDateOfBirth);
+  const today = new Date();
+  clientAge = today.getFullYear() - dob.getFullYear();
+  
+  // Adjust age if birthday hasn't occurred yet this year
+  const monthDiff = today.getMonth() - dob.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
+    clientAge--;
+  }
+  
+  console.log(`Client ${appointment.ClientName} age: ${clientAge}`);
+}
+
+// 4. Get assignment rules
+const rules = await this.sheetsService.getAssignmentRules();
+const activeRules = rules.filter(r => r.active)
+                          .sort((a, b) => b.priority - a.priority); // Sort by priority (highest first)
+
+// Process age-based rules first (highest priority)
+if (clientAge !== undefined) {
+  for (const rule of activeRules) {
+    if (rule.ruleType === 'age') {
+      let matches = false;
+      
+      // Parse the condition
+      if (rule.condition.includes('<=')) {
+        const maxAge = parseInt(rule.condition.split('<=')[1].trim());
+        matches = clientAge <= maxAge;
+      } else if (rule.condition.includes('>=')) {
+        const minAge = parseInt(rule.condition.split('>=')[1].trim());
+        matches = clientAge >= minAge;
+      }
+      
+      if (matches) {
+        console.log(`Client matches age rule: ${rule.ruleName}`);
+        
+        // Find matching office
+        for (const officeId of rule.officeIds) {
+          const office = activeOffices.find(o => 
+            standardizeOfficeId(o.officeId) === standardizeOfficeId(officeId)
+          );
+          
+          if (office) {
+            console.log(`Assigning to age-appropriate office: ${office.officeId}`);
+            return {
+              officeId: standardizeOfficeId(office.officeId),
+              reasons: [`Age-based rule: ${rule.ruleName}`]
+            };
+          }
+        }
+      }
+    }
+  }
+}
+
     // 5. Create scored office candidates
     const officeCandidates = activeOffices.map(office => {
       return {

@@ -130,4 +130,35 @@ router.get('/logs', async (req: Request, res: Response) => {
   }
 });
 
+/**
+ * Resolve scheduling conflicts for a specific date
+ */
+router.post('/resolve-conflicts', async (req: Request, res: Response) => {
+  try {
+    const date = req.body.date as string || new Date().toISOString().split('T')[0];
+    
+    console.log(`API request to resolve conflicts for ${date}`);
+    
+    const dailyScheduleService = new DailyScheduleService();
+    const resolvedCount = await dailyScheduleService.resolveSchedulingConflicts(date);
+    
+    res.json({
+      success: true,
+      data: {
+        date,
+        conflictsResolved: resolvedCount
+      },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Error resolving conflicts:', error);
+    
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 export default router;

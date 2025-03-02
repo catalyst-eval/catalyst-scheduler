@@ -230,12 +230,27 @@ export class SchedulerService {
   /**
  * Generate and send the daily schedule report
  */
-async generateAndSendDailyReport(targetDate?: string): Promise<boolean> {
-  try {
-    // Use today's date if no target date provided, ensuring it's in EST
-    const date = targetDate || getTodayEST();
-    console.log(`Generating daily report for ${date} (EST)`);
-    
+  async generateAndSendDailyReport(targetDate?: string): Promise<boolean> {
+    try {
+      // Use today's date if no target date provided, ensuring it's in EST
+      const date = targetDate || getTodayEST();
+      console.log(`Generating daily report for ${date} (EST)`);
+      
+      // First attempt to resolve scheduling conflicts
+      try {
+        console.log('Attempting to resolve scheduling conflicts before generating report');
+        const resolvedCount = await this.dailyScheduleService.resolveSchedulingConflicts(date);
+        console.log(`Resolved ${resolvedCount} scheduling conflicts`);
+        
+        if (resolvedCount > 0) {
+          // Add a short delay to ensure Google Sheets updates are reflected
+          console.log('Waiting for Google Sheets to update...');
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        }
+      } catch (error) {
+        console.warn('Error resolving conflicts, proceeding with report generation:', error);
+      }
+
     // 1. Generate the daily schedule
     const scheduleData = await this.dailyScheduleService.generateDailySchedule(date);
     

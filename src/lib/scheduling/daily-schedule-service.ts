@@ -400,6 +400,160 @@ async refreshAppointmentsFromIntakeQ(date: string): Promise<number> {
       officeUtilization
     };
   }
+
+  /**
+ * Resolve scheduling conflicts by reassigning offices
+ */
+async resolveSchedulingConflicts(date: string): Promise<number> {
+  try {
+    console.log(`Attempting to resolve scheduling conflicts for ${date}`);
+    
+    // 1. Get appointments for the day
+    const { start, end } = getESTDayRange(date);
+    const appointments = await this.sheetsService.getAppointments(start, end);
+    
+    // Only process active appointments
+    const activeAppointments = appointments.filter(appt => 
+      appt.status !== 'cancelled' && appt.status !== 'rescheduled'
+    );
+    
+    console.log(`Found ${activeAppointments.length} active appointments to process`);
+    
+    // Get offices and detect conflicts - use existing conflict detection logic
+    const offices = await this.sheetsService.getOffices();
+    const processedAppointments = this.processAppointments(activeAppointments, offices);
+    const conflicts = this.detectConflicts(processedAppointments);
+    
+    if (conflicts.length === 0) {
+      console.log('No conflicts detected, nothing to resolve');
+      return 0;
+    }
+    
+    console.log(`Found ${conflicts.length} conflicts to resolve`);
+    
+    // Resolve each conflict
+    let resolvedCount = 0;
+    
+    for (const conflict of conflicts) {
+      if (!conflict.appointmentIds || conflict.appointmentIds.length < 2) {
+        continue;
+      }
+      
+      console.log(`Resolving conflict in ${conflict.officeId}: ${conflict.description}`);
+      
+      // Get the involved appointments
+      const conflictAppointments = activeAppointments.filter(
+        appt => conflict.appointmentIds?.includes(appt.appointmentId)
+      );
+      
+      // Keep one appointment in place (preferably non-telehealth)
+      conflictAppointments.sort((a, b) => {
+        // Prioritize non-telehealth
+        if (a.sessionType === 'telehealth' && b.sessionType !== 'telehealth') return 1;
+        if (a.sessionType !== 'telehealth' && b.sessionType === 'telehealth') return -1;
+        return 0;
+      });
+      
+      // Appointment to keep
+      const keepAppointment = conflictAppointments[0];
+      // Appointments to relocate
+      const moveAppointments = conflictAppointments.slice(1);
+      
+      console.log(`Keeping ${keepAppointment.clientName} with ${keepAppointment.clinicianName} in ${conflict.officeId}`);
+      
+      // Relocate other appointments
+      for (const apptToMove of moveAppointments) {
+        if (apptToMove.sessionType === 'telehealth') {
+          // For telehealth, just move to A-v
+          console.log(`Moving telehealth appointment to A-v: ${apptToMove.clientName}`);
+          const updatedAppointment = {
+            ...apptToMove,
+            officeId: 'A-v',
+            suggestedOfficeId: 'A-v',
+            lastUpdated: new Date().toISOString()
+          };
+          
+          await this.sheetsService.updateAppointment(updatedAppointment);
+          resolvedCount++;
+          continue;
+        }
+        
+        // For in-person, find an alternative office
+        const activeOffices = offices.filter(o => o.inService);
+        const availableOffices = activeOffices.filter(office => {
+          // Skip current office
+          if (standardizeOfficeId(office.officeId) === standardizeOfficeId(conflict.officeId)) return false;
+          
+          // Check if office is available during this time
+          const overlappingAppts = activeAppointments.filter(existingAppt => {
+            if (existingAppt.appointmentId === apptToMove.appointmentId) return false;
+            if (standardizeOfficeId(existingAppt.officeId) !== standardizeOfficeId(office.officeId)) return false;
+            
+            // Check for time overlap
+            const moveStart = new Date(apptToMove.startTime).getTime();
+            const moveEnd = new Date(apptToMove.endTime).getTime();
+            const existingStart = new Date(existingAppt.startTime).getTime();
+            const existingEnd = new Date(existingAppt.endTime).getTime();
+            
+            return (
+              (moveStart >= existingStart && moveStart < existingEnd) ||
+              (moveEnd > existingStart && moveEnd <= existingEnd) ||
+              (moveStart <= existingStart && moveEnd >= existingEnd)
+            );
+          });
+          
+          return overlappingAppts.length === 0;
+        });
+        
+        if (availableOffices.length > 0) {
+          // Select first available office
+          const newOffice = availableOffices[0];
+          console.log(`Moving ${apptToMove.clientName} to ${newOffice.officeId}`);
+          
+          const updatedAppointment = {
+            ...apptToMove,
+            officeId: standardizeOfficeId(newOffice.officeId),
+            suggestedOfficeId: standardizeOfficeId(newOffice.officeId),
+            lastUpdated: new Date().toISOString()
+          };
+          
+          await this.sheetsService.updateAppointment(updatedAppointment);
+          resolvedCount++;
+        } else {
+          console.log(`No alternative office available for ${apptToMove.clientName}`);
+        }
+      }
+    }
+    
+    console.log(`Successfully resolved ${resolvedCount} conflicts`);
+    
+    // Log audit entry
+    await this.sheetsService.addAuditLog({
+      timestamp: new Date().toISOString(),
+      eventType: AuditEventType.DAILY_ASSIGNMENTS_UPDATED,
+      description: `Resolved scheduling conflicts for ${date}`,
+      user: 'SYSTEM',
+      systemNotes: JSON.stringify({
+        date,
+        conflictsFound: conflicts.length,
+        conflictsResolved: resolvedCount
+      })
+    });
+    
+    return resolvedCount;
+  } catch (error) {
+    console.error('Error resolving scheduling conflicts:', error);
+    await this.sheetsService.addAuditLog({
+      timestamp: new Date().toISOString(),
+      eventType: AuditEventType.SYSTEM_ERROR,
+      description: `Failed to resolve scheduling conflicts for ${date}`,
+      user: 'SYSTEM',
+      systemNotes: error instanceof Error ? error.message : 'Unknown error'
+    });
+    throw error;
+  }
+}
+
 }
 
 export default DailyScheduleService;
