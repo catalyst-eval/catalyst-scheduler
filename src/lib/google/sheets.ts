@@ -579,9 +579,13 @@ async getAllAppointments(): Promise<AppointmentRecord[]> {
   /**
  * Get client accessibility information
  */
-async getClientAccessibilityInfo(clientId: string): Promise<any | null> {
-  try {
-    console.log(`Getting accessibility info for client ${clientId}`);
+  async getClientAccessibilityInfo(clientId: string): Promise<any | null> {
+    try {
+      console.log(`Getting accessibility info for client ${clientId}`);
+      
+      // Use encodeURIComponent to handle spaces in sheet name
+      const sheetName = encodeURIComponent("Client Accessibility Info");
+      const range = `${sheetName}!A2:O`;
     
     const values = await this.readSheet('Client Accessibility Info!A2:O');
     if (!values || values.length === 0) {

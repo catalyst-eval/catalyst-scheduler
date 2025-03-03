@@ -142,18 +142,19 @@ router.post('/test-office-assignment', async (req: Request, res: Response) => {
     
     // Create mock appointment data
     const mockAppointment = {
-      Id: `test-${Date.now()}`,
-      ClientId: parseInt(clientId),
-      ClientName: clientName,
-      ClientFirstName: clientName.split(' ')[0],
-      ClientLastName: clientName.split(' ').slice(1).join(' '),
-      ClientDateOfBirth: req.body.dateOfBirth || '',
-      PractitionerId: clinicianId,
-      StartDateIso: startTime,
-      EndDateIso: endTime,
-      SessionType: sessionType,
-      Status: 'Confirmed'
-    };
+        Id: `test-${Date.now()}`,
+        ClientId: parseInt(clientId),
+        ClientName: clientName,
+        ClientFirstName: clientName.split(' ')[0],
+        ClientLastName: clientName.split(' ').slice(1).join(' '),
+        ClientDateOfBirth: req.body.dateOfBirth || '',
+        PractitionerId: clinicianId,
+        StartDateIso: startTime,
+        EndDateIso: endTime,
+        SessionType: sessionType,
+        Status: 'Confirmed',
+        ServiceName: 'Therapy Session' // Add this line
+      };
     
     // Determine office assignment
     const officeAssignment = await appointmentSyncHandler.determineOfficeAssignment(mockAppointment);

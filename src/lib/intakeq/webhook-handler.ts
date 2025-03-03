@@ -383,8 +383,9 @@ private extractAccessibilityInfo(formData: any, clientId: string): Accessibility
     if (!eventType.includes('Appointment') && !eventType.includes('appointment')) {
       // For form submissions
       if (eventType.includes('Form') || eventType.includes('Intake')) {
-        if (!typedPayload.responses) {
-          return { isValid: false, error: 'Missing form responses' };
+        // If there's an IntakeId, we can fetch the form data
+        if (!typedPayload.responses && !typedPayload.IntakeId && !typedPayload.formId) {
+          return { isValid: false, error: 'Missing form responses or form identification' };
         }
       }
     }
@@ -492,33 +493,82 @@ private extractAccessibilityInfo(formData: any, clientId: string): Accessibility
     payload: IntakeQWebhookPayload
   ): Promise<WebhookResponse> {
     try {
+      const formId = payload.IntakeId || payload.formId;
+      const clientId = payload.ClientId?.toString();
+      
+      if (!formId || !clientId) {
+        return {
+          success: false,
+          error: 'Missing form ID or client ID in form submission webhook',
+          retryable: false
+        };
+      }
+      
       // Log initial receipt of form
       await this.sheetsService.addAuditLog({
         timestamp: new Date().toISOString(),
         eventType: 'WEBHOOK_RECEIVED' as AuditEventType,
-        description: `Processing intake form ${payload.formId}`,
+        description: `Processing intake form ${formId}`,
         user: 'INTAKEQ_WEBHOOK',
         systemNotes: JSON.stringify({
-          formId: payload.formId,
-          clientId: payload.ClientId,
+          formId: formId,
+          clientId: clientId,
           isFullIntake: !!payload.IntakeId
         })
       });
   
-      // Ensure we have responses to process
-      if (!payload.responses) {
+      // Fetch the full form data from IntakeQ API if available
+      let formData;
+      if (this.intakeQService) {
+        console.log(`Fetching full intake form data for form ID: ${formId}`);
+        formData = await this.intakeQService.getFullIntakeForm(formId);
+      }
+      
+      if (!formData && !payload.responses) {
         return {
           success: false,
-          error: 'No form responses provided',
-          retryable: false
+          error: 'No form responses provided and unable to fetch from API',
+          retryable: true
         };
       }
-  
+      
+      // If we have form data, extract accessibility info directly
+      if (formData) {
+        const accessibilityInfo = this.extractAccessibilityInfo(formData, clientId);
+        
+        // Store the accessibility info in the Google Sheet
+        await (this.sheetsService as any).updateClientAccessibilityInfo(accessibilityInfo);
+        
+        // Log successful processing
+        await this.sheetsService.addAuditLog({
+          timestamp: new Date().toISOString(),
+          eventType: 'CLIENT_PREFERENCES_UPDATED' as AuditEventType,
+          description: `Updated accessibility info for client ${clientId} from form ${formId}`,
+          user: 'SYSTEM',
+          systemNotes: JSON.stringify({
+            clientId: clientId,
+            formId: formId,
+            accessibilityInfoExtracted: true
+          })
+        });
+        
+        return {
+          success: true,
+          details: {
+            formId: formId,
+            clientId: clientId,
+            formType: accessibilityInfo.formType,
+            accessibilityInfoExtracted: true
+          }
+        };
+      }
+      
+      // Fallback to using payload.responses if API fetch failed
       // Process responses based on form type
       const formResponses: Record<string, any> = payload.IntakeId ? 
-        this.extractAccessibilitySection(payload.responses) : 
-        payload.responses;
-  
+        this.extractAccessibilitySection(payload.responses || {}) : 
+        (payload.responses || {});
+    
       // Validate processed responses
       if (Object.keys(formResponses).length === 0) {
         return {
@@ -527,26 +577,26 @@ private extractAccessibilityInfo(formData: any, clientId: string): Accessibility
           retryable: false
         };
       }
-  
-      // Process form data
-      await this.sheetsService.processAccessibilityForm({
+    
+      // Process form data using legacy method
+      await (this.sheetsService as any).processAccessibilityForm({
         clientId: payload.ClientId.toString(),
         clientName: payload.ClientName || 'Unknown Client',
         clientEmail: payload.ClientEmail || 'unknown@example.com',
         formResponses: formResponses
       });
-  
+    
       // Return success response
       return {
         success: true,
         details: {
-          formId: payload.formId,
+          formId: formId,
           clientId: payload.ClientId,
           type: payload.IntakeId ? 'full-intake' : 'accessibility-form',
           source: payload.IntakeId ? 'embedded' : 'standalone'
         }
       };
-  
+    
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       await this.logWebhookError('FORM_PROCESSING_ERROR', errorMessage, payload);
