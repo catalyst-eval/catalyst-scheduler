@@ -583,15 +583,11 @@ async getAllAppointments(): Promise<AppointmentRecord[]> {
     try {
       console.log(`Getting accessibility info for client ${clientId}`);
       
-      // Use encodeURIComponent to handle spaces in sheet name
-      const sheetName = encodeURIComponent("Client Accessibility Info");
-      const range = `${sheetName}!A2:O`;
-    
-    const values = await this.readSheet('Client Accessibility Info!A2:O');
-    if (!values || values.length === 0) {
-      console.log(`No accessibility info found for any clients`);
-      return null;
-    }
+      const values = await this.readSheet('Client Accessibility Info!A2:O');
+      if (!values || values.length === 0) {
+        console.log(`No accessibility info found for any clients`);
+        return null;
+      }
     
     const clientRow = values.find(row => row[0] === clientId);
     if (!clientRow) {
@@ -655,7 +651,8 @@ async updateClientAccessibilityInfo(accessibilityInfo: {
     console.log(`Updating accessibility info for client ${accessibilityInfo.clientId}`);
     
     // Check if client already exists in the sheet
-    const values = await this.readSheet('Client Accessibility Info!A:A');
+    // Check if client already exists in the sheet
+const values = await this.readSheet('Client Accessibility Info!A:A');
     const clientRowIndex = values?.findIndex(row => row[0] === accessibilityInfo.clientId);
     
     // Format data for sheet

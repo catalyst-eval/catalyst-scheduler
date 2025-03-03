@@ -203,8 +203,8 @@ private async processIntakeFormSubmission(
     
     return {
       success: false,
-      error: errorMessage,
-      retryable: this.isRetryableError(error)
+      error: "Unexpected execution path",
+      retryable: false
     };
   }
 }
@@ -566,8 +566,8 @@ private extractAccessibilityInfo(formData: any, clientId: string): Accessibility
       // Fallback to using payload.responses if API fetch failed
       // Process responses based on form type
       const formResponses: Record<string, any> = payload.IntakeId ? 
-        this.extractAccessibilitySection(payload.responses || {}) : 
-        (payload.responses || {});
+  this.extractAccessibilitySection(payload.responses || {}) : 
+  (payload.responses || {});
     
       // Validate processed responses
       if (Object.keys(formResponses).length === 0) {
