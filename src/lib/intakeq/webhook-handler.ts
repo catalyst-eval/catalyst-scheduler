@@ -1,4 +1,3 @@
-// Import webhook types
 import type {
   WebhookEventType,
   IntakeQAppointment,
@@ -7,6 +6,33 @@ import type {
 } from '../../types/webhooks';
 
 import type { IGoogleSheetsService, AuditEventType } from '../google/sheets';
+import { IntakeQService } from './service';
+
+// Interface for accessibility information extracted from forms
+export interface AccessibilityInfo {
+  clientId: string;
+  clientName: string;
+  hasMobilityNeeds: boolean;
+  mobilityDetails: string;
+  hasSensoryNeeds: boolean;
+  sensoryDetails: string;
+  hasPhysicalNeeds: boolean;
+  physicalDetails: string;
+  roomConsistency: number;
+  hasSupport: boolean;
+  supportDetails: string;
+  additionalNotes: string;
+  formType: 'Adult' | 'Minor' | 'Unknown';
+  formId: string;
+}
+
+// Add this new interface for form questions
+interface FormQuestion {
+  Id: string;
+  Text?: string;
+  Answer?: string;
+  [key: string]: any;
+}
 
 // Interface for webhook processing results (kept for backward compatibility)
 export interface WebhookProcessingResult {
@@ -19,10 +45,17 @@ export interface WebhookProcessingResult {
 export class WebhookHandler {
   private readonly MAX_RETRIES = 3;
   private readonly RETRY_DELAYS = [1000, 5000, 15000]; // Delays in milliseconds
+  private readonly appointmentSyncHandler: any; // Add this property
+  private readonly intakeQService: any; // Add this property
 
   constructor(
-    private readonly sheetsService: IGoogleSheetsService
-  ) {}
+    private readonly sheetsService: IGoogleSheetsService,
+    appointmentSyncHandler?: any,
+    intakeQService?: any
+  ) {
+    this.appointmentSyncHandler = appointmentSyncHandler;
+    this.intakeQService = intakeQService || new IntakeQService(sheetsService as any);
+  }
 
   /**
    * Get event type from payload, handling both field names
@@ -50,23 +83,32 @@ export class WebhookHandler {
           retryable: false
         };
       }
-
+  
       const typedPayload = payload as IntakeQWebhookPayload;
-
+      const eventType = this.getEventType(typedPayload);
+  
       // Log webhook receipt
       await this.sheetsService.addAuditLog({
         timestamp: new Date().toISOString(),
         eventType: 'WEBHOOK_RECEIVED' as AuditEventType,
-        description: `Received ${this.getEventType(typedPayload)} webhook`,
+        description: `Received ${eventType} webhook`,
         user: 'INTAKEQ_WEBHOOK',
         systemNotes: JSON.stringify({
-          type: this.getEventType(typedPayload),
+          type: eventType,
           clientId: typedPayload.ClientId
         })
       });
-
-      // Process with retry logic
-      return await this.processWithRetry(typedPayload);
+  
+      // Check if this is a form submission or an appointment webhook
+      if (eventType === "Form Submitted" || eventType === "Intake Submitted") {
+        return await this.processIntakeFormSubmission(typedPayload);
+      } else if (typedPayload.Appointment && this.appointmentSyncHandler) {
+        // Process appointment event using the appointment sync handler
+        return await this.appointmentSyncHandler.processAppointmentEvent(typedPayload);
+      } else {
+        // Process with retry logic for other events
+        return await this.processWithRetry(typedPayload);
+      }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       await this.logWebhookError('PROCESSING_ERROR', errorMessage, payload);
@@ -78,6 +120,242 @@ export class WebhookHandler {
       };
     }
   }
+
+  /**
+ * Process intake form submission webhooks
+ */
+private async processIntakeFormSubmission(
+  payload: IntakeQWebhookPayload
+): Promise<WebhookResponse> {
+  try {
+    const formId = payload.IntakeId || payload.formId;
+    const clientId = payload.ClientId?.toString();
+    
+    if (!formId || !clientId) {
+      return {
+        success: false,
+        error: 'Missing form ID or client ID in form submission webhook',
+        retryable: false
+      };
+    }
+    
+    // Log initial receipt of form
+    await this.sheetsService.addAuditLog({
+      timestamp: new Date().toISOString(),
+      eventType: 'WEBHOOK_RECEIVED' as AuditEventType,
+      description: `Processing intake form ${formId}`,
+      user: 'INTAKEQ_WEBHOOK',
+      systemNotes: JSON.stringify({
+        formId: formId,
+        clientId: clientId,
+        isFullIntake: !!payload.IntakeId
+      })
+    });
+
+    // Fetch the full form data from IntakeQ API
+    console.log(`Fetching full intake form data for form ID: ${formId}`);
+    const formData = await this.intakeQService.getFullIntakeForm(formId);
+    
+    if (!formData) {
+      return {
+        success: false,
+        error: 'Unable to fetch form data from IntakeQ',
+        retryable: true
+      };
+    }
+    
+    // Extract accessibility information from the form
+    const accessibilityInfo = this.extractAccessibilityInfo(formData, clientId);
+    
+    // Store the accessibility info in the Google Sheet
+    await this.sheetsService.updateClientAccessibilityInfo(accessibilityInfo);
+    
+    // Log successful processing
+    await this.sheetsService.addAuditLog({
+      timestamp: new Date().toISOString(),
+      eventType: 'CLIENT_PREFERENCES_UPDATED' as AuditEventType,
+      description: `Updated accessibility info for client ${clientId} from form ${formId}`,
+      user: 'SYSTEM',
+      systemNotes: JSON.stringify({
+        clientId: clientId,
+        formId: formId,
+        hasMobilityNeeds: accessibilityInfo.hasMobilityNeeds,
+        hasSensoryNeeds: accessibilityInfo.hasSensoryNeeds,
+        hasPhysicalNeeds: accessibilityInfo.hasPhysicalNeeds,
+        roomConsistency: accessibilityInfo.roomConsistency
+      })
+    });
+
+    // Return success response
+    return {
+      success: true,
+      details: {
+        formId: formId,
+        clientId: clientId,
+        formType: accessibilityInfo.formType,
+        accessibilityInfoExtracted: true
+      }
+    };
+
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    await this.logWebhookError('FORM_PROCESSING_ERROR', errorMessage, payload);
+    
+    return {
+      success: false,
+      error: errorMessage,
+      retryable: this.isRetryableError(error)
+    };
+  }
+}
+
+/**
+ * Extract accessibility information from form data
+ */
+private extractAccessibilityInfo(formData: any, clientId: string): AccessibilityInfo {
+  console.log('Extracting accessibility information from form data');
+  
+  // Determine the form type
+  const isAdult = formData.QuestionnaireName?.includes("1 Therapy Intake");
+  const isMinor = formData.QuestionnaireName?.includes("2 Therapy Intake - Minor");
+  const formType = isAdult ? 'Adult' : (isMinor ? 'Minor' : 'Unknown');
+  
+  console.log(`Form type detected: ${formType}`);
+  
+  // Initialize the accessibility info with defaults
+  const accessibilityInfo: AccessibilityInfo = {
+    clientId: clientId,
+    clientName: formData.ClientName || '',
+    hasMobilityNeeds: false,
+    mobilityDetails: '',
+    hasSensoryNeeds: false,
+    sensoryDetails: '',
+    hasPhysicalNeeds: false,
+    physicalDetails: '',
+    roomConsistency: 3, // Default to neutral
+    hasSupport: false,
+    supportDetails: '',
+    additionalNotes: '',
+    formType: formType as 'Adult' | 'Minor' | 'Unknown',
+    formId: formData.Id || ''
+  };
+  
+  // Get all questions from the form - add type annotation here
+  const questions = formData.Questions || [] as FormQuestion[];
+  
+  // Find relevant questions using the FormQuestion type
+  
+  // 1. Mobility Needs Question
+  const mobilityQuestion = questions.find((q: FormQuestion) => 
+    q.Id === '70sl-1' || // Adult form
+    q.Id === '12' ||     // Minor form
+    (q.Text && (
+      q.Text.includes('mobility devices') || 
+      q.Text.includes('ground floor access')
+    ))
+  );
+  
+  if (mobilityQuestion && mobilityQuestion.Answer && mobilityQuestion.Answer !== '') {
+    accessibilityInfo.hasMobilityNeeds = true;
+    accessibilityInfo.mobilityDetails = mobilityQuestion.Answer;
+  }
+  
+  // 2. Sensory Sensitivity Question
+  const sensoryQuestion = questions.find((q: FormQuestion) => 
+    q.Id === 'wkfi-1' || // Adult form
+    q.Id === '13' ||     // Minor form
+    (q.Text && (
+      q.Text.includes('sensory sensitivities') || 
+      q.Text.includes('light sensitivity') ||
+      q.Text.includes('auditory sensitivity')
+    ))
+  );
+  
+  if (sensoryQuestion && sensoryQuestion.Answer && sensoryQuestion.Answer !== '') {
+    accessibilityInfo.hasSensoryNeeds = true;
+    accessibilityInfo.sensoryDetails = sensoryQuestion.Answer;
+  }
+  
+  // 3. Physical Environment Question
+  const physicalQuestion = questions.find((q: FormQuestion) => 
+    q.Id === '1zfd-1' || // Adult form
+    q.Id === '14' ||     // Minor form
+    (q.Text && (
+      q.Text.includes('physical environment') ||
+      q.Text.includes('challenges with physical environment')
+    ))
+  );
+  
+  if (physicalQuestion && physicalQuestion.Answer && physicalQuestion.Answer !== '') {
+    accessibilityInfo.hasPhysicalNeeds = true;
+    accessibilityInfo.physicalDetails = physicalQuestion.Answer;
+  }
+  
+  // 4. Room Consistency Question
+  const consistencyQuestion = questions.find((q: FormQuestion) => 
+    q.Id === 'j3rq-1' || // Adult form
+    q.Id === '15' ||     // Minor form
+    (q.Text && (
+      q.Text.includes('room consistency') ||
+      q.Text.includes('comfort level') ||
+      q.Text.includes('different therapy room')
+    ))
+  );
+  
+  if (consistencyQuestion && consistencyQuestion.Answer) {
+    // Parse the 1-5 value from the answer
+    if (consistencyQuestion.Answer.includes('1')) {
+      accessibilityInfo.roomConsistency = 1;
+    } else if (consistencyQuestion.Answer.includes('2')) {
+      accessibilityInfo.roomConsistency = 2;
+    } else if (consistencyQuestion.Answer.includes('3')) {
+      accessibilityInfo.roomConsistency = 3;
+    } else if (consistencyQuestion.Answer.includes('4')) {
+      accessibilityInfo.roomConsistency = 4;
+    } else if (consistencyQuestion.Answer.includes('5')) {
+      accessibilityInfo.roomConsistency = 5;
+    }
+  }
+  
+  // 5. Support Needs Question
+  const supportQuestion = questions.find((q: FormQuestion) => 
+    q.Id === '6gz6-1' || // Adult form
+    q.Id === '16' ||     // Minor form
+    (q.Text && (
+      q.Text.includes('support needs') ||
+      q.Text.includes('service animal') ||
+      q.Text.includes('support person')
+    ))
+  );
+  
+  if (supportQuestion && supportQuestion.Answer && supportQuestion.Answer !== '') {
+    accessibilityInfo.hasSupport = true;
+    accessibilityInfo.supportDetails = supportQuestion.Answer;
+  }
+  
+  // 6. Additional Notes Question
+  const notesQuestion = questions.find((q: FormQuestion) => 
+    q.Id === 'i820-1' || // Adult form
+    (q.Text && (
+      q.Text.includes('anything else we should know') ||
+      q.Text.includes('space or accessibility needs')
+    ))
+  );
+  
+  if (notesQuestion && notesQuestion.Answer) {
+    accessibilityInfo.additionalNotes = notesQuestion.Answer;
+  }
+  
+  console.log('Extracted accessibility info:', {
+    clientId: accessibilityInfo.clientId,
+    hasMobilityNeeds: accessibilityInfo.hasMobilityNeeds,
+    hasSensoryNeeds: accessibilityInfo.hasSensoryNeeds,
+    hasPhysicalNeeds: accessibilityInfo.hasPhysicalNeeds,
+    roomConsistency: accessibilityInfo.roomConsistency
+  });
+  
+  return accessibilityInfo;
+}
 
   /**
    * Validate webhook payload and signature

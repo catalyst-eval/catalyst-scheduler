@@ -34,14 +34,30 @@ export interface IGoogleSheetsService {
   getAppointment(appointmentId: string): Promise<AppointmentRecord | null>;
   deleteAppointment(appointmentId: string): Promise<void>;
   updateClientPreference(preference: ClientPreference): Promise<void>;
+  getClientAccessibilityInfo(clientId: string): Promise<any | null>;
+  updateClientAccessibilityInfo(accessibilityInfo: {
+    clientId: string;
+    clientName: string;
+    hasMobilityNeeds: boolean;
+    mobilityDetails: string;
+    hasSensoryNeeds: boolean;
+    sensoryDetails: string;
+    hasPhysicalNeeds: boolean;
+    physicalDetails: string;
+    roomConsistency: number;
+    hasSupport: boolean;
+    supportDetails: string;
+    additionalNotes: string;
+    formType: string;
+    formId: string;
+  }): Promise<void>;
+  getClientRequiredOffices(): Promise<any[]>;
   processAccessibilityForm(formData: {
     clientId: string;
     clientName: string;
     clientEmail: string;
     formResponses: Record<string, any>;
   }): Promise<void>;
-  refreshCache(range: string): Promise<void>;
-  clearCache(): void;
 }
 
 export enum AuditEventType {
@@ -559,6 +575,186 @@ async getAllAppointments(): Promise<AppointmentRecord[]> {
       throw new Error('Failed to read appointments');
     }
   }
+
+  /**
+ * Get client accessibility information
+ */
+async getClientAccessibilityInfo(clientId: string): Promise<any | null> {
+  try {
+    console.log(`Getting accessibility info for client ${clientId}`);
+    
+    const values = await this.readSheet('Client Accessibility Info!A2:O');
+    if (!values || values.length === 0) {
+      console.log(`No accessibility info found for any clients`);
+      return null;
+    }
+    
+    const clientRow = values.find(row => row[0] === clientId);
+    if (!clientRow) {
+      console.log(`No accessibility info found for client ${clientId}`);
+      return null;
+    }
+    
+    return {
+      clientId: clientRow[0],
+      clientName: clientRow[1] || '',
+      lastUpdated: clientRow[2] || '',
+      hasMobilityNeeds: clientRow[3] === 'TRUE',
+      mobilityDetails: clientRow[4] || '',
+      hasSensoryNeeds: clientRow[5] === 'TRUE',
+      sensoryDetails: clientRow[6] || '',
+      hasPhysicalNeeds: clientRow[7] === 'TRUE',
+      physicalDetails: clientRow[8] || '',
+      roomConsistency: parseInt(clientRow[9] || '3'),
+      hasSupport: clientRow[10] === 'TRUE',
+      supportDetails: clientRow[11] || '',
+      additionalNotes: clientRow[12] || '',
+      formType: clientRow[13] || '',
+      formId: clientRow[14] || ''
+    };
+  } catch (error) {
+    console.error(`Error getting client accessibility info for ${clientId}:`, error);
+    
+    // Log error but don't throw - just return null
+    await this.addAuditLog({
+      timestamp: new Date().toISOString(),
+      eventType: AuditEventType.SYSTEM_ERROR,
+      description: `Failed to get accessibility info for client ${clientId}`,
+      user: 'SYSTEM',
+      systemNotes: error instanceof Error ? error.message : 'Unknown error'
+    });
+    
+    return null;
+  }
+}
+
+/**
+ * Update client accessibility information
+ */
+async updateClientAccessibilityInfo(accessibilityInfo: {
+  clientId: string;
+  clientName: string;
+  hasMobilityNeeds: boolean;
+  mobilityDetails: string;
+  hasSensoryNeeds: boolean;
+  sensoryDetails: string;
+  hasPhysicalNeeds: boolean;
+  physicalDetails: string;
+  roomConsistency: number;
+  hasSupport: boolean;
+  supportDetails: string;
+  additionalNotes: string;
+  formType: string;
+  formId: string;
+}): Promise<void> {
+  try {
+    console.log(`Updating accessibility info for client ${accessibilityInfo.clientId}`);
+    
+    // Check if client already exists in the sheet
+    const values = await this.readSheet('Client Accessibility Info!A:A');
+    const clientRowIndex = values?.findIndex(row => row[0] === accessibilityInfo.clientId);
+    
+    // Format data for sheet
+    const rowData = [
+      accessibilityInfo.clientId,
+      accessibilityInfo.clientName,
+      new Date().toISOString(), // Last updated timestamp
+      accessibilityInfo.hasMobilityNeeds ? 'TRUE' : 'FALSE',
+      accessibilityInfo.mobilityDetails,
+      accessibilityInfo.hasSensoryNeeds ? 'TRUE' : 'FALSE',
+      accessibilityInfo.sensoryDetails,
+      accessibilityInfo.hasPhysicalNeeds ? 'TRUE' : 'FALSE',
+      accessibilityInfo.physicalDetails,
+      accessibilityInfo.roomConsistency.toString(),
+      accessibilityInfo.hasSupport ? 'TRUE' : 'FALSE',
+      accessibilityInfo.supportDetails,
+      accessibilityInfo.additionalNotes,
+      accessibilityInfo.formType,
+      accessibilityInfo.formId
+    ];
+    
+    if (clientRowIndex !== undefined && clientRowIndex >= 0) {
+      // Update existing row
+      console.log(`Updating existing row for client ${accessibilityInfo.clientId}`);
+      await this.sheets.spreadsheets.values.update({
+        spreadsheetId: this.spreadsheetId,
+        range: `Client Accessibility Info!A${clientRowIndex + 2}:O${clientRowIndex + 2}`,
+        valueInputOption: 'RAW',
+        requestBody: {
+          values: [rowData]
+        }
+      });
+    } else {
+      // Add new row
+      console.log(`Adding new row for client ${accessibilityInfo.clientId}`);
+      await this.appendRows('Client Accessibility Info!A:O', [rowData]);
+    }
+    
+    // Log the update
+    await this.addAuditLog({
+      timestamp: new Date().toISOString(),
+      eventType: AuditEventType.CLIENT_PREFERENCES_UPDATED,
+      description: `Updated accessibility info for client ${accessibilityInfo.clientId}`,
+      user: 'SYSTEM',
+      systemNotes: JSON.stringify({
+        clientId: accessibilityInfo.clientId,
+        hasMobilityNeeds: accessibilityInfo.hasMobilityNeeds,
+        hasSensoryNeeds: accessibilityInfo.hasSensoryNeeds,
+        hasPhysicalNeeds: accessibilityInfo.hasPhysicalNeeds,
+        roomConsistency: accessibilityInfo.roomConsistency
+      })
+    });
+    
+    console.log(`Successfully updated accessibility info for client ${accessibilityInfo.clientId}`);
+  } catch (error) {
+    console.error(`Error updating client accessibility info for ${accessibilityInfo.clientId}:`, error);
+    
+    // Log error and throw
+    await this.addAuditLog({
+      timestamp: new Date().toISOString(),
+      eventType: AuditEventType.SYSTEM_ERROR,
+      description: `Failed to update accessibility info for client ${accessibilityInfo.clientId}`,
+      user: 'SYSTEM',
+      systemNotes: error instanceof Error ? error.message : 'Unknown error'
+    });
+    
+    throw error;
+  }
+}
+
+/**
+ * Get client required offices
+ */
+async getClientRequiredOffices(): Promise<any[]> {
+  try {
+    const values = await this.readSheet('Required Offices!A2:I');
+    
+    return values?.map((row: SheetRow) => ({
+      inactive: row[0] === 'TRUE',
+      requiredOfficeId: row[1] || '', // The selected office ID from dropdown
+      lastName: row[2] || '',
+      firstName: row[3] || '',
+      middleName: row[4] || '',
+      dateOfBirth: row[5] || '',
+      dateCreated: row[6] || '',
+      lastActivity: row[7] || '',
+      practitioner: row[8] || ''
+    })) ?? [];
+  } catch (error) {
+    console.error('Error getting client required offices:', error);
+    
+    // Log error but don't throw - just return empty array
+    await this.addAuditLog({
+      timestamp: new Date().toISOString(),
+      eventType: AuditEventType.SYSTEM_ERROR,
+      description: 'Failed to get client required offices',
+      user: 'SYSTEM',
+      systemNotes: error instanceof Error ? error.message : 'Unknown error'
+    });
+    
+    return [];
+  }
+}
 
   async updateAppointment(appointment: AppointmentRecord): Promise<void> {
     try {

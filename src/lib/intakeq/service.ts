@@ -375,6 +375,49 @@ export class IntakeQService {
   }
 
   /**
+ * Get full intake form data from IntakeQ API
+ */
+async getFullIntakeForm(formId: string): Promise<any> {
+  try {
+    console.log(`Fetching full intake form data for ID: ${formId}`);
+    
+    const response = await axios.get(
+      `${this.baseUrl}/intakes/${formId}`,
+      {
+        headers: {
+          'X-Auth-Key': this.apiKey,
+          'Accept': 'application/json'
+        }
+      }
+    );
+    
+    if (response.status !== 200 || !response.data) {
+      throw new Error(`IntakeQ API error: ${response.statusText}`);
+    }
+    
+    console.log(`Successfully fetched form data for form ID ${formId}`);
+    return response.data;
+  } catch (error) {
+    console.error(`Error fetching form data for form ID ${formId}:`, error);
+    
+    // If we get a 404, return null instead of throwing
+    if (axios.isAxiosError(error) && error.response?.status === 404) {
+      console.log(`Form ${formId} not found`);
+      return null;
+    }
+    
+    await this.sheetsService.addAuditLog({
+      timestamp: new Date().toISOString(),
+      eventType: AuditEventType.SYSTEM_ERROR,
+      description: `Error fetching form data for form ID ${formId} from IntakeQ`,
+      user: 'SYSTEM',
+      systemNotes: error instanceof Error ? error.message : 'Unknown error'
+    });
+    throw error;
+  }
+}
+
+  /**
    * Validate IntakeQ webhook signature
    */
   async validateWebhookSignature(payload: string, signature: string): Promise<boolean> {
