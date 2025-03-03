@@ -59,4 +59,42 @@ router.get('/fetch-intakes', async (req: Request, res: Response) => {
   }
 });
 
+router.get('/fetch-form', async (req: Request, res: Response) => {
+    try {
+      const formId = req.query.id as string;
+      
+      if (!formId) {
+        return res.status(400).json({
+          success: false,
+          error: 'Form ID is required',
+          timestamp: new Date().toISOString()
+        });
+      }
+      
+      console.log(`Fetching IntakeQ form details: ${formId}`);
+      
+      const formDetailResponse = await axios.get(
+        `https://intakeq.com/api/v1/intakes/${formId}`,
+        {
+          headers: {
+            'X-Auth-Key': process.env.INTAKEQ_API_KEY,
+            'Accept': 'application/json'
+          }
+        }
+      );
+      
+      res.json({
+        success: true,
+        formData: formDetailResponse.data
+      });
+    } catch (error) {
+      console.error('Error fetching IntakeQ form details:', error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        timestamp: new Date().toISOString()
+      });
+    }
+  });
+  
 export default router;
