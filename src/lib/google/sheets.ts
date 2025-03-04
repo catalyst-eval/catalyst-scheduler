@@ -126,7 +126,7 @@ export class GoogleSheetsService implements IGoogleSheetsService {
         }
       }
 
-    private async readSheet(range: string) {
+      private async readSheet(range: string) {
         const cacheKey = `sheet:${range}`;
         
         try {
@@ -134,10 +134,21 @@ export class GoogleSheetsService implements IGoogleSheetsService {
             cacheKey,
             async () => {
               console.log(`Reading sheet range: ${range}`);
+              
+              // Parse the range into sheet name and cell range
+              const parts = range.split('!');
+              const sheetName = parts[0];
+              const cellRange = parts.length > 1 ? parts[1] : 'A1';
+              
+              // Encode the sheet name properly for API request
+              // This handles spaces and special characters in sheet names
+              const encodedSheetName = encodeURIComponent(sheetName);
+              const encodedRange = `${encodedSheetName}!${cellRange}`;
+              
               try {
                 const response = await this.sheets.spreadsheets.values.get({
                   spreadsheetId: this.spreadsheetId,
-                  range,
+                  range: encodedRange,
                 });
                 console.log(`Successfully read sheet range: ${range}`);
                 return response.data.values;
@@ -152,7 +163,7 @@ export class GoogleSheetsService implements IGoogleSheetsService {
           console.error(`Error reading sheet ${range}:`, error);
           await this.addAuditLog({
             timestamp: new Date().toISOString(),
-            eventType: AuditEventType.SYSTEM_ERROR,
+            eventType: 'SYSTEM_ERROR',
             description: `Failed to read sheet ${range}`,
             user: 'SYSTEM',
             systemNotes: JSON.stringify(error)
