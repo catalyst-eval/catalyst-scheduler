@@ -126,51 +126,50 @@ export class GoogleSheetsService implements IGoogleSheetsService {
         }
       }
 
-      private async readSheet(range: string) {
-        const cacheKey = `sheet:${range}`;
+    private async readSheet(range: string) {
+  const cacheKey = `sheet:${range}`;
+  
+  try {
+    return await this.cache.getOrFetch(
+      cacheKey,
+      async () => {
+        console.log(`Reading sheet range: ${range}`);
+        // Parse the range into sheet name and cell range
+        const parts = range.split('!');
+        const sheetName = parts[0];
+        const cellRange = parts.length > 1 ? parts[1] : 'A1';
+        
+        // Encode the sheet name properly for API request
+        // This handles spaces and special characters in sheet names
+        const encodedSheetName = encodeURIComponent(sheetName);
+        const encodedRange = `${encodedSheetName}!${cellRange}`;
         
         try {
-          return await this.cache.getOrFetch(
-            cacheKey,
-            async () => {
-              console.log(`Reading sheet range: ${range}`);
-              
-              // Parse the range into sheet name and cell range
-              const parts = range.split('!');
-              const sheetName = parts[0];
-              const cellRange = parts.length > 1 ? parts[1] : 'A1';
-              
-              // Encode the sheet name properly for API request
-              // This handles spaces and special characters in sheet names
-              const encodedSheetName = encodeURIComponent(sheetName);
-              const encodedRange = `${encodedSheetName}!${cellRange}`;
-              
-              try {
-                const response = await this.sheets.spreadsheets.values.get({
-                  spreadsheetId: this.spreadsheetId,
-                  range: encodedRange,
-                });
-                console.log(`Successfully read sheet range: ${range}`);
-                return response.data.values;
-              } catch (error) {
-                console.error(`Error in Google API call for range ${range}:`, error);
-                throw error;
-              }
-            },
-            60000 // 1 minute cache TTL
-          );
-        } catch (error) {
-          console.error(`Error reading sheet ${range}:`, error);
-          await this.addAuditLog({
-            timestamp: new Date().toISOString(),
-            eventType: 'SYSTEM_ERROR',
-            description: `Failed to read sheet ${range}`,
-            user: 'SYSTEM',
-            systemNotes: JSON.stringify(error)
+          const response = await this.sheets.spreadsheets.values.get({
+            spreadsheetId: this.spreadsheetId,
+            range: encodedRange,
           });
-          throw new Error(`Failed to read sheet ${range}`);
+          console.log(`Successfully read sheet range: ${range}`);
+          return response.data.values;
+        } catch (error) {
+          console.error(`Error in Google API call for range ${range}:`, error);
+          throw error;
         }
-      }
+      },
+      60000 // 1 minute cache TTL
+    );
+  } catch (error) {
+    console.error(`Error reading sheet ${range}:`, error);
+    await this.addAuditLog({
+      timestamp: new Date().toISOString(),
+      eventType: 'SYSTEM_ERROR',
+      description: `Failed to read sheet ${range}`,
+      user: 'SYSTEM',
+      systemNotes: JSON.stringify(error)
+    });
+    throw new Error(`Failed to read sheet ${range}`);
+  }
+}
 
   private async appendRows(range: string, values: any[][]) {
     try {
