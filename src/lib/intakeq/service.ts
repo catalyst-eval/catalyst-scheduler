@@ -104,7 +104,7 @@ export class IntakeQService {
   }
   
   /**
-   * Get appointments from IntakeQ API
+   * Get a single appointment from IntakeQ API
    */
   async getAppointments(
     startDate: string,
@@ -113,185 +113,76 @@ export class IntakeQService {
   ): Promise<IntakeQAppointment[]> {
     try {
       console.log('Fetching IntakeQ appointments:', { startDate, endDate });
-
-      // Convert dates to EST and set proper day boundaries
-      const requestedStart = new Date(startDate);
-      const requestedEnd = new Date(endDate);
-
-      // Ensure we're working with EST dates
-      const startEST = new Date(requestedStart.toLocaleString('en-US', { timeZone: 'America/New_York' }));
-      const endEST = new Date(requestedEnd.toLocaleString('en-US', { timeZone: 'America/New_York' }));
-      startEST.setHours(0, 0, 0, 0);
-      endEST.setHours(23, 59, 59, 999);
-
-      console.log('Date ranges (EST):', {
-        start: startEST.toISOString(),
-        end: endEST.toISOString()
-      });
-
+  
+      // Use simpler date formatting - avoid URL encoding issues
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      
+      // Format dates in YYYY-MM-DD format which might be more reliable
+      const formattedStart = start.toISOString().split('T')[0];
+      const formattedEnd = end.toISOString().split('T')[0];
+  
       const params = new URLSearchParams({
-        StartDate: startEST.toISOString(),
-        EndDate: endEST.toISOString(),
+        StartDate: formattedStart,  // Simplified date format
+        EndDate: formattedEnd,      // Simplified date format
         Status: status,
         dateField: 'StartDateIso'
       });
-
-      const url = `${this.baseUrl}/appointments?${params}`;
-
-      console.log('IntakeQ Request:', {
-        endpoint: '/appointments',
-        params: Object.fromEntries(params),
-        requestRange: {
-          start: startEST.toISOString(),
-          end: endEST.toISOString()
-        }
-      });
-
-      let attempt = 0;
-      let response;
-      let lastError;
-
-      while (attempt < this.MAX_RETRIES) {
-        try {
-          response = await axios.get(url, {
-            headers: {
-              'X-Auth-Key': this.apiKey,
-              'Accept': 'application/json'
-            }
-          });
-
-          if (response.status === 200) break;
-
-          const errorText = await response.statusText;
-          lastError = `HTTP ${response.status}: ${errorText}`;
-          
-          console.log(`Attempt ${attempt + 1} failed:`, {
-            status: response.status,
-            error: lastError,
-            headers: response.headers,
-            url: url
-          });
-
-          attempt++;
-          if (attempt < this.MAX_RETRIES) {
-            const delay = this.RETRY_DELAY * Math.pow(2, attempt - 1);
-            await new Promise(resolve => setTimeout(resolve, delay));
-          }
-        } catch (error) {
-          lastError = error instanceof Error ? error.message : 'Unknown error';
-          console.log(`Attempt ${attempt + 1} error:`, {
-            error: lastError,
-            url: url
-          });
-          
-          attempt++;
-          if (attempt < this.MAX_RETRIES) {
-            const delay = this.RETRY_DELAY * Math.pow(2, attempt - 1);
-            await new Promise(resolve => setTimeout(resolve, delay));
-          }
-        }
-      }
-
-      if (!response || response.status !== 200) {
-        const errorMessage = `IntakeQ API error after ${this.MAX_RETRIES} attempts: ${lastError}`;
-        console.error('Final error details:', {
-          attempts: attempt,
-          lastError,
-          requestUrl: url
-        });
-        throw new Error(errorMessage);
-      }
-
-      const appointments = response.data;
-
-      // Filter appointments to match requested date in EST
-      const filteredAppointments = appointments.filter((appt: IntakeQAppointment) => {
-        const apptDate = new Date(appt.StartDateIso);
-        const apptEST = new Date(apptDate.toLocaleString('en-US', { timeZone: 'America/New_York' }));
-        apptEST.setHours(0, 0, 0, 0);  // Compare dates only
-
-        const targetEST = new Date(requestedStart.toLocaleString('en-US', { timeZone: 'America/New_York' }));
-        targetEST.setHours(0, 0, 0, 0);  // Compare dates only
-
-        console.log('Appointment comparison:', {
-          id: appt.Id,
-          client: appt.ClientName,
-          apptDate: apptEST.toISOString(),
-          targetDate: targetEST.toISOString(),
-          matches: apptEST.getTime() === targetEST.getTime()
-        });
-
-        return apptEST.getTime() === targetEST.getTime();
-      });
-
-      console.log('IntakeQ Response:', {
-        status: response.status,
-        totalReturned: appointments.length,
-        matchingDateRange: filteredAppointments.length,
-        sampleAppointment: filteredAppointments[0] ? {
-          id: filteredAppointments[0].Id,
-          name: filteredAppointments[0].ClientName,
-          date: filteredAppointments[0].StartDateLocalFormatted,
-          status: filteredAppointments[0].Status
-        } : null
-      });
-
-      return filteredAppointments;
-    } catch (error) {
-      console.error('IntakeQ API Error:', error instanceof Error ? error.message : 'Unknown error');
-      
-      await this.sheetsService.addAuditLog({
-        timestamp: new Date().toISOString(),
-        eventType: AuditEventType.SYSTEM_ERROR,
-        description: 'IntakeQ API error',
-        user: 'SYSTEM',
-        systemNotes: error instanceof Error ? error.message : 'Unknown error'
-      });
-      
-      throw error;
-    }
-  }
   
-  /**
-   * Get a single appointment from IntakeQ API
-   */
-  async getAppointment(appointmentId: string): Promise<IntakeQAppointment | null> {
-    try {
-      console.log(`Fetching IntakeQ appointment: ${appointmentId}`);
-      
-      const response = await axios.get(
-        `${this.baseUrl}/appointments/${appointmentId}`,
-        {
-          headers: {
-            'X-Auth-Key': this.apiKey,
-            'Accept': 'application/json'
-          }
-        }
-      );
-      
-      if (response.status !== 200 || !response.data) {
-        throw new Error(`IntakeQ API error: ${response.statusText}`);
-      }
-      
-      console.log(`Successfully fetched appointment ${appointmentId}`);
-      return response.data;
-    } catch (error) {
-      console.error(`Error fetching appointment ${appointmentId} from IntakeQ:`, error);
-      
-      // If we get a 404, return null instead of throwing
-      if (axios.isAxiosError(error) && error.response?.status === 404) {
-        console.log(`Appointment ${appointmentId} not found`);
-        return null;
-      }
-      
-      await this.sheetsService.addAuditLog({
-        timestamp: new Date().toISOString(),
-        eventType: AuditEventType.SYSTEM_ERROR,
-        description: `Error fetching appointment ${appointmentId} from IntakeQ`,
-        user: 'SYSTEM',
-        systemNotes: error instanceof Error ? error.message : 'Unknown error'
+      const url = `${this.baseUrl}/appointments?${params}`;
+      console.log('IntakeQ Request URL:', url);
+  
+      // Additional logging for headers
+      console.log('Request headers:', {
+        'X-Auth-Key': this.apiKey ? '***' : 'MISSING', // Don't log actual key, just presence
+        'Accept': 'application/json'
       });
-      throw error;
+  
+      const response = await axios.get(url, {
+        headers: {
+          'X-Auth-Key': this.apiKey,
+          'Accept': 'application/json'
+        }
+      });
+  
+      if (response.status === 200) {
+        console.log(`Successfully retrieved ${response.data.length} appointments`);
+        return response.data;
+      } else {
+        throw new Error(`Unexpected response status: ${response.status}`);
+      }
+    } catch (error: unknown) {
+      // Enhanced error logging with proper TypeScript typing
+      const errorObj: Record<string, any> = {
+        error: error instanceof Error ? error.message : 'Unknown error'
+      };
+      
+      // Handle Axios error type specifically
+      if (axios.isAxiosError(error) && error.response) {
+        errorObj.status = error.response.status;
+        errorObj.statusText = error.response.statusText;
+        errorObj.data = error.response.data;
+        
+        if (error.config) {
+          errorObj.config = {
+            url: error.config.url,
+            method: error.config.method,
+            headers: {
+              ...error.config.headers,
+              'X-Auth-Key': '***' // Redact actual key
+            }
+          };
+        }
+      }
+      
+      console.error('IntakeQ API Error Details:', errorObj);
+      
+      // Rethrow as a typed error
+      if (error instanceof Error) {
+        throw error;
+      } else {
+        throw new Error('Unknown error when fetching IntakeQ appointments');
+      }
     }
   }
   

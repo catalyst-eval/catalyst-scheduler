@@ -367,30 +367,27 @@ private extractAccessibilityInfo(formData: any, clientId: string): Accessibility
     if (!payload || typeof payload !== 'object') {
       return { isValid: false, error: 'Invalid payload format' };
     }
-
-    const typedPayload = payload as Partial<IntakeQWebhookPayload>;
-
-    // Required fields validation - check both Type and EventType
-    const eventType = this.getEventType(typedPayload);
-    if (!eventType) {
-      return { isValid: false, error: 'Missing event type field' };
-    }
-    if (!typedPayload.ClientId) {
-      return { isValid: false, error: 'Missing ClientId field' };
-    }
-
-    // Type-specific validation for non-appointment events (appointment events are handled by AppointmentSyncHandler)
-    if (!eventType.includes('Appointment') && !eventType.includes('appointment')) {
-      // For form submissions
-      if (eventType.includes('Form') || eventType.includes('Intake')) {
-        // If there's an IntakeId, we can fetch the form data
-        if (!typedPayload.responses && !typedPayload.IntakeId && !typedPayload.formId) {
-          return { isValid: false, error: 'Missing form responses or form identification' };
-        }
+  
+    // Stringify and re-parse to ensure any nested values are properly processed
+    try {
+      const safePayload = JSON.parse(JSON.stringify(payload));
+      const typedPayload = safePayload as Partial<IntakeQWebhookPayload>;
+      
+      // Required fields validation - check both Type and EventType
+      const eventType = this.getEventType(typedPayload);
+      if (!eventType) {
+        return { isValid: false, error: 'Missing event type field' };
       }
+      if (!typedPayload.ClientId) {
+        return { isValid: false, error: 'Missing ClientId field' };
+      }
+  
+      return { isValid: true };
+    } catch (error: unknown) {
+      console.error('Webhook payload parsing error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown parsing error';
+      return { isValid: false, error: `Payload parsing error: ${errorMessage}` };
     }
-
-    return { isValid: true };
   }
 
   /**

@@ -347,6 +347,11 @@ export class AppointmentSyncHandler {
     appointment: IntakeQAppointment
   ): Promise<AppointmentRecord> {
     try {
+      // Sanitize client name and other text fields
+      const safeClientName = this.sanitizeText(appointment.ClientName || '');
+      const safePractitionerName = this.sanitizeText(appointment.PractitionerName || '');
+      const safeServiceName = this.sanitizeText(appointment.ServiceName || '');
+      
       // Get all clinicians to find the matching one
       const clinicians = await this.sheetsService.getClinicians();
       
@@ -355,18 +360,14 @@ export class AppointmentSyncHandler {
         c => c.intakeQPractitionerId === appointment.PractitionerId
       );
       
-      if (!clinician) {
-        console.warn(`No mapping found for IntakeQ practitioner ID: ${appointment.PractitionerId}, using raw data`);
-      }
-
       // Convert the appointment to our format
       return {
         appointmentId: appointment.Id,
         clientId: appointment.ClientId.toString(),
-        clientName: appointment.ClientName,
+        clientName: safeClientName,
         clinicianId: clinician?.clinicianId || appointment.PractitionerId,
-        clinicianName: clinician?.name || appointment.PractitionerName,
-        officeId: 'B-1', // Default to be replaced by office assignment
+        clinicianName: clinician?.name || safePractitionerName,
+        officeId: 'A-v', // Default to virtual until office assignment
         sessionType: this.determineSessionType(appointment),
         startTime: appointment.StartDateIso,
         endTime: appointment.EndDateIso,
@@ -374,12 +375,21 @@ export class AppointmentSyncHandler {
         lastUpdated: new Date().toISOString(),
         source: 'intakeq',
         requirements: await this.determineRequirements(appointment),
-        notes: `Service: ${appointment.ServiceName}`
+        notes: `Service: ${safeServiceName}`
       };
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error converting appointment:', error);
-      throw new Error(`Failed to convert appointment: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      throw new Error(`Failed to convert appointment: ${errorMessage}`);
     }
+  }
+  
+  // Add this helper method after the convertToAppointmentRecord method
+  private sanitizeText(text: string): string {
+    // Remove any non-printable characters
+    return text.replace(/[\u0000-\u001F\u007F-\u009F]/g, '')
+      // Strip any characters that might cause JSON issues
+      .replace(/[\\"]/g, ' ');
   }
 
   /**

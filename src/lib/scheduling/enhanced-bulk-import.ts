@@ -76,11 +76,13 @@ export async function enhancedBulkImport(
     const processedDates: string[] = [];
     
     // Process each date
-    for (const date of dates) {
+    // Process each date
+for (const date of dates) {
+    try {
+      console.log(`Processing appointments for ${date}`);
+      
+      // Get appointments from IntakeQ for this date
       try {
-        console.log(`Processing appointments for ${date}`);
-        
-        // Get appointments from IntakeQ for this date
         const appointments = await intakeQService.getAppointments(
           date, 
           date, 
@@ -111,8 +113,9 @@ export async function enhancedBulkImport(
               console.error(`Error processing appointment ${appointment.Id}:`, result.error);
               dateErrors++;
             }
-          } catch (apptError) {
-            console.error(`Error processing appointment ${appointment.Id}:`, apptError);
+          } catch (apptError: unknown) {
+            const errorMessage = apptError instanceof Error ? apptError.message : 'Unknown error';
+            console.error(`Error processing appointment ${appointment.Id}:`, errorMessage);
             dateErrors++;
           }
         }
@@ -125,23 +128,41 @@ export async function enhancedBulkImport(
         if (dateProcessed > 0) {
           processedDates.push(date);
         }
-        
-        // Small delay to avoid API rate limits
-        await new Promise(resolve => setTimeout(resolve, 500));
-      } catch (error) {
-        console.error(`Error processing date ${date}:`, error);
+      } catch (dateError: unknown) {
+        const errorMessage = dateError instanceof Error ? dateError.message : 'Unknown error';
+        console.error(`Error fetching appointments for ${date}:`, errorMessage);
         totalErrors++;
         
-        // Log error but continue with other dates
+        // Log error but continue with next date
         await sheetsService.addAuditLog({
           timestamp: new Date().toISOString(),
           eventType: 'SYSTEM_ERROR' as AuditEventType,
-          description: `Failed to process appointments for ${date} during bulk import`,
+          description: `Failed to fetch appointments for ${date} during bulk import`,
           user: 'SYSTEM',
-          systemNotes: error instanceof Error ? error.message : 'Unknown error'
+          systemNotes: errorMessage
         });
+        
+        // Skip to next date rather than failing entire import
+        continue;
       }
+      
+      // Small delay to avoid API rate limits
+      await new Promise(resolve => setTimeout(resolve, 1000)); // Increased delay
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error(`Error processing date ${date}:`, errorMessage);
+      totalErrors++;
+      
+      // Log error but continue with other dates
+      await sheetsService.addAuditLog({
+        timestamp: new Date().toISOString(),
+        eventType: 'SYSTEM_ERROR' as AuditEventType,
+        description: `Failed to process appointments for ${date} during bulk import`,
+        user: 'SYSTEM',
+        systemNotes: errorMessage
+      });
     }
+  }
     
     // Now perform cleanup to maintain the rolling window
     console.log("Performing cleanup to maintain rolling window of appointments");
