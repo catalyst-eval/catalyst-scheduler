@@ -46,4 +46,33 @@ router.get('/test-sheets-meta', async (req, res) => {
   }
 });
 
+router.get('/sheet-metadata', async (req, res) => {
+  try {
+    // Access the sheets API directly to get all sheet names
+    const sheetsService = new GoogleSheetsService();
+    const spreadsheetId = process.env.GOOGLE_SHEETS_SPREADSHEET_ID;
+    
+    // Cast to any to access private property for diagnostics
+    const sheetsClient = (sheetsService as any).sheets;
+    
+    const response = await sheetsClient.spreadsheets.get({
+      spreadsheetId
+    });
+    
+    // Extract sheet names
+    const sheetNames = response.data.sheets.map((sheet: { properties: { title: string } }) => sheet.properties.title);
+    
+    res.json({
+      success: true,
+      sheets: sheetNames
+    });
+  } catch (error) {
+    console.error('Failed to get sheet metadata:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
 export default router;
