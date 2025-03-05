@@ -212,19 +212,30 @@ private async processIntakeFormSubmission(
 /**
  * Extract accessibility information from form data
  */
+// Enhanced form data extraction
 private extractAccessibilityInfo(formData: any, clientId: string): AccessibilityInfo {
-  console.log('Extracting accessibility information from form data');
+  console.log('Extracting accessibility information from form:', {
+    formId: formData.Id,
+    formName: formData.QuestionnaireName,
+    questionCount: formData.Questions?.length || 0
+  });
+  
+  // Print all question IDs and text for debugging
+  if (formData.Questions) {
+    console.log('Form questions:', formData.Questions.map((q: any) => ({
+      id: q.Id,
+      text: q.Text?.substring(0, 30) + (q.Text?.length > 30 ? '...' : ''),
+      hasAnswer: !!q.Answer
+    })));
+  }
   
   // Determine the form type
-  const isAdult = formData.QuestionnaireName?.includes("1 Therapy Intake");
-  const isMinor = formData.QuestionnaireName?.includes("2 Therapy Intake - Minor");
-  const formType = isAdult ? 'Adult' : (isMinor ? 'Minor' : 'Unknown');
+  const formType = this.determineFormType(formData);
+  console.log(`Form type determined: ${formType}`);
   
-  console.log(`Form type detected: ${formType}`);
-  
-  // Initialize the accessibility info with defaults
+  // Initialize with default values
   const accessibilityInfo: AccessibilityInfo = {
-    clientId: clientId,
+    clientId,
     clientName: formData.ClientName || '',
     hasMobilityNeeds: false,
     mobilityDetails: '',
@@ -355,6 +366,37 @@ private extractAccessibilityInfo(formData: any, clientId: string): Accessibility
   });
   
   return accessibilityInfo;
+}
+
+/**
+ * Determine the form type more accurately from its name and questions
+ */
+private determineFormType(formData: any): 'Adult' | 'Minor' | 'Unknown' {
+  const name = formData.QuestionnaireName || '';
+  
+  if (name.match(/Minor|Child|Youth|Teen|Adolescent/i)) {
+    return 'Minor';
+  } else if (name.match(/Adult|Individual|Personal/i)) {
+    return 'Adult';
+  }
+  
+  // Check for specific question IDs that are present in adult forms
+  const questions = formData.Questions || [];
+  const adultQuestionIds = ['70sl-1', 'wkfi-1', '1zfd-1'];
+  const minorQuestionIds = ['12', '13', '14'];
+  
+  const hasAdultQuestions = adultQuestionIds.some(id => 
+    questions.some((q: any) => q.Id === id)
+  );
+  
+  const hasMinorQuestions = minorQuestionIds.some(id => 
+    questions.some((q: any) => q.Id === id)
+  );
+  
+  if (hasAdultQuestions) return 'Adult';
+  if (hasMinorQuestions) return 'Minor';
+  
+  return 'Unknown';
 }
 
   /**

@@ -113,76 +113,41 @@ export class IntakeQService {
   ): Promise<IntakeQAppointment[]> {
     try {
       console.log('Fetching IntakeQ appointments:', { startDate, endDate });
-  
-      // Use simpler date formatting - avoid URL encoding issues
-      const start = new Date(startDate);
-      const end = new Date(endDate);
-      
-      // Format dates in YYYY-MM-DD format which might be more reliable
-      const formattedStart = start.toISOString().split('T')[0];
-      const formattedEnd = end.toISOString().split('T')[0];
-  
+    
+      // Format dates properly for API
+      const formattedStart = this.formatDateForApi(startDate);
+      const formattedEnd = this.formatDateForApi(endDate);
+    
       const params = new URLSearchParams({
-        StartDate: formattedStart,  // Simplified date format
-        EndDate: formattedEnd,      // Simplified date format
+        StartDate: formattedStart,
+        EndDate: formattedEnd,
         Status: status,
         dateField: 'StartDateIso'
       });
-  
+    
       const url = `${this.baseUrl}/appointments?${params}`;
       console.log('IntakeQ Request URL:', url);
-  
+    
       // Additional logging for headers
       console.log('Request headers:', {
-        'X-Auth-Key': this.apiKey ? '***' : 'MISSING', // Don't log actual key, just presence
+        'X-Auth-Key': this.apiKey ? '[PRESENT]' : '[MISSING]',
         'Accept': 'application/json'
       });
-  
+    
       const response = await axios.get(url, {
         headers: {
           'X-Auth-Key': this.apiKey,
           'Accept': 'application/json'
         }
       });
-  
-      if (response.status === 200) {
-        console.log(`Successfully retrieved ${response.data.length} appointments`);
-        return response.data;
-      } else {
-        throw new Error(`Unexpected response status: ${response.status}`);
-      }
-    } catch (error: unknown) {
-      // Enhanced error logging with proper TypeScript typing
-      const errorObj: Record<string, any> = {
-        error: error instanceof Error ? error.message : 'Unknown error'
-      };
-      
-      // Handle Axios error type specifically
-      if (axios.isAxiosError(error) && error.response) {
-        errorObj.status = error.response.status;
-        errorObj.statusText = error.response.statusText;
-        errorObj.data = error.response.data;
-        
-        if (error.config) {
-          errorObj.config = {
-            url: error.config.url,
-            method: error.config.method,
-            headers: {
-              ...error.config.headers,
-              'X-Auth-Key': '***' // Redact actual key
-            }
-          };
-        }
-      }
-      
-      console.error('IntakeQ API Error Details:', errorObj);
-      
-      // Rethrow as a typed error
-      if (error instanceof Error) {
-        throw error;
-      } else {
-        throw new Error('Unknown error when fetching IntakeQ appointments');
-      }
+    
+      console.log(`API response status: ${response.status}`);
+      console.log(`Retrieved ${response.data.length} appointments`);
+
+      return response.data;
+    } catch (error) {
+      this.logApiError('getAppointments', error, { startDate, endDate, status });
+      throw error;
     }
   }
   
@@ -266,47 +231,47 @@ export class IntakeQService {
   }
 
   /**
- * Get full intake form data from IntakeQ API
- */
-async getFullIntakeForm(formId: string): Promise<any> {
-  try {
-    console.log(`Fetching full intake form data for ID: ${formId}`);
-    
-    const response = await axios.get(
-      `${this.baseUrl}/intakes/${formId}`,
-      {
-        headers: {
-          'X-Auth-Key': this.apiKey,
-          'Accept': 'application/json'
+   * Get full intake form data from IntakeQ API
+   */
+  async getFullIntakeForm(formId: string): Promise<any> {
+    try {
+      console.log(`Fetching full intake form data for ID: ${formId}`);
+      
+      const response = await axios.get(
+        `${this.baseUrl}/intakes/${formId}`,
+        {
+          headers: {
+            'X-Auth-Key': this.apiKey,
+            'Accept': 'application/json'
+          }
         }
+      );
+      
+      if (response.status !== 200 || !response.data) {
+        throw new Error(`IntakeQ API error: ${response.statusText}`);
       }
-    );
-    
-    if (response.status !== 200 || !response.data) {
-      throw new Error(`IntakeQ API error: ${response.statusText}`);
+      
+      console.log(`Successfully fetched form data for form ID ${formId}`);
+      return response.data;
+    } catch (error) {
+      console.error(`Error fetching form data for form ID ${formId}:`, error);
+      
+      // If we get a 404, return null instead of throwing
+      if (axios.isAxiosError(error) && error.response?.status === 404) {
+        console.log(`Form ${formId} not found`);
+        return null;
+      }
+      
+      await this.sheetsService.addAuditLog({
+        timestamp: new Date().toISOString(),
+        eventType: AuditEventType.SYSTEM_ERROR,
+        description: `Error fetching form data for form ID ${formId} from IntakeQ`,
+        user: 'SYSTEM',
+        systemNotes: error instanceof Error ? error.message : 'Unknown error'
+      });
+      throw error;
     }
-    
-    console.log(`Successfully fetched form data for form ID ${formId}`);
-    return response.data;
-  } catch (error) {
-    console.error(`Error fetching form data for form ID ${formId}:`, error);
-    
-    // If we get a 404, return null instead of throwing
-    if (axios.isAxiosError(error) && error.response?.status === 404) {
-      console.log(`Form ${formId} not found`);
-      return null;
-    }
-    
-    await this.sheetsService.addAuditLog({
-      timestamp: new Date().toISOString(),
-      eventType: AuditEventType.SYSTEM_ERROR,
-      description: `Error fetching form data for form ID ${formId} from IntakeQ`,
-      user: 'SYSTEM',
-      systemNotes: error instanceof Error ? error.message : 'Unknown error'
-    });
-    throw error;
   }
-}
 
   /**
    * Validate IntakeQ webhook signature
@@ -319,19 +284,27 @@ async getFullIntakeForm(formId: string): Promise<any> {
         return false;
       }
 
-      // Remove any quotes from the secret
-      const cleanSecret = secret.replace(/['"]/g, '');
+      // More thorough secret cleaning
+      const cleanSecret = secret
+        .replace(/^["']/, '') // Remove leading quotes
+        .replace(/["']$/, '') // Remove trailing quotes
+        .trim();              // Remove any whitespace
 
       // Create HMAC
       const hmac = crypto.createHmac('sha256', cleanSecret);
       hmac.update(payload);
       const calculatedSignature = hmac.digest('hex');
 
+      // Detailed signature logging
       console.log('Webhook Signature Validation:', {
         signatureMatches: calculatedSignature === signature,
-        calculatedLength: calculatedSignature.length,
-        providedLength: signature.length,
+        calculatedSignatureLength: calculatedSignature.length,
+        providedSignatureLength: signature.length,
         payloadLength: payload.length,
+        // Log first few chars of signatures for comparison
+        calculatedSignatureStart: calculatedSignature.substring(0, 10) + '...',
+        providedSignatureStart: signature ? signature.substring(0, 10) + '...' : 'none',
+        secretLength: cleanSecret.length
       });
 
       return calculatedSignature === signature;
@@ -396,6 +369,58 @@ async getFullIntakeForm(formId: string): Promise<any> {
    */
   private isValidOfficeId(officeId: string): boolean {
     return /^[A-Z]-[a-z]$/.test(officeId);
+  }
+
+  /**
+   * Helper method for consistent date formatting 
+   */
+  private formatDateForApi(dateString: string): string {
+    try {
+      const date = new Date(dateString);
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    } catch (e) {
+      console.error('Date formatting error:', e);
+      return dateString; // Fall back to original if parsing fails
+    }
+  }
+
+  /**
+   * Helper for detailed API error logging
+   */
+  private logApiError(method: string, error: unknown, context: any): void {
+    const errorDetails: any = {
+      method,
+      context,
+      message: error instanceof Error ? error.message : 'Unknown error',
+      time: new Date().toISOString()
+    };
+    
+    if (axios.isAxiosError(error)) {
+      errorDetails.status = error.response?.status;
+      errorDetails.statusText = error.response?.statusText;
+      errorDetails.responseData = error.response?.data;
+      errorDetails.requestConfig = {
+        url: error.config?.url,
+        method: error.config?.method,
+        params: error.config?.params
+      };
+    }
+    
+    console.error('IntakeQ API Error:', JSON.stringify(errorDetails, null, 2));
+    
+    // Log to audit log if available
+    if (this.sheetsService) {
+      this.sheetsService.addAuditLog({
+        timestamp: new Date().toISOString(),
+        eventType: 'SYSTEM_ERROR' as AuditEventType,
+        description: `IntakeQ API error in ${method}`,
+        user: 'SYSTEM',
+        systemNotes: JSON.stringify(errorDetails)
+      }).catch(e => console.error('Failed to log API error to audit log:', e));
+    }
   }
 }
 

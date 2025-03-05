@@ -87,8 +87,7 @@ const SHEET_NAMES = {
   SCHEDULE_CONFIG: 'Schedule_Configuration',
   INTEGRATION_SETTINGS: 'Integration_Settings',
   APPOINTMENTS: 'Appointments',
-  AUDIT_LOG: 'Audit_Log',
-  REQUIRED_OFFICES: 'Required_Offices'
+  AUDIT_LOG: 'Audit_Log'
 };
 
 export class GoogleSheetsService implements IGoogleSheetsService {
@@ -838,27 +837,33 @@ export class GoogleSheetsService implements IGoogleSheetsService {
    */
   async getClientRequiredOffices(): Promise<any[]> {
     try {
-      const values = await this.readSheet(`${SHEET_NAMES.REQUIRED_OFFICES}!A2:I`);
+      console.log('Getting client required offices from Client_Preferences');
       
-      return values?.map((row: SheetRow) => ({
-        inactive: row[0] === 'TRUE',
-        requiredOfficeId: row[1] || '', // The selected office ID from dropdown
-        lastName: row[2] || '',
-        firstName: row[3] || '',
-        middleName: row[4] || '',
-        dateOfBirth: row[5] || '',
-        dateCreated: row[6] || '',
-        lastActivity: row[7] || '',
-        practitioner: row[8] || ''
-      })) ?? [];
+      // Get client preferences instead since that contains the required office info
+      const clientPreferences = await this.getClientPreferences();
+      
+      // Filter and map to the expected format
+      return clientPreferences
+        .filter(pref => pref.assignedOffice) // Only include clients with an assigned office
+        .map(pref => ({
+          inactive: false,
+          requiredOfficeId: pref.assignedOffice || '',
+          lastName: pref.name?.split(' ').slice(1).join(' ') || '',
+          firstName: pref.name?.split(' ')[0] || '',
+          middleName: '',
+          dateOfBirth: '',
+          dateCreated: '',
+          lastActivity: pref.lastUpdated || '',
+          practitioner: pref.preferredClinician || ''
+        }));
     } catch (error) {
-      console.error('Error getting client required offices:', error);
+      console.error('Error getting client required offices from preferences:', error);
       
       // Log error but don't throw - just return empty array
       await this.addAuditLog({
         timestamp: new Date().toISOString(),
         eventType: AuditEventType.SYSTEM_ERROR,
-        description: 'Failed to get client required offices',
+        description: 'Failed to get client required offices from preferences',
         user: 'SYSTEM',
         systemNotes: error instanceof Error ? error.message : 'Unknown error'
       });

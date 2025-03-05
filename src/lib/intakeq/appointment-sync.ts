@@ -507,27 +507,32 @@ async determineOfficeAssignment(appointment: IntakeQAppointment): Promise<Office
     
     // 2. RULE PRIORITY 100: Client Specific Requirement
     // Check if client has a required office in the Required Offices tab
-    const clientRequirements = await this.sheetsService.getClientRequiredOffices();
-    
-    // Match by name since ID might not be available
-    let clientRequirement = null;
-    
-    if (appointment.ClientLastName && appointment.ClientFirstName) {
-      clientRequirement = clientRequirements.find(
-        (r: any) => !r.inactive && 
-           r.lastName === appointment.ClientLastName &&
-           r.firstName === appointment.ClientFirstName &&
-           r.requiredOfficeId
-      );
-    }
-    
-    // If client has a specific required office, use it
-    if (clientRequirement && clientRequirement.requiredOfficeId) {
-      console.log(`Client ${appointment.ClientName} has required office: ${clientRequirement.requiredOfficeId}`);
-      return {
-        officeId: standardizeOfficeId(clientRequirement.requiredOfficeId),
-        reasons: ['Client has specific office requirement noted by clinician']
-      };
+    try {
+      const clientRequirements = await this.sheetsService.getClientRequiredOffices();
+      
+      // Match by name since ID might not be available
+      let clientRequirement = null;
+      
+      if (appointment.ClientLastName && appointment.ClientFirstName) {
+        clientRequirement = clientRequirements.find(
+          (r: any) => !r.inactive && 
+             r.lastName === appointment.ClientLastName &&
+             r.firstName === appointment.ClientFirstName &&
+             r.requiredOfficeId
+        );
+      }
+      
+      // If client has a specific required office, use it
+      if (clientRequirement && clientRequirement.requiredOfficeId) {
+        console.log(`Client ${appointment.ClientName} has required office: ${clientRequirement.requiredOfficeId}`);
+        return {
+          officeId: standardizeOfficeId(clientRequirement.requiredOfficeId),
+          reasons: ['Client has specific office requirement noted by clinician']
+        };
+      }
+    } catch (error) {
+      console.error('Error checking client required offices, continuing with other rules:', error);
+      // Continue to next rule if this fails
     }
     
     // 3. RULE PRIORITY 90: Accessibility Requirements
