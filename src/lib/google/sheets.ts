@@ -343,11 +343,11 @@ export class GoogleSheetsService implements IGoogleSheetsService {
       clientId: row[0],
       name: row[1],
       email: row[2],
-      mobilityNeeds: JSON.parse(row[3] || '[]'),
-      sensoryPreferences: JSON.parse(row[4] || '[]'),
-      physicalNeeds: JSON.parse(row[5] || '[]'),
+      mobilityNeeds: this.safeParseJSON(row[3], []),
+      sensoryPreferences: this.safeParseJSON(row[4], []),
+      physicalNeeds: this.safeParseJSON(row[5], []),
       roomConsistency: Number(row[6]),
-      supportNeeds: JSON.parse(row[7] || '[]'),
+      supportNeeds: this.safeParseJSON(row[7], []),
       specialFeatures: [], // Added required field with default empty array
       additionalNotes: row[8],
       lastUpdated: row[9],
@@ -355,6 +355,7 @@ export class GoogleSheetsService implements IGoogleSheetsService {
       assignedOffice: row[11]
     })) ?? [];
   }
+  
 
   async getScheduleConfig(): Promise<ScheduleConfig[]> {
     const values = await this.readSheet(`${SHEET_NAMES.SCHEDULE_CONFIG}!A2:E`);
@@ -404,6 +405,16 @@ export class GoogleSheetsService implements IGoogleSheetsService {
       } catch (directLogError) {
         console.error('CRITICAL: Failed to log directly to audit log:', directLogError);
       }
+    }
+  }
+
+  private safeParseJSON(value: string | null | undefined, defaultValue: any = []): any {
+    if (!value) return defaultValue;
+    try {
+      return JSON.parse(value);
+    } catch (e) {
+      console.warn(`Invalid JSON value: ${value}`);
+      return defaultValue;
     }
   }
 

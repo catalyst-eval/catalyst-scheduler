@@ -113,38 +113,42 @@ export class IntakeQService {
   ): Promise<IntakeQAppointment[]> {
     try {
       console.log('Fetching IntakeQ appointments:', { startDate, endDate });
-    
-      // Format dates properly for API
+      
+      // Try multiple formats if first one fails
       const formattedStart = this.formatDateForApi(startDate);
       const formattedEnd = this.formatDateForApi(endDate);
-    
-      const params = new URLSearchParams({
-        StartDate: formattedStart,
-        EndDate: formattedEnd,
-        Status: status,
-        dateField: 'StartDateIso'
-      });
-    
-      const url = `${this.baseUrl}/appointments?${params}`;
+      
+      // First format attempt (MM/dd/yyyy)
+      let url = `${this.baseUrl}/appointments?StartDate=${formattedStart}&EndDate=${formattedEnd}&Status=${status}&dateField=StartDateIso`;
       console.log('IntakeQ Request URL:', url);
-    
-      // Additional logging for headers
-      console.log('Request headers:', {
-        'X-Auth-Key': this.apiKey ? '[PRESENT]' : '[MISSING]',
-        'Accept': 'application/json'
-      });
-    
-      const response = await axios.get(url, {
-        headers: {
-          'X-Auth-Key': this.apiKey,
-          'Accept': 'application/json'
-        }
-      });
-    
-      console.log(`API response status: ${response.status}`);
-      console.log(`Retrieved ${response.data.length} appointments`);
-
-      return response.data;
+      
+      try {
+        const response = await axios.get(url, {
+          headers: {
+            'X-Auth-Key': this.apiKey,
+            'Accept': 'application/json'
+          }
+        });
+        
+        console.log(`API response status: ${response.status}`);
+        console.log(`Retrieved ${response.data.length} appointments`);
+        return response.data;
+      } catch (error) {
+        // Try second format (yyyy-MM-dd) if first fails
+        console.log('First format failed, trying alternative format...');
+        url = `${this.baseUrl}/appointments?StartDate=${startDate}&EndDate=${endDate}&Status=${status}&dateField=StartDateIso`;
+        
+        const response = await axios.get(url, {
+          headers: {
+            'X-Auth-Key': this.apiKey,
+            'Accept': 'application/json'
+          }
+        });
+        
+        console.log(`API response status with alternative format: ${response.status}`);
+        console.log(`Retrieved ${response.data.length} appointments`);
+        return response.data;
+      }
     } catch (error) {
       this.logApiError('getAppointments', error, { startDate, endDate, status });
       throw error;
@@ -390,16 +394,22 @@ async validateWebhookSignature(payload: string, signature: string): Promise<bool
    */
   private formatDateForApi(dateString: string): string {
     try {
+      // Try different date format - MM/dd/yyyy instead of yyyy-MM-dd
       const date = new Date(dateString);
-      const year = date.getFullYear();
       const month = String(date.getMonth() + 1).padStart(2, '0');
       const day = String(date.getDate()).padStart(2, '0');
-      return `${year}-${month}-${day}`;
+      const year = date.getFullYear();
+      
+      // Log the formatted date for debugging
+      console.log(`Formatting date ${dateString} as ${month}/${day}/${year}`);
+      
+      return `${month}/${day}/${year}`;
     } catch (e) {
       console.error('Date formatting error:', e);
       return dateString; // Fall back to original if parsing fails
     }
   }
+  
 
   /**
    * Helper for detailed API error logging
