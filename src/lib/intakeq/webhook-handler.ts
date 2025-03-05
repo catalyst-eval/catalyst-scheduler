@@ -213,7 +213,7 @@ private async processIntakeFormSubmission(
  * Extract accessibility information from form data
  */
 // Enhanced form data extraction
-private extractAccessibilityInfo(formData: any, clientId: string): AccessibilityInfo {
+extractAccessibilityInfo(formData: any, clientId: string): AccessibilityInfo {
   console.log('Extracting accessibility information from form:', {
     formId: formData.Id,
     formName: formData.QuestionnaireName,

@@ -6,6 +6,7 @@ import testRoutes from './test';
 import webhookRoutes from './webhooks';
 import schedulingRoutes from './scheduling';
 import testWebhookRoutes from './test-webhook'; // Add this import
+import maintenanceRoutes from './maintenance';  // Add this import
 
 const router = express.Router();
 
@@ -16,5 +17,6 @@ router.use('/test', testRoutes);
 router.use('/webhooks', webhookRoutes);
 router.use('/scheduling', schedulingRoutes);
 router.use('/test-webhook', testWebhookRoutes); // Add this line
+router.use('/maintenance', maintenanceRoutes);  // Add this line
 
 export default router;

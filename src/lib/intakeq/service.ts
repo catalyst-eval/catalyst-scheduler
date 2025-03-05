@@ -357,6 +357,34 @@ async validateWebhookSignature(payload: string, signature: string): Promise<bool
   }
 
   /**
+ * Generic method to fetch data from the IntakeQ API
+ */
+async fetchFromIntakeQ(endpoint: string): Promise<any> {
+  try {
+    console.log(`Fetching from IntakeQ API: ${endpoint}`);
+    
+    const response = await axios.get(
+      `${this.baseUrl}/${endpoint}`,
+      {
+        headers: {
+          'X-Auth-Key': this.apiKey,
+          'Accept': 'application/json'
+        }
+      }
+    );
+    
+    if (response.status !== 200 || !response.data) {
+      throw new Error(`IntakeQ API error: ${response.statusText}`);
+    }
+    
+    return response.data;
+  } catch (error) {
+    this.logApiError('fetchFromIntakeQ', error, { endpoint });
+    throw error;
+  }
+}
+
+  /**
    * Determine the standardized office ID for an appointment
    */
   private async getStandardizedOfficeId(appointment: IntakeQAppointment): Promise<string> {
