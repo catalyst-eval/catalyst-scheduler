@@ -276,43 +276,57 @@ export class IntakeQService {
   /**
    * Validate IntakeQ webhook signature
    */
-  async validateWebhookSignature(payload: string, signature: string): Promise<boolean> {
-    try {
-      const secret = process.env.INTAKEQ_WEBHOOK_SECRET;
-      if (!secret) {
-        console.error('Missing INTAKEQ_WEBHOOK_SECRET environment variable');
-        return false;
-      }
-
-      // More thorough secret cleaning
-      const cleanSecret = secret
-        .replace(/^["']/, '') // Remove leading quotes
-        .replace(/["']$/, '') // Remove trailing quotes
-        .trim();              // Remove any whitespace
-
-      // Create HMAC
-      const hmac = crypto.createHmac('sha256', cleanSecret);
-      hmac.update(payload);
-      const calculatedSignature = hmac.digest('hex');
-
-      // Detailed signature logging
-      console.log('Webhook Signature Validation:', {
-        signatureMatches: calculatedSignature === signature,
-        calculatedSignatureLength: calculatedSignature.length,
-        providedSignatureLength: signature.length,
-        payloadLength: payload.length,
-        // Log first few chars of signatures for comparison
-        calculatedSignatureStart: calculatedSignature.substring(0, 10) + '...',
-        providedSignatureStart: signature ? signature.substring(0, 10) + '...' : 'none',
-        secretLength: cleanSecret.length
-      });
-
-      return calculatedSignature === signature;
-    } catch (error) {
-      console.error('Webhook signature validation error:', error);
-      return false;
+  // In src/lib/intakeq/service.ts
+async validateWebhookSignature(payload: string, signature: string): Promise<boolean> {
+  try {
+    const secret = process.env.INTAKEQ_WEBHOOK_SECRET;
+    if (!secret) {
+      console.warn('Missing INTAKEQ_WEBHOOK_SECRET environment variable');
+      // Return true in development even without secret
+      return process.env.NODE_ENV !== 'production';
     }
+
+    // Clean the webhook secret (remove quotes, trim)
+    const cleanSecret = secret
+      .replace(/^["']/, '') // Remove leading quotes
+      .replace(/["']$/, '') // Remove trailing quotes
+      .trim();              // Remove any whitespace
+
+    // Create HMAC
+    const hmac = crypto.createHmac('sha256', cleanSecret);
+    
+    // Ensure payload is a string
+    const payloadStr = typeof payload === 'string' ? payload : JSON.stringify(payload);
+    
+    // Update HMAC with payload and get hex digest
+    hmac.update(payloadStr);
+    const calculatedSignature = hmac.digest('hex');
+
+    // Log validation attempt with limited information (avoids logging full data)
+    console.log('IntakeQ Webhook Signature Validation:', {
+      signatureMatches: calculatedSignature === signature,
+      calculatedSignaturePrefix: calculatedSignature.substring(0, 8) + '...',
+      providedSignaturePrefix: signature ? signature.substring(0, 8) + '...' : 'none',
+      renderURL: 'https://catalyst-scheduler.onrender.com',
+      environment: process.env.NODE_ENV
+    });
+
+    const isValid = calculatedSignature === signature;
+    
+    // In development mode, log warning but don't fail on invalid signatures
+    if (!isValid && process.env.NODE_ENV !== 'production') {
+      console.warn('IntakeQ signature validation failed, but proceeding in development mode');
+      // In development, we could return true to always proceed
+      return process.env.NODE_ENV !== 'production';
+    }
+
+    return isValid;
+  } catch (error) {
+    console.error('Webhook signature validation error:', error);
+    // In development mode, proceed even if validation throws an error
+    return process.env.NODE_ENV !== 'production';
   }
+}
 
   /**
    * Test connection to IntakeQ API

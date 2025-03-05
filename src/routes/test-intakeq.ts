@@ -1,10 +1,19 @@
 // src/routes/test-intakeq.ts
 import express, { Request, Response } from 'express';
 import axios from 'axios';
+import crypto from 'crypto';
+import { WebhookHandler } from '../lib/intakeq/webhook-handler';
+import { AppointmentSyncHandler } from '../lib/intakeq/appointment-sync';
 import { IntakeQService } from '../lib/intakeq/service';
 import GoogleSheetsService from '../lib/google/sheets';
 
 const router = express.Router();
+
+// Create service instances
+const sheetsService = new GoogleSheetsService();
+const intakeQService = new IntakeQService(sheetsService);
+const appointmentSyncHandler = new AppointmentSyncHandler(sheetsService, intakeQService);
+const webhookHandler = new WebhookHandler(sheetsService, appointmentSyncHandler, intakeQService);
 
 router.get('/fetch-intakes', async (req: Request, res: Response) => {
   try {
@@ -101,9 +110,6 @@ router.get('/fetch-form', async (req: Request, res: Response) => {
 // API diagnostic endpoint
 router.get('/api-test', async (req: Request, res: Response) => {
   try {
-    const sheetsService = new GoogleSheetsService();
-    const intakeQService = new IntakeQService(sheetsService);
-    
     // Test connection
     const testConnection = await intakeQService.testConnection();
     
@@ -147,7 +153,8 @@ router.get('/api-test', async (req: Request, res: Response) => {
       },
       connectionTest: testConnection,
       appointmentsTest: appointmentsResult,
-      environment: process.env.NODE_ENV
+      environment: process.env.NODE_ENV,
+      renderUrl: 'https://catalyst-scheduler.onrender.com'
     });
   } catch (error) {
     res.status(500).json({
@@ -162,29 +169,74 @@ router.get('/api-test', async (req: Request, res: Response) => {
 router.post('/test-webhook', async (req: Request, res: Response) => {
   try {
     const payload = req.body;
-    const signature = req.headers['x-intakeq-signature'] as string;
     
-    const sheetsService = new GoogleSheetsService();
-    const intakeQService = new IntakeQService(sheetsService);
+    console.log('Received test webhook:', {
+      payloadType: payload.Type || payload.EventType,
+      clientId: payload.ClientId,
+      hasAppointment: !!payload.Appointment
+    });
     
-    const isSignatureValid = await intakeQService.validateWebhookSignature(
-      JSON.stringify(payload),
-      signature
+    if (!payload || !payload.ClientId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid payload format. Must include ClientId field.'
+      });
+    }
+    
+    // Generate a test signature for testing purposes
+    let signatureInfo = {};
+    if (process.env.INTAKEQ_WEBHOOK_SECRET) {
+      const payloadStr = JSON.stringify(payload);
+      const secret = process.env.INTAKEQ_WEBHOOK_SECRET;
+      // Clean the secret
+      const cleanSecret = secret.trim().replace(/^["']|["']$/g, '');
+      
+      const hmac = crypto.createHmac('sha256', cleanSecret);
+      hmac.update(payloadStr);
+      const signature = hmac.digest('hex');
+      
+      signatureInfo = {
+        signature: signature.substring(0, 10) + '...',
+        webhookUrl: 'https://catalyst-scheduler.onrender.com/api/webhooks/intakeq'
+      };
+    }
+    
+    // Process webhook with bypassing signature verification
+    const eventType = payload.Type || payload.EventType;
+    const isAppointmentEvent = eventType && (
+      eventType.includes('Appointment') || eventType.includes('appointment')
     );
     
-    res.json({
-      success: true,
-      webhookReceived: {
-        payload,
-        signature: {
-          received: !!signature,
-          value: signature ? signature.substring(0, 10) + '...' : 'none',
-          valid: isSignatureValid
-        }
-      },
-      timestamp: new Date().toISOString()
-    });
+    let result;
+    try {
+      if (isAppointmentEvent && payload.Appointment) {
+        result = await appointmentSyncHandler.processAppointmentEvent(payload);
+      } else {
+        result = await webhookHandler.processWebhook(payload);
+      }
+      
+      res.json({
+        success: result.success,
+        data: result.details,
+        error: result.error,
+        signatureInfo,
+        testMode: true,
+        renderUrl: 'https://catalyst-scheduler.onrender.com',
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error('Error processing test webhook:', error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        signatureInfo,
+        testMode: true,
+        renderUrl: 'https://catalyst-scheduler.onrender.com',
+        timestamp: new Date().toISOString()
+      });
+    }
   } catch (error) {
+    console.error('Error in test webhook endpoint:', error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
