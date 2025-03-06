@@ -203,4 +203,78 @@ router.post('/clean-empty-rows', async (req: Request, res: Response) => {
   }
 });
 
+/**
+ * Import all future appointments from IntakeQ
+ */
+router.post('/import-all-future', async (req: Request, res: Response) => {
+  try {
+    const { startDate, endDate } = req.body;
+    
+    res.json({
+      success: true,
+      message: 'Future appointment import started',
+      settings: {
+        startDate: startDate || 'today',
+        endDate: endDate || '3 months from now'
+      },
+      timestamp: new Date().toISOString()
+    });
+    
+    // Process in background
+    const windowManager = new AppointmentWindowManager(sheetsService);
+    windowManager.importAllFutureAppointments(startDate, endDate)
+      .then((result: {success: boolean; processed: number; errors: number}) => {
+        console.log(`Future appointment import complete: processed ${result.processed}, errors ${result.errors}`);
+      })
+      .catch((error: Error) => {
+        console.error('Error importing future appointments:', error);
+      });
+  } catch (error) {
+    console.error('Error starting future appointment import:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+/**
+ * Refresh two-week appointment window
+ */
+router.post('/refresh-two-week-window', async (req: Request, res: Response) => {
+  try {
+    const { keepPastDays = 7, keepFutureDays = 14 } = req.body;
+    
+    console.log(`Starting two-week window refresh: past ${keepPastDays} days, future ${keepFutureDays} days`);
+    
+    res.json({
+      success: true,
+      message: 'Two-week appointment window refresh started',
+      settings: {
+        keepPastDays,
+        keepFutureDays
+      },
+      timestamp: new Date().toISOString()
+    });
+    
+    // Process in background to allow immediate response
+    const windowManager = new AppointmentWindowManager(sheetsService);
+    windowManager.refreshTwoWeekWindow(keepPastDays, keepFutureDays)
+      .then((result: {removed: number; preserved: number; errors: number}) => {
+        console.log(`Two-week window refresh complete: removed ${result.removed}, preserved ${result.preserved}, errors ${result.errors}`);
+      })
+      .catch((error: Error) => {
+        console.error('Error refreshing two-week window:', error);
+      });
+  } catch (error) {
+    console.error('Error starting two-week window refresh:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 export default router;

@@ -21,10 +21,9 @@ export class AppointmentWindowManager {
   }
 
   /**
-   * Maintain a rolling two-week appointment window
+   * Maintain appointment window
    */
-  // Modify src/lib/scheduling/appointment-window-manager.ts
-async maintainAppointmentWindow(pastDays: number = 0): Promise<{
+  async maintainAppointmentWindow(pastDays: number = 0): Promise<{
     removed: number;
     errors: number;
   }> {
@@ -210,6 +209,159 @@ async maintainAppointmentWindow(pastDays: number = 0): Promise<{
   }
 
   /**
+   * Import all future appointments from IntakeQ
+   * This is useful for initial setup or full refreshes
+   */
+  async importAllFutureAppointments(
+    startDate?: string,
+    endDate?: string
+  ): Promise<{
+    success: boolean;
+    processed: number;
+    errors: number;
+  }> {
+    try {
+      // Default to today if no start date provided
+      const today = getTodayEST();
+      const useStartDate = startDate || today;
+      
+      // Default to 3 months in the future if no end date provided
+      const threeMonthsLater = new Date(today);
+      threeMonthsLater.setMonth(threeMonthsLater.getMonth() + 3);
+      const useEndDate = endDate || threeMonthsLater.toISOString().split('T')[0];
+      
+      console.log(`Importing all future appointments from ${useStartDate} to ${useEndDate}`);
+      
+      // Log start of import
+      await this.sheetsService.addAuditLog({
+        timestamp: new Date().toISOString(),
+        eventType: AuditEventType.INTEGRATION_UPDATED,
+        description: `Starting import of all future appointments from ${useStartDate} to ${useEndDate}`,
+        user: 'SYSTEM'
+      });
+      
+      // Generate all dates in the range
+      const allDates = this.generateDateRange(useStartDate, useEndDate);
+      console.log(`Processing ${allDates.length} days`);
+      
+      let totalProcessed = 0;
+      let totalErrors = 0;
+      
+      // Process each date (one at a time to avoid rate limiting)
+      for (const date of allDates) {
+        try {
+          console.log(`Processing appointments for ${date}`);
+          
+          // Get appointments for this date from IntakeQ
+          const appointments = await this.intakeQService.getAppointments(date, date);
+          
+          if (appointments.length > 0) {
+            console.log(`Found ${appointments.length} appointments for ${date}`);
+            
+            // Process each appointment
+            for (const appt of appointments) {
+              try {
+                // Check if appointment already exists
+                const existingAppointment = await this.sheetsService.getAppointment(appt.Id);
+                
+                if (!existingAppointment) {
+                  // Format as webhook payload
+                  const payload = {
+                    Type: 'AppointmentCreated' as WebhookEventType,
+                    ClientId: appt.ClientId,
+                    Appointment: appt
+                  };
+                  
+                  // Process through appointment sync handler
+                  const result = await this.appointmentSyncHandler.processAppointmentEvent(payload);
+                  
+                  if (result.success) {
+                    totalProcessed++;
+                    console.log(`Successfully imported appointment ${appt.Id} for ${date}`);
+                  } else {
+                    console.error(`Failed to process appointment ${appt.Id}: ${result.error}`);
+                    totalErrors++;
+                  }
+                } else {
+                  console.log(`Appointment ${appt.Id} already exists, skipping`);
+                }
+              } catch (apptError) {
+                console.error(`Error processing appointment ${appt.Id}:`, apptError);
+                totalErrors++;
+              }
+            }
+          } else {
+            console.log(`No appointments found for ${date}`);
+          }
+        } catch (dateError) {
+          console.error(`Error processing date ${date}:`, dateError);
+          totalErrors++;
+        }
+        
+        // Add delay between date processing to avoid rate limits
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+      
+      // Log completion
+      await this.sheetsService.addAuditLog({
+        timestamp: new Date().toISOString(),
+        eventType: AuditEventType.INTEGRATION_UPDATED,
+        description: `Completed import of all future appointments`,
+        user: 'SYSTEM',
+        systemNotes: JSON.stringify({
+          processed: totalProcessed,
+          errors: totalErrors,
+          dateRange: `${useStartDate} to ${useEndDate}`
+        })
+      });
+      
+      return {
+        success: true,
+        processed: totalProcessed,
+        errors: totalErrors
+      };
+    } catch (error) {
+      console.error('Error importing all future appointments:', error);
+      
+      // Log error
+      await this.sheetsService.addAuditLog({
+        timestamp: new Date().toISOString(),
+        eventType: AuditEventType.SYSTEM_ERROR,
+        description: 'Error importing all future appointments',
+        user: 'SYSTEM',
+        systemNotes: error instanceof Error ? error.message : 'Unknown error'
+      });
+      
+      return {
+        success: false,
+        processed: 0,
+        errors: 1
+      };
+    }
+  }
+
+  /**
+   * Generate an array of dates between startDate and endDate (inclusive)
+   */
+  private generateDateRange(startDate: string, endDate: string): string[] {
+    const dates: string[] = [];
+    const currentDate = new Date(startDate);
+    const endDateObj = new Date(endDate);
+    
+    // Set times to midnight to avoid time issues
+    currentDate.setHours(0, 0, 0, 0);
+    endDateObj.setHours(0, 0, 0, 0);
+    
+    // Add each date until we reach the end date
+    while (currentDate <= endDateObj) {
+      dates.push(currentDate.toISOString().split('T')[0]);
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+    
+    return dates;
+  }
+
+  /**
    * Remove appointments older than specified days
    */
   private async removeOldAppointments(pastDays: number): Promise<number> {
@@ -263,101 +415,11 @@ async maintainAppointmentWindow(pastDays: number = 0): Promise<{
       throw error;
     }
   }
-
+  
   /**
-   * Populate appointments for the future window
+   * Clean up empty rows in the appointments sheet
    */
-  private async populateFutureAppointments(futureDays: number): Promise<{
-    added: number;
-    errors: number;
-  }> {
-    try {
-      // Get current date and end date for window
-      const today = getTodayEST();
-      const todayDate = new Date(today);
-      const endDate = new Date(today);
-      endDate.setDate(endDate.getDate() + futureDays);
-      const endDateStr = endDate.toISOString().split('T')[0];
-      
-      console.log(`Populating appointments from ${today} to ${endDateStr}`);
-      
-      let added = 0;
-      let errors = 0;
-      
-      // Iterate one day at a time to avoid API issues
-      const currentDate = new Date(todayDate);
-      
-      while (currentDate <= endDate) {
-        try {
-          const dateStr = currentDate.toISOString().split('T')[0];
-          console.log(`Processing appointments for ${dateStr}`);
-          
-          // Fetch appointments for this day
-          const appointments = await this.intakeQService.getAppointments(
-            dateStr,
-            dateStr,
-            'Confirmed,WaitingConfirmation,Pending'
-          );
-          
-          if (appointments.length > 0) {
-            console.log(`Found ${appointments.length} appointments for ${dateStr}`);
-            
-            // Process each appointment
-            for (const appt of appointments) {
-              try {
-                // Check if appointment already exists
-                const existingAppointment = await this.sheetsService.getAppointment(appt.Id);
-                
-                if (!existingAppointment) {
-                  // Create webhook-like payload
-                  const payload = {
-                    EventType: 'AppointmentCreated' as WebhookEventType,
-                    ClientId: appt.ClientId,
-                    Appointment: appt
-                  };
-                  
-                  // Process the appointment
-                  const result = await this.appointmentSyncHandler.processAppointmentEvent(payload);
-                  
-                  if (result.success) {
-                    added++;
-                  } else {
-                    console.error(`Error processing appointment ${appt.Id}:`, result.error);
-                    errors++;
-                  }
-                }
-              } catch (apptError) {
-                console.error(`Error processing appointment ${appt.Id}:`, apptError);
-                errors++;
-              }
-            }
-          } else {
-            console.log(`No appointments found for ${dateStr}`);
-          }
-        } catch (dayError) {
-          console.error(`Error processing appointments for ${currentDate.toISOString().split('T')[0]}:`, dayError);
-          errors++;
-        }
-        
-        // Move to next day
-        currentDate.setDate(currentDate.getDate() + 1);
-        
-        // Add small delay to avoid rate limits
-        await new Promise(resolve => setTimeout(resolve, 1000));
-      }
-      
-      return { added, errors };
-    } catch (error) {
-      console.error('Error populating future appointments:', error);
-      throw error;
-    }
-  }
-
-  // Add to src/lib/scheduling/appointment-window-manager.ts - after other methods
-/**
- * Clean up empty rows in the appointments sheet
- */
-async cleanEmptyRows(): Promise<{
+  async cleanEmptyRows(): Promise<{
     removed: number;
     errors: number;
   }> {

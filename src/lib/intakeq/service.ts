@@ -103,12 +103,9 @@ export class IntakeQService {
     this.sheetsService = sheetsService;
   }
   
-  /**
-   * Get a single appointment from IntakeQ API
-   */
-  // Modify src/lib/intakeq/service.ts - find the getAppointments method and update it:
+ // Updated implementation for src/lib/intakeq/service.ts
 
-// Modify src/lib/intakeq/service.ts - replace the getAppointments method with this:
+// Update this method in src/lib/intakeq/service.ts
 
 async getAppointments(
   startDate: string,
@@ -137,25 +134,25 @@ async getAppointments(
 
     // Use URLSearchParams for proper parameter encoding
     const params = new URLSearchParams({
-      StartDate: startOfDay.toISOString(),
-      EndDate: endOfDay.toISOString(),
-      Status: status,
+      startDate: startOfDay.toISOString().split('T')[0],
+      endDate: endOfDay.toISOString().split('T')[0],
+      status: status,
       dateField: 'StartDateIso'
     });
 
     const url = `${this.baseUrl}/appointments?${params}`;
     console.log('IntakeQ Request URL:', url);
 
-    // Switch to native fetch API instead of axios
+    // Switch to native fetch API with correct TypeScript types
     let attempt = 0;
-    let response;
-    let lastError;
+    let response: Response | null = null;
+    let lastError: string = '';
 
     while (attempt < this.MAX_RETRIES) {
       try {
         console.log(`Attempt ${attempt + 1} - Fetching from: ${url}`);
         
-        // Use native fetch with proper headers
+        // Use fetch with properly typed headers
         response = await fetch(url, {
           method: 'GET',
           headers: {
@@ -199,13 +196,14 @@ async getAppointments(
       });
       
       // Log the error through sheets
-      this.logApiError('getAppointments', new Error(errorMessage), { 
+      await this.logApiError('getAppointments', new Error(errorMessage), { 
         startDate, 
         endDate, 
         status 
       });
       
-      throw new Error(errorMessage);
+      // Return empty array instead of throwing
+      return [];
     }
 
     // Parse response
@@ -218,15 +216,21 @@ async getAppointments(
     } catch (parseError) {
       console.error('Error parsing JSON response:', parseError);
       console.log('Response text preview:', responseText.substring(0, 200));
-      throw new Error('Failed to parse response from IntakeQ API');
+      
+      // Return empty array instead of throwing
+      return [];
     }
 
     console.log(`Retrieved ${appointments.length} appointments`);
     return appointments;
   } catch (error) {
     console.error('Error fetching IntakeQ appointments:', error);
+    
+    // Log error but don't throw - return empty array
     this.logApiError('getAppointments', error, { startDate, endDate, status });
-    throw error;
+    
+    // Return empty array to prevent system failure
+    return [];
   }
 }
   
