@@ -7,10 +7,12 @@ export type WebhookEventType =
   | 'AppointmentUpdated'
   | 'AppointmentRescheduled'
   | 'AppointmentCancelled'
-  | 'Appointment Created'  // Keep old formats for backward compatibility
+  | 'AppointmentConfirmed'  // Add this line
+  | 'Appointment Created'  
   | 'Appointment Updated'
   | 'Appointment Rescheduled'
   | 'Appointment Cancelled'
+  | 'Appointment Confirmed'  // Add this line
   | 'AppointmentCanceled'
   | 'Appointment Canceled'
   | 'AppointmentDeleted'

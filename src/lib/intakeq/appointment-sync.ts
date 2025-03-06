@@ -34,6 +34,8 @@ export class AppointmentSyncHandler {
   /**
    * Process appointment webhook events
    */
+  // Update in src/lib/intakeq/appointment-sync.ts - processAppointmentEvent method:
+
   async processAppointmentEvent(
     payload: IntakeQWebhookPayload
   ): Promise<WebhookResponse> {
@@ -41,15 +43,15 @@ export class AppointmentSyncHandler {
       return { 
         success: false, 
         error: 'Missing appointment data',
-        retryable: false
+        retryable: false 
       };
     }
-
+  
     try {
       // Log webhook receipt
       await this.sheetsService.addAuditLog({
         timestamp: new Date().toISOString(),
-        eventType: 'WEBHOOK_RECEIVED' as AuditEventType,
+        eventType: 'WEBHOOK_RECEIVED', // Use string directly instead of AuditEventType
         description: `Received ${payload.Type || payload.EventType} webhook`,
         user: 'INTAKEQ_WEBHOOK',
         systemNotes: JSON.stringify({
@@ -58,44 +60,40 @@ export class AppointmentSyncHandler {
           clientId: payload.ClientId
         })
       });
-
+  
       const eventType = payload.Type || payload.EventType;
-      
-      if (!eventType) {
+        
+      // Handle appointment events based on type
+      if (eventType?.includes('Created')) {
+        // For created events
+        return await this.handleNewAppointment(payload.Appointment);
+      } 
+      else if (eventType?.includes('Updated') || 
+               eventType?.includes('Rescheduled') || 
+               eventType?.includes('Confirmed')) {
+        // For update, reschedule, and confirm events
+        return await this.handleAppointmentUpdate(payload.Appointment);
+      }
+      else if (eventType?.includes('Cancelled') || eventType?.includes('Canceled')) {
+        // For cancellation events
+        return await this.handleAppointmentCancellation(payload.Appointment);
+      }
+      else if (eventType?.includes('Deleted')) {
+        // Handle deletion events if you have a method for it
+        // return await this.handleAppointmentDeletion(payload.Appointment);
         return {
           success: false,
-          error: 'Missing event type',
+          error: `Deletion events not yet supported: ${eventType}`,
           retryable: false
         };
       }
-
-      switch (eventType) {
-        case 'AppointmentCreated':
-        case 'Appointment Created':
-          return await this.handleNewAppointment(payload.Appointment);
-        
-        case 'AppointmentUpdated':
-        case 'Appointment Updated':
-        case 'AppointmentRescheduled':
-        case 'Appointment Rescheduled':
-          return await this.handleAppointmentUpdate(payload.Appointment);
-          
-        case 'AppointmentCancelled':
-        case 'Appointment Cancelled':
-        case 'AppointmentCanceled':
-        case 'Appointment Canceled':
-          return await this.handleAppointmentCancellation(payload.Appointment);
-        
-        case 'AppointmentDeleted':
-        case 'Appointment Deleted':
-          return await this.handleAppointmentDeletion(payload.Appointment);
-          
-        default:
-          return {
-            success: false,
-            error: `Unsupported event type: ${eventType}`,
-            retryable: false
-          };
+      else {
+        // Unsupported event type
+        return {
+          success: false,
+          error: `Unsupported event type: ${eventType}`,
+          retryable: false
+        };
       }
     } catch (error) {
       console.error('Appointment processing error:', error);
@@ -103,16 +101,16 @@ export class AppointmentSyncHandler {
       // Log the error
       await this.sheetsService.addAuditLog({
         timestamp: new Date().toISOString(),
-        eventType: 'SYSTEM_ERROR' as AuditEventType,
+        eventType: 'SYSTEM_ERROR', // Use string directly
         description: `Error processing appointment ${payload.Appointment.Id}`,
         user: 'SYSTEM',
         systemNotes: error instanceof Error ? error.message : 'Unknown error'
       });
-
+  
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',
-        retryable: true // Allow retry for unexpected errors
+        retryable: true
       };
     }
   }

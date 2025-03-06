@@ -352,4 +352,124 @@ async maintainAppointmentWindow(pastDays: number = 0): Promise<{
       throw error;
     }
   }
+
+  // Add to src/lib/scheduling/appointment-window-manager.ts - after other methods
+/**
+ * Clean up empty rows in the appointments sheet
+ */
+async cleanEmptyRows(): Promise<{
+    removed: number;
+    errors: number;
+  }> {
+    try {
+      console.log('Cleaning empty rows in appointments sheet');
+      
+      // Log start of cleanup
+      await this.sheetsService.addAuditLog({
+        timestamp: new Date().toISOString(),
+        eventType: AuditEventType.INTEGRATION_UPDATED,
+        description: 'Starting empty row cleanup in appointments sheet',
+        user: 'SYSTEM'
+      });
+      
+      // 1. Get all rows including empty ones
+      // Need to access the private sheets instance directly for this operation
+      const sheetsService = this.sheetsService as any;
+      const spreadsheetId = process.env.GOOGLE_SHEETS_SPREADSHEET_ID;
+      
+      // Get the sheets client
+      const sheetsClient = sheetsService.sheets;
+      
+      // Get all values including empty rows
+      const response = await sheetsClient.spreadsheets.values.get({
+        spreadsheetId,
+        range: 'Appointments!A:A', // Just get first column to find empty rows
+        valueRenderOption: 'UNFORMATTED_VALUE'
+      });
+      
+      const allValues = response.data.values || [];
+      
+      // Find empty rows (rows with no appointmentId)
+      const emptyRowIndices: number[] = [];
+      
+      for (let i = 0; i < allValues.length; i++) {
+        // Skip header row
+        if (i === 0) continue;
+        
+        // Check if cell is empty
+        if (!allValues[i] || !allValues[i][0]) {
+          emptyRowIndices.push(i + 1); // +1 because sheet rows are 1-indexed
+        }
+      }
+      
+      console.log(`Found ${emptyRowIndices.length} empty rows to clean up`);
+      
+      if (emptyRowIndices.length === 0) {
+        return { removed: 0, errors: 0 };
+      }
+      
+      // Sort in descending order to delete from bottom to top (prevents shifting issues)
+      emptyRowIndices.sort((a, b) => b - a);
+      
+      // Delete empty rows
+      let removed = 0;
+      let errors = 0;
+      
+      for (const rowIndex of emptyRowIndices) {
+        try {
+          // Delete the row
+          await sheetsClient.spreadsheets.batchUpdate({
+            spreadsheetId,
+            requestBody: {
+              requests: [
+                {
+                  deleteDimension: {
+                    range: {
+                      sheetId: 0, // First sheet in the spreadsheet
+                      dimension: 'ROWS',
+                      startIndex: rowIndex - 1, // 0-indexed
+                      endIndex: rowIndex // exclusive
+                    }
+                  }
+                }
+              ]
+            }
+          });
+          
+          removed++;
+        } catch (error) {
+          console.error(`Error removing row ${rowIndex}:`, error);
+          errors++;
+        }
+      }
+      
+      // Log completion
+      await this.sheetsService.addAuditLog({
+        timestamp: new Date().toISOString(),
+        eventType: AuditEventType.INTEGRATION_UPDATED,
+        description: 'Completed empty row cleanup in appointments sheet',
+        user: 'SYSTEM',
+        systemNotes: JSON.stringify({
+          found: emptyRowIndices.length,
+          removed,
+          errors
+        })
+      });
+      
+      return { removed, errors };
+    } catch (error) {
+      console.error('Error cleaning empty rows:', error);
+      
+      // Log error
+      await this.sheetsService.addAuditLog({
+        timestamp: new Date().toISOString(),
+        eventType: AuditEventType.SYSTEM_ERROR,
+        description: 'Error cleaning empty rows in appointments sheet',
+        user: 'SYSTEM',
+        systemNotes: error instanceof Error ? error.message : 'Unknown error'
+      });
+      
+      throw error;
+    }
+  }
 }

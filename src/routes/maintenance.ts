@@ -147,4 +147,60 @@ router.post('/refresh-two-week-window', async (req: Request, res: Response) => {
   }
 });
 
+router.post('/deduplicate-accessibility', async (req: Request, res: Response) => {
+ try {
+   res.json({
+     success: true,
+     message: 'Accessibility deduplication started',
+     timestamp: new Date().toISOString()
+   });
+   
+   // Process in background
+   deduplicateAccessibilityInfo()
+     .then((result: {processed: number, duplicates: number}) => {
+       console.log(`Deduplication complete: ${result.processed} clients processed, ${result.duplicates} duplicates found`);
+     })
+     .catch((error: Error) => {
+       console.error('Error in accessibility deduplication:', error);
+     });
+ } catch (error) {
+   console.error('Error starting deduplication:', error);
+   res.status(500).json({
+     success: false,
+     error: error instanceof Error ? error.message : 'Unknown error',
+     timestamp: new Date().toISOString()
+   });
+ }
+});
+
+// Add to src/routes/maintenance.ts - after other routes
+/**
+ * Clean up empty rows in appointments sheet
+ */
+router.post('/clean-empty-rows', async (req: Request, res: Response) => {
+  try {
+    res.json({
+      success: true,
+      message: 'Empty row cleanup started',
+      timestamp: new Date().toISOString()
+    });
+    
+    // Process in background
+    windowManager.cleanEmptyRows()
+      .then((result: {removed: number, errors: number}) => {
+        console.log(`Empty row cleanup complete: removed ${result.removed}, errors ${result.errors}`);
+      })
+      .catch((error: Error) => {
+        console.error('Error cleaning empty rows:', error);
+      });
+  } catch (error) {
+    console.error('Error starting empty row cleanup:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 export default router;
