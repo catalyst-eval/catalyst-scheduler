@@ -106,90 +106,129 @@ export class IntakeQService {
   /**
    * Get a single appointment from IntakeQ API
    */
-  async getAppointments(
-    startDate: string,
-    endDate: string,
-    status: string = 'Confirmed,WaitingConfirmation,Pending'
-  ): Promise<IntakeQAppointment[]> {
-    try {
-      console.log('Fetching IntakeQ appointments:', { startDate, endDate });
-      
-      // Try multiple formats if first one fails
-      const formattedStart = this.formatDateForApi(startDate);
-      const formattedEnd = this.formatDateForApi(endDate);
-      
-      // First format attempt (MM/dd/yyyy)
-      let url = `${this.baseUrl}/appointments?StartDate=${formattedStart}&EndDate=${formattedEnd}&Status=${status}&dateField=StartDateIso`;
-      console.log('IntakeQ Request URL:', url);
-      
+  // Modify src/lib/intakeq/service.ts - find the getAppointments method and update it:
+
+// Modify src/lib/intakeq/service.ts - replace the getAppointments method with this:
+
+async getAppointments(
+  startDate: string,
+  endDate: string,
+  status: string = 'Confirmed,WaitingConfirmation,Pending'
+): Promise<IntakeQAppointment[]> {
+  try {
+    console.log('Fetching IntakeQ appointments:', { startDate, endDate });
+
+    // Convert dates to proper format and ensure full day ranges
+    const requestedStart = new Date(startDate);
+    const requestedEnd = new Date(endDate);
+
+    // Create start of day in UTC
+    const startOfDay = new Date(requestedStart);
+    startOfDay.setHours(0, 0, 0, 0);
+    
+    // Create end of day in UTC
+    const endOfDay = new Date(requestedEnd);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    console.log('Date ranges:', {
+      start: startOfDay.toISOString(),
+      end: endOfDay.toISOString()
+    });
+
+    // Use URLSearchParams for proper parameter encoding
+    const params = new URLSearchParams({
+      StartDate: startOfDay.toISOString(),
+      EndDate: endOfDay.toISOString(),
+      Status: status,
+      dateField: 'StartDateIso'
+    });
+
+    const url = `${this.baseUrl}/appointments?${params}`;
+    console.log('IntakeQ Request URL:', url);
+
+    // Switch to native fetch API instead of axios
+    let attempt = 0;
+    let response;
+    let lastError;
+
+    while (attempt < this.MAX_RETRIES) {
       try {
-        const response = await axios.get(url, {
+        console.log(`Attempt ${attempt + 1} - Fetching from: ${url}`);
+        
+        // Use native fetch with proper headers
+        response = await fetch(url, {
+          method: 'GET',
           headers: {
             'X-Auth-Key': this.apiKey,
             'Accept': 'application/json'
           }
         });
+
+        if (response.ok) break;
+
+        const errorText = await response.text();
+        lastError = `HTTP ${response.status}: ${errorText}`;
         
-        console.log(`API response status: ${response.status}`);
-        console.log(`Retrieved ${response.data.length} appointments`);
-        return response.data;
-      } catch (error) {
-        // Try second format (yyyy-MM-dd) if first fails
-        console.log('First format failed, trying alternative format...');
-        url = `${this.baseUrl}/appointments?StartDate=${startDate}&EndDate=${endDate}&Status=${status}&dateField=StartDateIso`;
-        
-        const response = await axios.get(url, {
-          headers: {
-            'X-Auth-Key': this.apiKey,
-            'Accept': 'application/json'
-          }
+        console.log(`Attempt ${attempt + 1} failed:`, {
+          status: response.status,
+          error: lastError
         });
-        
-        console.log(`API response status with alternative format: ${response.status}`);
-        console.log(`Retrieved ${response.data.length} appointments`);
-        return response.data;
-      }
-    } catch (error) {
-      this.logApiError('getAppointments', error, { startDate, endDate, status });
-      throw error;
-    }
-  }
-  
-  /**
-   * Get practitioner information from IntakeQ API
-   */
-  async getPractitioners(): Promise<any[]> {
-    try {
-      console.log('Fetching IntakeQ practitioners');
-      
-      const response = await axios.get(
-        `${this.baseUrl}/practitioners`,
-        {
-          headers: {
-            'X-Auth-Key': this.apiKey,
-            'Accept': 'application/json'
-          }
+
+        attempt++;
+        if (attempt < this.MAX_RETRIES) {
+          const delay = this.RETRY_DELAY * Math.pow(2, attempt - 1);
+          await new Promise(resolve => setTimeout(resolve, delay));
         }
-      );
-      
-      if (response.status !== 200 || !response.data) {
-        throw new Error(`IntakeQ API error: ${response.statusText}`);
+      } catch (error) {
+        lastError = error instanceof Error ? error.message : 'Unknown error';
+        console.log(`Attempt ${attempt + 1} error:`, lastError);
+        
+        attempt++;
+        if (attempt < this.MAX_RETRIES) {
+          const delay = this.RETRY_DELAY * Math.pow(2, attempt - 1);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
       }
-      
-      console.log(`Successfully fetched ${response.data.length} practitioners`);
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching practitioners from IntakeQ:', error);
-      await this.sheetsService.addAuditLog({
-        timestamp: new Date().toISOString(),
-        eventType: AuditEventType.SYSTEM_ERROR,
-        description: 'Error fetching practitioners from IntakeQ',
-        user: 'SYSTEM',
-        systemNotes: error instanceof Error ? error.message : 'Unknown error'
-      });
-      throw error;
     }
+
+    if (!response || !response.ok) {
+      const errorMessage = `IntakeQ API error after ${this.MAX_RETRIES} attempts: ${lastError}`;
+      console.error('Final error details:', {
+        attempts: attempt,
+        lastError
+      });
+      
+      // Log the error through sheets
+      this.logApiError('getAppointments', new Error(errorMessage), { 
+        startDate, 
+        endDate, 
+        status 
+      });
+      
+      throw new Error(errorMessage);
+    }
+
+    // Parse response
+    const responseText = await response.text();
+    console.log('Received response text length:', responseText.length);
+    
+    let appointments: IntakeQAppointment[] = [];
+    try {
+      appointments = JSON.parse(responseText);
+    } catch (parseError) {
+      console.error('Error parsing JSON response:', parseError);
+      console.log('Response text preview:', responseText.substring(0, 200));
+      throw new Error('Failed to parse response from IntakeQ API');
+    }
+
+    console.log(`Retrieved ${appointments.length} appointments`);
+    return appointments;
+  } catch (error) {
+    console.error('Error fetching IntakeQ appointments:', error);
+    this.logApiError('getAppointments', error, { startDate, endDate, status });
+    throw error;
   }
+}
   
   /**
    * Get client information from IntakeQ API
