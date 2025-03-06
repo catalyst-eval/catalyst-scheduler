@@ -78,6 +78,138 @@ async maintainAppointmentWindow(pastDays: number = 0): Promise<{
   }
 
   /**
+   * Refresh the two-week appointment window
+   * Maintains appointments within a specific window: past X days to future Y days
+   */
+  async refreshTwoWeekWindow(
+    keepPastDays: number = 7,
+    keepFutureDays: number = 14
+  ): Promise<{
+    removed: number;
+    preserved: number;
+    errors: number;
+  }> {
+    try {
+      console.log(`Refreshing appointment window: keeping past ${keepPastDays} days and future ${keepFutureDays} days`);
+      
+      // Log start of maintenance
+      await this.sheetsService.addAuditLog({
+        timestamp: new Date().toISOString(),
+        eventType: AuditEventType.INTEGRATION_UPDATED,
+        description: 'Starting two-week appointment window refresh',
+        user: 'SYSTEM',
+        systemNotes: JSON.stringify({
+          keepPastDays,
+          keepFutureDays
+        })
+      });
+      
+      // 1. Get all appointments
+      const allAppointments = await this.sheetsService.getAllAppointments();
+      
+      // 2. Calculate window boundaries
+      const today = getTodayEST();
+      const todayDate = new Date(today);
+      
+      const pastBoundary = new Date(todayDate);
+      pastBoundary.setDate(pastBoundary.getDate() - keepPastDays);
+      pastBoundary.setHours(0, 0, 0, 0); // Start of day
+      
+      const futureBoundary = new Date(todayDate);
+      futureBoundary.setDate(futureBoundary.getDate() + keepFutureDays);
+      futureBoundary.setHours(23, 59, 59, 999); // End of day
+      
+      console.log(`Window: ${pastBoundary.toISOString()} to ${futureBoundary.toISOString()}`);
+      
+      // 3. Filter appointments outside the window
+      const outsideWindow: { appointment: any; reason: string }[] = [];
+      const withinWindow: any[] = [];
+      
+      for (const appt of allAppointments) {
+        try {
+          if (!appt.startTime) {
+            outsideWindow.push({ appointment: appt, reason: 'missing start time' });
+            continue;
+          }
+          
+          const apptDate = new Date(appt.startTime);
+          
+          if (apptDate < pastBoundary) {
+            outsideWindow.push({ appointment: appt, reason: 'before window' });
+          } else if (apptDate > futureBoundary) {
+            outsideWindow.push({ appointment: appt, reason: 'after window' });
+          } else {
+            withinWindow.push(appt);
+          }
+        } catch (error) {
+          console.error(`Error processing appointment ${appt.appointmentId}:`, error);
+          outsideWindow.push({ appointment: appt, reason: 'date parsing error' });
+        }
+      }
+      
+      console.log(`Found ${outsideWindow.length} appointments outside window and ${withinWindow.length} within window`);
+      
+      // 4. Archive and remove appointments outside the window
+      let removedCount = 0;
+      let errorCount = 0;
+      
+      for (const { appointment, reason } of outsideWindow) {
+        try {
+          // Archive in audit log
+          await this.sheetsService.addAuditLog({
+            timestamp: new Date().toISOString(),
+            eventType: AuditEventType.APPOINTMENT_DELETED,
+            description: `Removed appointment ${appointment.appointmentId} (window maintenance: ${reason})`,
+            user: 'SYSTEM',
+            systemNotes: JSON.stringify(appointment)
+          });
+          
+          // Delete from sheet
+          await this.sheetsService.deleteAppointment(appointment.appointmentId);
+          removedCount++;
+        } catch (error) {
+          console.error(`Error removing appointment ${appointment.appointmentId}:`, error);
+          errorCount++;
+        }
+      }
+      
+      // 5. Log completion
+      await this.sheetsService.addAuditLog({
+        timestamp: new Date().toISOString(),
+        eventType: AuditEventType.INTEGRATION_UPDATED,
+        description: 'Completed two-week appointment window refresh',
+        user: 'SYSTEM',
+        systemNotes: JSON.stringify({
+          removed: removedCount,
+          preserved: withinWindow.length,
+          errors: errorCount,
+          windowStart: pastBoundary.toISOString().split('T')[0],
+          windowEnd: futureBoundary.toISOString().split('T')[0]
+        })
+      });
+      
+      return {
+        removed: removedCount,
+        preserved: withinWindow.length,
+        errors: errorCount
+      };
+    } catch (error) {
+      console.error('Error refreshing two-week appointment window:', error);
+      
+      // Log error
+      await this.sheetsService.addAuditLog({
+        timestamp: new Date().toISOString(),
+        eventType: AuditEventType.SYSTEM_ERROR,
+        description: 'Error refreshing two-week appointment window',
+        user: 'SYSTEM',
+        systemNotes: error instanceof Error ? error.message : 'Unknown error'
+      });
+      
+      throw error;
+    }
+  }
+
+  /**
    * Remove appointments older than specified days
    */
   private async removeOldAppointments(pastDays: number): Promise<number> {

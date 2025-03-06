@@ -111,42 +111,34 @@ router.post('/maintain-appointment-window', async (req: Request, res: Response) 
 });
 
 /**
- * Import appointments from CSV
+ * Refresh the two-week appointment window
  */
-router.post('/import-appointments-csv', upload.single('file'), async (req: Request, res: Response) => {
+router.post('/refresh-two-week-window', async (req: Request, res: Response) => {
   try {
-    // TypeScript doesn't recognize multer's additions to req
-    const file = (req as any).file;
+    const { keepPastDays = 7, keepFutureDays = 14 } = req.body;
     
-    if (!file) {
-      return res.status(400).json({
-        success: false,
-        error: 'No CSV file uploaded',
-        timestamp: new Date().toISOString()
-      });
-    }
+    console.log(`Starting two-week window refresh: past ${keepPastDays} days, future ${keepFutureDays} days`);
     
     res.json({
       success: true,
-      message: 'CSV import started',
+      message: 'Two-week appointment window refresh started',
+      settings: {
+        keepPastDays,
+        keepFutureDays
+      },
       timestamp: new Date().toISOString()
     });
     
-    // Process in background
-    importAppointmentsFromCSV(file.path)
-      .then((result: {imported: number, errors: number}) => {
-        console.log(`Import complete: ${result.imported} appointments imported, ${result.errors} errors`);
-        
-        // Clean up the temporary file
-        fs.unlink(file.path, (err: NodeJS.ErrnoException | null) => {
-          if (err) console.error('Error removing temp file:', err);
-        });
+    // Process in background to allow immediate response
+    windowManager.refreshTwoWeekWindow(keepPastDays, keepFutureDays)
+      .then((result: {removed: number, preserved: number, errors: number}) => {
+        console.log(`Two-week window refresh complete: removed ${result.removed}, preserved ${result.preserved}, errors ${result.errors}`);
       })
       .catch((error: Error) => {
-        console.error('Error importing CSV:', error);
+        console.error('Error refreshing two-week window:', error);
       });
   } catch (error) {
-    console.error('Error starting CSV import:', error);
+    console.error('Error starting two-week window refresh:', error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
