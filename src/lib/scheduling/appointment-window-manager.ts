@@ -416,6 +416,113 @@ export class AppointmentWindowManager {
     }
   }
   
+  async importSingleDay(
+    targetDate: string
+  ): Promise<{
+    success: boolean;
+    date: string;
+    processed: number;
+    errors: number;
+  }> {
+    try {
+      console.log(`Importing appointments for single day: ${targetDate}`);
+      
+      // Log start of import
+      await this.sheetsService.addAuditLog({
+        timestamp: new Date().toISOString(),
+        eventType: AuditEventType.INTEGRATION_UPDATED,
+        description: `Starting single-day import for ${targetDate}`,
+        user: 'SYSTEM'
+      });
+      
+      // Get appointments for this date from IntakeQ
+      const appointments = await this.intakeQService.getAppointments(targetDate, targetDate);
+      
+      // Track results
+      let processed = 0;
+      let errors = 0;
+      
+      // Process appointments if found
+      if (appointments.length > 0) {
+        console.log(`Found ${appointments.length} appointments for ${targetDate}`);
+        
+        // Process each appointment
+        for (const appt of appointments) {
+          try {
+            // Check if appointment already exists
+            const existingAppointment = await this.sheetsService.getAppointment(appt.Id);
+            
+            if (!existingAppointment) {
+              // Format as webhook payload
+              const payload = {
+                Type: 'AppointmentCreated' as WebhookEventType,
+                ClientId: appt.ClientId,
+                Appointment: appt
+              };
+              
+              // Process through appointment sync handler
+              const result = await this.appointmentSyncHandler.processAppointmentEvent(payload);
+              
+              if (result.success) {
+                processed++;
+                console.log(`Successfully imported appointment ${appt.Id} for ${targetDate}`);
+              } else {
+                console.error(`Failed to process appointment ${appt.Id}: ${result.error}`);
+                errors++;
+              }
+            } else {
+              console.log(`Appointment ${appt.Id} already exists, skipping`);
+            }
+          } catch (apptError) {
+            console.error(`Error processing appointment ${appt.Id}:`, apptError);
+            errors++;
+          }
+        }
+      } else {
+        console.log(`No appointments found for ${targetDate}`);
+      }
+      
+      // Log completion
+      await this.sheetsService.addAuditLog({
+        timestamp: new Date().toISOString(),
+        eventType: AuditEventType.INTEGRATION_UPDATED,
+        description: `Completed single-day import for ${targetDate}`,
+        user: 'SYSTEM',
+        systemNotes: JSON.stringify({
+          date: targetDate,
+          processed,
+          errors,
+          appointmentsFound: appointments.length
+        })
+      });
+      
+      return {
+        success: true,
+        date: targetDate,
+        processed,
+        errors
+      };
+    } catch (error) {
+      console.error(`Error importing appointments for day ${targetDate}:`, error);
+      
+      // Log error
+      await this.sheetsService.addAuditLog({
+        timestamp: new Date().toISOString(),
+        eventType: AuditEventType.SYSTEM_ERROR,
+        description: `Error importing appointments for day ${targetDate}`,
+        user: 'SYSTEM',
+        systemNotes: error instanceof Error ? error.message : 'Unknown error'
+      });
+      
+      return {
+        success: false,
+        date: targetDate,
+        processed: 0,
+        errors: 1
+      };
+    }
+  }
+
   /**
    * Clean up empty rows in the appointments sheet
    */
