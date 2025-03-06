@@ -277,4 +277,44 @@ router.post('/refresh-two-week-window', async (req: Request, res: Response) => {
   }
 });
 
+/**
+ * Import appointments for a single day
+ */
+router.post('/import-single-day', async (req: Request, res: Response) => {
+  try {
+    const { targetDate } = req.body;
+    
+    if (!targetDate) {
+      return res.status(400).json({
+        success: false,
+        error: 'targetDate is required',
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    res.json({
+      success: true,
+      message: `Single-day import started for ${targetDate}`,
+      timestamp: new Date().toISOString()
+    });
+    
+    // Process in background
+    const windowManager = new AppointmentWindowManager(sheetsService);
+    windowManager.importSingleDay(targetDate)
+      .then((result) => {
+        console.log(`Single-day import for ${targetDate} complete: ${result.processed} appointments processed, ${result.errors} errors`);
+      })
+      .catch((error: Error) => {
+        console.error(`Error in single-day import for ${targetDate}:`, error);
+      });
+  } catch (error) {
+    console.error('Error starting single-day import:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 export default router;
