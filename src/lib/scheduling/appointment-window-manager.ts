@@ -23,13 +23,13 @@ export class AppointmentWindowManager {
   /**
    * Maintain a rolling two-week appointment window
    */
-  async maintainAppointmentWindow(pastDays: number = 0, futureDays: number = 14): Promise<{
+  // Modify src/lib/scheduling/appointment-window-manager.ts
+async maintainAppointmentWindow(pastDays: number = 0): Promise<{
     removed: number;
-    added: number;
     errors: number;
   }> {
     try {
-      console.log(`Maintaining appointment window: past ${pastDays} days, future ${futureDays} days`);
+      console.log(`Maintaining appointment window: removing appointments older than ${pastDays} days`);
       
       // Log start of maintenance
       await this.sheetsService.addAuditLog({
@@ -38,16 +38,12 @@ export class AppointmentWindowManager {
         description: 'Starting appointment window maintenance',
         user: 'SYSTEM',
         systemNotes: JSON.stringify({
-          pastDays,
-          futureDays
+          pastDays
         })
       });
       
-      // 1. Clear appointments older than pastDays
+      // Clear appointments older than pastDays
       const removedCount = await this.removeOldAppointments(pastDays);
-      
-      // 2. Ensure we have appointments for the next futureDays
-      const { added, errors } = await this.populateFutureAppointments(futureDays);
       
       // Log completion
       await this.sheetsService.addAuditLog({
@@ -57,15 +53,13 @@ export class AppointmentWindowManager {
         user: 'SYSTEM',
         systemNotes: JSON.stringify({
           removed: removedCount,
-          added,
-          errors
+          errors: 0
         })
       });
       
       return { 
         removed: removedCount, 
-        added, 
-        errors 
+        errors: 0 
       };
     } catch (error) {
       console.error('Error maintaining appointment window:', error);

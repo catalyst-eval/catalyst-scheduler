@@ -140,6 +140,40 @@ export class GoogleSheetsService implements IGoogleSheetsService {
   }
 
   /**
+ * Get all client accessibility records
+ */
+async getClientAccessibilityRecords(): Promise<any[]> {
+  try {
+    const values = await this.readSheet(`${SHEET_NAMES.CLIENT_ACCESSIBILITY}!A2:O`);
+    
+    if (!values || values.length === 0) {
+      return [];
+    }
+    
+    return values.map(row => ({
+      clientId: row[0] || '',
+      clientName: row[1] || '',
+      lastUpdated: row[2] || '',
+      hasMobilityNeeds: row[3] === 'TRUE',
+      mobilityDetails: row[4] || '',
+      hasSensoryNeeds: row[5] === 'TRUE',
+      sensoryDetails: row[6] || '',
+      hasPhysicalNeeds: row[7] === 'TRUE',
+      physicalDetails: row[8] || '',
+      roomConsistency: parseInt(row[9] || '3'),
+      hasSupport: row[10] === 'TRUE',
+      supportDetails: row[11] || '',
+      additionalNotes: row[12] || '',
+      formType: row[13] || '',
+      formId: row[14] || ''
+    }));
+  } catch (error) {
+    console.error('Error getting client accessibility records:', error);
+    return [];
+  }
+}
+
+  /**
    * Read data from a Google Sheet
    * Improved to handle sheet names with spaces/underscores properly
    */
@@ -752,96 +786,98 @@ export class GoogleSheetsService implements IGoogleSheetsService {
   /**
    * Update client accessibility information
    */
-  async updateClientAccessibilityInfo(accessibilityInfo: {
-    clientId: string;
-    clientName: string;
-    hasMobilityNeeds: boolean;
-    mobilityDetails: string;
-    hasSensoryNeeds: boolean;
-    sensoryDetails: string;
-    hasPhysicalNeeds: boolean;
-    physicalDetails: string;
-    roomConsistency: number;
-    hasSupport: boolean;
-    supportDetails: string;
-    additionalNotes: string;
-    formType: string;
-    formId: string;
-  }): Promise<void> {
-    try {
-      console.log(`Updating accessibility info for client ${accessibilityInfo.clientId}`);
-      
-      // Check if client already exists in the sheet
-      const values = await this.readSheet(`${SHEET_NAMES.CLIENT_ACCESSIBILITY}!A:A`);
-      const clientRowIndex = values?.findIndex(row => row[0] === accessibilityInfo.clientId);
-      
-      // Format data for sheet
-      const rowData = [
-        accessibilityInfo.clientId,
-        accessibilityInfo.clientName,
-        new Date().toISOString(), // Last updated timestamp
-        accessibilityInfo.hasMobilityNeeds ? 'TRUE' : 'FALSE',
-        accessibilityInfo.mobilityDetails,
-        accessibilityInfo.hasSensoryNeeds ? 'TRUE' : 'FALSE',
-        accessibilityInfo.sensoryDetails,
-        accessibilityInfo.hasPhysicalNeeds ? 'TRUE' : 'FALSE',
-        accessibilityInfo.physicalDetails,
-        accessibilityInfo.roomConsistency.toString(),
-        accessibilityInfo.hasSupport ? 'TRUE' : 'FALSE',
-        accessibilityInfo.supportDetails,
-        accessibilityInfo.additionalNotes,
-        accessibilityInfo.formType,
-        accessibilityInfo.formId
-      ];
-      
-      if (clientRowIndex !== undefined && clientRowIndex >= 0) {
-        // Update existing row
-        console.log(`Updating existing row for client ${accessibilityInfo.clientId}`);
-        await this.sheets.spreadsheets.values.update({
-          spreadsheetId: this.spreadsheetId,
-          range: `${SHEET_NAMES.CLIENT_ACCESSIBILITY}!A${clientRowIndex + 2}:O${clientRowIndex + 2}`,
-          valueInputOption: 'RAW',
-          requestBody: {
-            values: [rowData]
-          }
-        });
-      } else {
-        // Add new row
-        console.log(`Adding new row for client ${accessibilityInfo.clientId}`);
-        await this.appendRows(`${SHEET_NAMES.CLIENT_ACCESSIBILITY}!A:O`, [rowData]);
-      }
-      
-      // Log the update
-      await this.addAuditLog({
-        timestamp: new Date().toISOString(),
-        eventType: AuditEventType.CLIENT_PREFERENCES_UPDATED,
-        description: `Updated accessibility info for client ${accessibilityInfo.clientId}`,
-        user: 'SYSTEM',
-        systemNotes: JSON.stringify({
-          clientId: accessibilityInfo.clientId,
-          hasMobilityNeeds: accessibilityInfo.hasMobilityNeeds,
-          hasSensoryNeeds: accessibilityInfo.hasSensoryNeeds,
-          hasPhysicalNeeds: accessibilityInfo.hasPhysicalNeeds,
-          roomConsistency: accessibilityInfo.roomConsistency
-        })
+  // Modify in src/lib/google/sheets.ts
+async updateClientAccessibilityInfo(accessibilityInfo: {
+  clientId: string;
+  clientName: string;
+  hasMobilityNeeds: boolean;
+  mobilityDetails: string;
+  hasSensoryNeeds: boolean;
+  sensoryDetails: string;
+  hasPhysicalNeeds: boolean;
+  physicalDetails: string;
+  roomConsistency: number;
+  hasSupport: boolean;
+  supportDetails: string;
+  additionalNotes: string;
+  formType: string;
+  formId: string;
+}): Promise<void> {
+  try {
+    console.log(`Updating accessibility info for client ${accessibilityInfo.clientId}`);
+    
+    // Check if client already exists in the sheet
+    const values = await this.readSheet(`${SHEET_NAMES.CLIENT_ACCESSIBILITY}!A:A`);
+    const clientRowIndex = values?.findIndex(row => row[0] === accessibilityInfo.clientId);
+    
+    // Format data for sheet
+    const rowData = [
+      accessibilityInfo.clientId,
+      accessibilityInfo.clientName,
+      new Date().toISOString(), // Last updated timestamp
+      accessibilityInfo.hasMobilityNeeds ? 'TRUE' : 'FALSE',
+      accessibilityInfo.mobilityDetails,
+      accessibilityInfo.hasSensoryNeeds ? 'TRUE' : 'FALSE',
+      accessibilityInfo.sensoryDetails,
+      accessibilityInfo.hasPhysicalNeeds ? 'TRUE' : 'FALSE',
+      accessibilityInfo.physicalDetails,
+      accessibilityInfo.roomConsistency.toString(),
+      accessibilityInfo.hasSupport ? 'TRUE' : 'FALSE',
+      accessibilityInfo.supportDetails,
+      accessibilityInfo.additionalNotes,
+      accessibilityInfo.formType,
+      accessibilityInfo.formId
+    ];
+    
+    if (clientRowIndex !== undefined && clientRowIndex >= 0) {
+      // Update existing row
+      console.log(`Updating existing row for client ${accessibilityInfo.clientId}`);
+      await this.sheets.spreadsheets.values.update({
+        spreadsheetId: this.spreadsheetId,
+        range: `${SHEET_NAMES.CLIENT_ACCESSIBILITY}!A${clientRowIndex + 2}:O${clientRowIndex + 2}`,
+        valueInputOption: 'RAW',
+        requestBody: {
+          values: [rowData]
+        }
       });
-      
-      console.log(`Successfully updated accessibility info for client ${accessibilityInfo.clientId}`);
-    } catch (error) {
-      console.error(`Error updating client accessibility info for ${accessibilityInfo.clientId}:`, error);
-      
-      // Log error and throw
-      await this.addAuditLog({
-        timestamp: new Date().toISOString(),
-        eventType: AuditEventType.SYSTEM_ERROR,
-        description: `Failed to update accessibility info for client ${accessibilityInfo.clientId}`,
-        user: 'SYSTEM',
-        systemNotes: error instanceof Error ? error.message : 'Unknown error'
-      });
-      
-      throw error;
+    } else {
+      // Add new row
+      console.log(`Adding new row for client ${accessibilityInfo.clientId}`);
+      await this.appendRows(`${SHEET_NAMES.CLIENT_ACCESSIBILITY}!A:O`, [rowData]);
     }
+    
+    // Log the update
+    await this.addAuditLog({
+      timestamp: new Date().toISOString(),
+      eventType: AuditEventType.CLIENT_PREFERENCES_UPDATED,
+      description: `Updated accessibility info for client ${accessibilityInfo.clientId}`,
+      user: 'SYSTEM',
+      systemNotes: JSON.stringify({
+        clientId: accessibilityInfo.clientId,
+        hasMobilityNeeds: accessibilityInfo.hasMobilityNeeds,
+        hasSensoryNeeds: accessibilityInfo.hasSensoryNeeds,
+        hasPhysicalNeeds: accessibilityInfo.hasPhysicalNeeds,
+        roomConsistency: accessibilityInfo.roomConsistency
+      })
+    });
+    
+    console.log(`Successfully updated accessibility info for client ${accessibilityInfo.clientId}`);
+  } catch (error) {
+    console.error(`Error updating client accessibility info for ${accessibilityInfo.clientId}:`, error);
+    
+    // Log error and throw
+    await this.addAuditLog({
+      timestamp: new Date().toISOString(),
+      eventType: AuditEventType.SYSTEM_ERROR,
+      description: `Failed to update accessibility info for client ${accessibilityInfo.clientId}`,
+      user: 'SYSTEM',
+      systemNotes: error instanceof Error ? error.message : 'Unknown error'
+    });
+    
+    throw error;
   }
+}
+
 
   /**
    * Get client required offices
