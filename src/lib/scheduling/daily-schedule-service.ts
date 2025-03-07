@@ -12,6 +12,7 @@ import { standardizeOfficeId } from '../util/office-id';
 import { IntakeQService } from '../intakeq/service';
 import { AppointmentSyncHandler } from '../intakeq/appointment-sync';
 import type { IntakeQWebhookPayload } from '../../types/webhooks';
+import { WebhookEventType } from '../../types/webhooks';
 
 // Define the AppointmentRecord interface locally since we can't import it
 interface AppointmentRecord {
@@ -91,115 +92,336 @@ export class DailyScheduleService {
   /**
  * Fetch and process schedule data for a specific date
  */
-async generateDailySchedule(date: string): Promise<DailyScheduleData> {
-  try {
-    console.log(`Generating daily schedule for ${date}`);
-    
-    // Validate the date parameter
-    if (!isValidISODate(date)) {
-      const today = getTodayEST();
-      console.warn(`Invalid date provided: ${date}, using today's date (${today}) instead`);
-      date = today;
-    }
-    
-    // 1. Get the date range for the target day
-    const { start, end } = getESTDayRange(date);
-    console.log(`Date range in EST: ${start} to ${end}`);
-    
-    // 2. Get all appointments for the date
-    const appointments = await this.sheetsService.getAppointments(start, end);
-    console.log(`Found ${appointments.length} appointments for ${date}`);
-    
-    // 3. Get all offices for reference
-    const offices = await this.sheetsService.getOffices();
-    console.log(`Found ${offices.length} offices`);
-    
-    // 4. Process appointments
-    const processedAppointments = this.processAppointments(appointments, offices);
-    
-    // 5. Detect conflicts
-    let conflicts = this.detectConflicts(processedAppointments);
-    
-    // 6. Try to resolve conflicts - if any exist, attempt resolution
-    if (conflicts.length > 0) {
-      console.log(`Detected ${conflicts.length} conflicts, attempting resolution`);
+  async generateDailySchedule(date: string): Promise<DailyScheduleData> {
+    try {
+      console.log(`Generating daily schedule for ${date}`);
       
-      // Attempt to resolve conflicts
-      const resolvedCount = await this.resolveSchedulingConflicts(date);
-      
-      if (resolvedCount > 0) {
-        console.log(`Resolved ${resolvedCount} conflicts, refreshing appointments`);
-        
-        // Re-fetch and process appointments after resolution
-        const updatedAppointments = await this.sheetsService.getAppointments(start, end);
-        const updatedProcessed = this.processAppointments(updatedAppointments, offices);
-        
-        // Re-detect conflicts after resolution
-        conflicts = this.detectConflicts(updatedProcessed);
-        
-        // Use updated appointments if there were resolutions
-        if (resolvedCount > 0) {
-          console.log(`Using updated appointments after conflict resolution`);
-          return {
-            date,
-            displayDate: getDisplayDate(date),
-            appointments: updatedProcessed,
-            conflicts,
-            stats: this.calculateStats(updatedProcessed)
-          };
-        }
+      // Validate the date parameter
+      if (!isValidISODate(date)) {
+        const today = getTodayEST();
+        console.warn(`Invalid date provided: ${date}, using today's date (${today}) instead`);
+        date = today;
       }
-    }
-    
-    // 7. Log audit entry for schedule generation
-    await this.sheetsService.addAuditLog({
-      timestamp: new Date().toISOString(),
-      eventType: 'DAILY_ASSIGNMENTS_UPDATED', // Use string directly
-      description: `Generated daily schedule for ${date}`,
-      user: 'SYSTEM',
-      systemNotes: JSON.stringify({
+      
+      // 1. Get the date range for the target day
+      const { start, end } = getESTDayRange(date);
+      console.log(`Date range in EST: ${start} to ${end}`);
+      
+      // 2. Get all appointments for the date
+      let appointments = await this.sheetsService.getAppointments(start, end);
+      console.log(`Found ${appointments.length} appointments for ${date}`);
+      
+      // 3. Get all offices for reference
+      const offices = await this.sheetsService.getOffices();
+      console.log(`Found ${offices.length} offices`);
+      
+      // NEW STEP: Resolve TBD office assignments
+      appointments = await this.resolveOfficeAssignments(appointments);
+      
+      // 4. Process appointments
+      const processedAppointments = this.processAppointments(appointments, offices);
+      
+      // 5. Detect conflicts
+      let conflicts = this.detectConflicts(processedAppointments);
+      
+      // 6. Group conflicts by clinician
+      const conflictsByClinicianMap = new Map<string, ScheduleConflict[]>();
+      
+      conflicts.forEach(conflict => {
+        if (conflict.clinicianIds) {
+          conflict.clinicianIds.forEach(clinicianName => {
+            if (!conflictsByClinicianMap.has(clinicianName)) {
+              conflictsByClinicianMap.set(clinicianName, []);
+            }
+            conflictsByClinicianMap.get(clinicianName)?.push(conflict);
+          });
+        }
+      });
+      
+      // 7. Log audit entry for schedule generation
+      await this.sheetsService.addAuditLog({
+        timestamp: new Date().toISOString(),
+        eventType: AuditEventType.DAILY_ASSIGNMENTS_UPDATED,
+        description: `Generated daily schedule for ${date}`,
+        user: 'SYSTEM',
+        systemNotes: JSON.stringify({
+          date,
+          displayDate: getDisplayDate(date),
+          appointmentCount: appointments.length,
+          assignedCount: appointments.filter(a => a.suggestedOfficeId && a.suggestedOfficeId !== 'TBD').length,
+          conflictCount: conflicts.length
+        })
+      });
+      
+      // 8. Return compiled data with clinician-specific conflicts
+      return {
         date,
         displayDate: getDisplayDate(date),
-        appointmentCount: appointments.length,
-        conflictCount: conflicts.length
-      })
-    });
+        appointments: processedAppointments,
+        conflicts,
+        conflictsByClinicianMap: Object.fromEntries(conflictsByClinicianMap),
+        stats: this.calculateStats(processedAppointments)
+      };
+    } catch (error) {
+      console.error('Error generating daily schedule:', error);
+      
+      // Log error to audit system
+      await this.sheetsService.addAuditLog({
+        timestamp: new Date().toISOString(),
+        eventType: 'SYSTEM_ERROR', // Use string directly
+        description: `Failed to generate daily schedule for ${date}`,
+        user: 'SYSTEM',
+        systemNotes: error instanceof Error ? error.message : 'Unknown error'
+      });
+      
+      throw error;
+    }
+  }
+
+/**
+ * Resolve TBD office assignments using strict rule priority
+ */
+private async resolveOfficeAssignments(appointments: AppointmentRecord[]): Promise<AppointmentRecord[]> {
+  try {
+    console.log('Resolving TBD office assignments using priority rules');
     
-    // 8. Group conflicts by clinician for template use
-    const conflictsByClinicianMap = new Map<string, ScheduleConflict[]>();
-    conflicts.forEach(conflict => {
-      if (conflict.clinicianIds) {
-        conflict.clinicianIds.forEach(clinicianName => {
-          if (!conflictsByClinicianMap.has(clinicianName)) {
-            conflictsByClinicianMap.set(clinicianName, []);
+    // Get necessary configuration data for rule application
+    const offices = await this.sheetsService.getOffices();
+    const activeOffices = offices.filter(o => o.inService === true);
+    const clinicians = await this.sheetsService.getClinicians();
+    const rules = await this.sheetsService.getAssignmentRules();
+    const clientPreferences = await this.sheetsService.getClientPreferences();
+    
+    console.log(`Loaded ${activeOffices.length} active offices, ${rules.length} rules`);
+    
+    // Sort rules by priority (highest first)
+    const sortedRules = [...rules].sort((a, b) => b.priority - a.priority);
+    
+    // Process each appointment that needs office assignment
+    const updatedAppointments = await Promise.all(
+      appointments.map(async (appt) => {
+        // Skip if appointment is cancelled or already has a non-TBD office
+        if (appt.status === 'cancelled' || appt.status === 'rescheduled') {
+          return appt;
+        }
+        
+        // Check if we need to resolve office assignment
+        const needsAssignment = 
+          !appt.suggestedOfficeId || 
+          appt.suggestedOfficeId === 'TBD' || 
+          appt.suggestedOfficeId === '';
+        
+        if (!needsAssignment) {
+          // Standardize the existing suggestedOfficeId
+          return {
+            ...appt,
+            suggestedOfficeId: standardizeOfficeId(appt.suggestedOfficeId)
+          };
+        }
+        
+        console.log(`Resolving office for appointment ${appt.appointmentId}: ${appt.clientName} with ${appt.clinicianName}`);
+        
+        // Get data needed for rule application
+        const clinician = clinicians.find(c => c.name === appt.clinicianName);
+        const clientPreference = clientPreferences.find(p => p.name === appt.clientName);
+        const clientAccessibility = await this.sheetsService.getClientAccessibilityInfo(appt.clientId);
+        
+        // Apply rules in priority order
+        let assignedOffice = null;
+        let assignmentReason = '';
+        
+        for (const rule of sortedRules) {
+          // Skip inactive rules
+          if (!rule.active) continue;
+          
+          // Apply rule based on its type
+          switch (rule.ruleType) {
+            case 'client': // Priority 100: Client Specific Requirement
+              if (clientPreference?.assignedOffice) {
+                assignedOffice = clientPreference.assignedOffice;
+                assignmentReason = `Priority ${rule.priority}: Client specific requirement`;
+                break;
+              }
+              continue;
+              
+            case 'accessibility': // Priority 90: Accessibility Requirements
+              if (clientAccessibility?.hasMobilityNeeds) {
+                const accessibleOffices = rule.officeIds
+                  .map(id => standardizeOfficeId(id))
+                  .filter(id => activeOffices.some(o => standardizeOfficeId(o.officeId) === id));
+                
+                if (accessibleOffices.length > 0) {
+                  assignedOffice = accessibleOffices[0];
+                  assignmentReason = `Priority ${rule.priority}: Client requires accessible office`;
+                  break;
+                }
+              }
+              continue;
+              
+            case 'age': // Priorities 80/75/70: Age-based rules
+              // We would need client age, which we don't have in this context
+              // Skip for now - would need client DOB from IntakeQ
+              continue;
+              
+            case 'session': // Priorities 65/60/40/10: Session type rules
+              if (rule.condition.includes('session_type')) {
+                const sessionType = appt.sessionType;
+                
+                // Priority 65: Family Sessions
+                if (sessionType === 'family' && rule.condition.includes('family')) {
+                  const familyOffices = rule.officeIds
+                    .map(id => standardizeOfficeId(id))
+                    .filter(id => activeOffices.some(o => standardizeOfficeId(o.officeId) === id));
+                    
+                  if (familyOffices.length > 0) {
+                    assignedOffice = familyOffices[0];
+                    assignmentReason = `Priority ${rule.priority}: Family session requires larger office`;
+                    break;
+                  }
+                }
+                
+                // Priority 60: In-Person Priority
+                if (sessionType === 'in-person' && rule.condition.includes('in-person')) {
+                  const inPersonOffices = rule.officeIds
+                    .map(id => standardizeOfficeId(id))
+                    .filter(id => activeOffices.some(o => standardizeOfficeId(o.officeId) === id));
+                    
+                  if (inPersonOffices.length > 0) {
+                    assignedOffice = inPersonOffices[0];
+                    assignmentReason = `Priority ${rule.priority}: In-person session assignment`;
+                    break;
+                  }
+                }
+                
+                // Priority 40: Telehealth to Preferred Office
+                if (sessionType === 'telehealth' && rule.condition.includes('telehealth') && clinician) {
+                  if (clinician.preferredOffices && clinician.preferredOffices.length > 0) {
+                    const preferredOffices = clinician.preferredOffices
+                      .map(id => standardizeOfficeId(id))
+                      .filter(id => activeOffices.some(o => standardizeOfficeId(o.officeId) === id));
+                      
+                    if (preferredOffices.length > 0) {
+                      assignedOffice = preferredOffices[0];
+                      assignmentReason = `Priority ${rule.priority}: Telehealth to clinician's preferred office`;
+                      break;
+                    }
+                  }
+                }
+                
+                // Priority 10: Default Telehealth
+                if (sessionType === 'telehealth' && rule.condition.includes('telehealth')) {
+                  assignedOffice = 'A-v';
+                  assignmentReason = `Priority ${rule.priority}: Default virtual office for telehealth`;
+                  break;
+                }
+              }
+              continue;
+              
+            case 'clinician': // Priorities 50/45: Clinician office preferences
+              if (!clinician) continue;
+              
+              // Priority 50: Clinician Primary Office
+              if (rule.condition.includes('is_primary_office') && clinician.preferredOffices && clinician.preferredOffices.length > 0) {
+                // Assuming first preferred office is primary
+                const primaryOffice = standardizeOfficeId(clinician.preferredOffices[0]);
+                if (activeOffices.some(o => standardizeOfficeId(o.officeId) === primaryOffice)) {
+                  assignedOffice = primaryOffice;
+                  assignmentReason = `Priority ${rule.priority}: Clinician's primary office`;
+                  break;
+                }
+              }
+              
+              // Priority 45: Clinician Preferred Office
+              if (rule.condition.includes('is_preferred_office') && clinician.preferredOffices && clinician.preferredOffices.length > 0) {
+                const preferredOffices = clinician.preferredOffices
+                  .map(id => standardizeOfficeId(id))
+                  .filter(id => activeOffices.some(o => standardizeOfficeId(o.officeId) === id));
+                  
+                if (preferredOffices.length > 0) {
+                  assignedOffice = preferredOffices[0];
+                  assignmentReason = `Priority ${rule.priority}: Clinician's preferred office`;
+                  break;
+                }
+              }
+              continue;
+              
+            case 'office': // Priority 15: Break Room Last Resort
+              if (rule.condition.includes('office_id')) {
+                const breakRoomId = standardizeOfficeId(rule.officeIds[0]);
+                const breakRoom = activeOffices.find(o => standardizeOfficeId(o.officeId) === breakRoomId);
+                
+                if (breakRoom) {
+                  assignedOffice = breakRoomId;
+                  assignmentReason = `Priority ${rule.priority}: Break room as last resort`;
+                  break;
+                }
+              }
+              continue;
+              
+            case 'availability': // Priority 20: Any Available Office
+              // For simplicity, just assign first available active office
+              if (activeOffices.length > 0) {
+                assignedOffice = standardizeOfficeId(activeOffices[0].officeId);
+                assignmentReason = `Priority ${rule.priority}: Available office`;
+                break;
+              }
+              continue;
+              
+            default:
+              continue;
           }
-          conflictsByClinicianMap.get(clinicianName)?.push(conflict);
+          
+          // If we've assigned an office, break the rule loop
+          if (assignedOffice) break;
+        }
+        
+        // Final fallback - if nothing else worked
+        if (!assignedOffice) {
+          if (appt.sessionType === 'telehealth') {
+            assignedOffice = 'A-v';
+            assignmentReason = 'Default: Virtual office for telehealth as final fallback';
+          } else {
+            // Only assign B-1 if it's active, otherwise use first active office
+            const breakRoom = activeOffices.find(o => standardizeOfficeId(o.officeId) === 'B-1');
+            if (breakRoom) {
+              assignedOffice = 'B-1';
+              assignmentReason = 'Default: Break room as final fallback';
+            } else if (activeOffices.length > 0) {
+              assignedOffice = standardizeOfficeId(activeOffices[0].officeId);
+              assignmentReason = 'Default: First available office as final fallback';
+            } else {
+              assignedOffice = 'TBD';
+              assignmentReason = 'Error: No active offices available';
+            }
+          }
+        }
+        
+        console.log(`Assigned office ${assignedOffice} to appointment ${appt.appointmentId}: ${assignmentReason}`);
+        
+        // Return updated appointment with assigned office
+        return {
+          ...appt,
+          suggestedOfficeId: assignedOffice
+        };
+      })
+    );
+    
+    // Update the appointments in the sheet
+    for (const appt of updatedAppointments) {
+      if (appt.suggestedOfficeId && appt.suggestedOfficeId !== 'TBD' && 
+          (!appt.officeId || appt.officeId === 'TBD')) {
+        await this.sheetsService.updateAppointment({
+          ...appt,
+          officeId: appt.suggestedOfficeId,
+          lastUpdated: new Date().toISOString()
         });
       }
-    });
+    }
     
-    // 9. Return compiled data with clinician-specific conflicts
-    return {
-      date,
-      displayDate: getDisplayDate(date),
-      appointments: processedAppointments,
-      conflicts,
-      conflictsByClinicianMap: Object.fromEntries(conflictsByClinicianMap),
-      stats: this.calculateStats(processedAppointments)
-    };
+    return updatedAppointments;
   } catch (error) {
-    console.error('Error generating daily schedule:', error);
-    
-    // Log error to audit system
-    await this.sheetsService.addAuditLog({
-      timestamp: new Date().toISOString(),
-      eventType: 'SYSTEM_ERROR', // Use string directly
-      description: `Failed to generate daily schedule for ${date}`,
-      user: 'SYSTEM',
-      systemNotes: error instanceof Error ? error.message : 'Unknown error'
-    });
-    
-    throw error;
+    console.error('Error resolving office assignments:', error);
+    return appointments; // Return original appointments on error
   }
 }
 
@@ -305,92 +527,96 @@ async refreshAppointmentsFromIntakeQ(date: string): Promise<number> {
   /**
  * Process appointments for display with improved office change tracking
  */
-private processAppointments(
-  appointments: AppointmentRecord[],
-  offices: any[]
-): ProcessedAppointment[] {
-  // Sort appointments by clinician and time to detect office changes
-  const sortedAppointments = [...appointments]
-    .filter(appt => appt.status !== 'cancelled' && appt.status !== 'rescheduled')
-    .sort((a, b) => {
-      // First sort by clinician
-      const clinicianCompare = a.clinicianName.localeCompare(b.clinicianName);
-      if (clinicianCompare !== 0) return clinicianCompare;
+  private processAppointments(
+    appointments: AppointmentRecord[],
+    offices: any[]
+  ): ProcessedAppointment[] {
+    // Sort appointments by clinician and time to detect office changes
+    const sortedAppointments = [...appointments]
+      .filter(appt => appt.status !== 'cancelled' && appt.status !== 'rescheduled')
+      .sort((a, b) => {
+        // First sort by clinician
+        const clinicianCompare = a.clinicianName.localeCompare(b.clinicianName);
+        if (clinicianCompare !== 0) return clinicianCompare;
+        
+        // Then by start time
+        return new Date(a.startTime).getTime() - new Date(b.startTime).getTime();
+      });
+    
+    // Track the last office used by each clinician
+    const clinicianLastOffice: Record<string, string> = {};
+    
+    return sortedAppointments.map(appt => {
+      // IMPORTANT: Prioritize suggestedOfficeId, but only if it's not TBD
+      const displayOfficeId = appt.suggestedOfficeId && appt.suggestedOfficeId !== 'TBD' ? 
+        standardizeOfficeId(appt.suggestedOfficeId) : 
+        appt.officeId && appt.officeId !== 'TBD' ?
+          standardizeOfficeId(appt.officeId) :
+          appt.sessionType === 'telehealth' ? 'A-v' : 'TBD';
       
-      // Then by start time
-      return new Date(a.startTime).getTime() - new Date(b.startTime).getTime();
-    });
-  
-  // Track the last office used by each clinician
-  const clinicianLastOffice: Record<string, string> = {};
-  
-  return sortedAppointments.map(appt => {
-    // Use suggestedOfficeId if available, otherwise fall back to officeId
-    const displayOfficeId = standardizeOfficeId(appt.suggestedOfficeId || appt.officeId);
-    
-    // Find office details
-    const office = offices.find(o => standardizeOfficeId(o.officeId) === displayOfficeId);
-    
-    const hasSpecialRequirements = !!(
-      appt.requirements?.accessibility || 
-      (appt.requirements?.specialFeatures && appt.requirements.specialFeatures.length > 0)
-    );
-    
-    // Check if this appointment requires an office change for the clinician
-    const previousOffice = clinicianLastOffice[appt.clinicianName];
-    let requiresOfficeChange: boolean | undefined = undefined;
-    
-    // Only set requiresOfficeChange if:
-    // 1. We have a previous office
-    // 2. Previous office is different from current office
-    // 3. Not a virtual-to-virtual change (A-v to A-v)
-    // 4. If current is telehealth (A-v), don't show change from physical office
-    if (previousOffice) {
-      if (displayOfficeId === 'A-v') {
-        // For telehealth appointments, don't show office changes
-        requiresOfficeChange = false;
-      } else if (previousOffice === 'A-v') {
-        // Coming from telehealth to physical is not a "change"
-        requiresOfficeChange = false;
-      } else {
-        // For physical offices, show changes
-        requiresOfficeChange = previousOffice !== displayOfficeId;
+      // Find office details
+      const office = offices.find(o => standardizeOfficeId(o.officeId) === displayOfficeId);
+      
+      const hasSpecialRequirements = !!(
+        appt.requirements?.accessibility || 
+        (appt.requirements?.specialFeatures && appt.requirements.specialFeatures.length > 0)
+      );
+      
+      // Check if this appointment requires an office change for the clinician
+      const previousOffice = clinicianLastOffice[appt.clinicianName];
+      let requiresOfficeChange: boolean | undefined = undefined;
+      
+      // Only set requiresOfficeChange if:
+      // 1. We have a previous office
+      // 2. Previous office is different from current office
+      // 3. Not a virtual-to-virtual change (A-v to A-v)
+      // 4. If current is telehealth (A-v), don't show change from physical office
+      if (previousOffice) {
+        if (displayOfficeId === 'A-v') {
+          // For telehealth appointments, don't show office changes
+          requiresOfficeChange = false;
+        } else if (previousOffice === 'A-v') {
+          // Coming from telehealth to physical is not a "change"
+          requiresOfficeChange = false;
+        } else {
+          // For physical offices, show changes
+          requiresOfficeChange = previousOffice !== displayOfficeId;
+        }
       }
-    }
-    
-    // Update last office for this clinician
-    clinicianLastOffice[appt.clinicianName] = displayOfficeId;
-    
-    // Add debug logging to trace office ID values
-    console.log(`Processing appointment ${appt.appointmentId}:`, {
-      originalOfficeId: appt.officeId,
-      suggestedOfficeId: appt.suggestedOfficeId,
-      displayOfficeId: displayOfficeId,
-      requiresOfficeChange,
-      previousOffice,
-      isVirtual: displayOfficeId === 'A-v',
-      sessionType: appt.sessionType
+      
+      // Update last office for this clinician
+      clinicianLastOffice[appt.clinicianName] = displayOfficeId;
+      
+      // Add debug logging to trace office ID values
+      console.log(`Processing appointment ${appt.appointmentId}:`, {
+        originalOfficeId: appt.officeId,
+        suggestedOfficeId: appt.suggestedOfficeId,
+        displayOfficeId: displayOfficeId,
+        requiresOfficeChange,
+        previousOffice,
+        isVirtual: displayOfficeId === 'A-v',
+        sessionType: appt.sessionType
+      });
+      
+      return {
+        appointmentId: appt.appointmentId,
+        clientName: appt.clientName,
+        clinicianName: appt.clinicianName,
+        officeId: displayOfficeId,
+        // Fix the display format to eliminate the duplicate "Office"
+        officeDisplay: `Office ${displayOfficeId}`,
+        startTime: appt.startTime,
+        endTime: appt.endTime,
+        formattedTime: `${formatESTTime(appt.startTime)} - ${formatESTTime(appt.endTime)}`,
+        sessionType: appt.sessionType,
+        hasSpecialRequirements,
+        requirements: appt.requirements,
+        notes: appt.notes,
+        requiresOfficeChange,
+        previousOffice
+      };
     });
-    
-    return {
-      appointmentId: appt.appointmentId,
-      clientName: appt.clientName,
-      clinicianName: appt.clinicianName,
-      officeId: displayOfficeId,
-      // Fix the display format to eliminate the duplicate "Office"
-      officeDisplay: `Office ${displayOfficeId}`,
-      startTime: appt.startTime,
-      endTime: appt.endTime,
-      formattedTime: `${formatESTTime(appt.startTime)} - ${formatESTTime(appt.endTime)}`,
-      sessionType: appt.sessionType,
-      hasSpecialRequirements,
-      requirements: appt.requirements,
-      notes: appt.notes,
-      requiresOfficeChange,
-      previousOffice
-    };
-  });
-}
+  }
 
   // In src/lib/scheduling/daily-schedule-service.ts
 

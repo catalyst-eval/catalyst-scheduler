@@ -9,7 +9,12 @@ import { AppointmentSyncHandler } from '../intakeq/appointment-sync';
 import { IntakeQService } from '../intakeq/service'; // Add this import
 import { WebhookEventType } from '../../types/webhooks';
 import { AppointmentRecord } from '../../types/scheduling';
-import { getTodayEST, getDisplayDate } from '../util/date-helpers';
+import { 
+  getTodayEST, 
+  getESTDayRange, // Add this import for the first error
+  getDisplayDate 
+} from '../util/date-helpers';
+
 
 export class SchedulerService {
   private dailyScheduleService: DailyScheduleService;
@@ -273,92 +278,131 @@ export class SchedulerService {
       const date = targetDate || getTodayEST();
       console.log(`Generating daily report for ${date} (EST)`);
       
-      // First attempt to resolve scheduling conflicts
+      // First attempt to resolve any TBD office assignments
       try {
-        console.log('Attempting to resolve scheduling conflicts before generating report');
+        console.log('Attempting to resolve TBD office assignments before generating report');
+        
+        // Get all appointments for this date
+        const { start, end } = getESTDayRange(date);
+        const appointments = await this.sheetsService.getAppointments(start, end);
+        
+        // Count appointments with TBD offices
+        const tbdCount = appointments.filter(a => 
+          !a.suggestedOfficeId || 
+          a.suggestedOfficeId === 'TBD' || 
+          a.suggestedOfficeId === ''
+        ).length;
+        
+        if (tbdCount > 0) {
+          console.log(`Found ${tbdCount} appointments with TBD offices, resolving...`);
+          
+          // Process each appointment that needs office assignment
+          for (const appt of appointments) {
+            if (appt.suggestedOfficeId === 'TBD' || !appt.suggestedOfficeId) {
+              // Create synthetic webhook payload to leverage existing assignment logic
+              const webhookPayload = {
+                Type: 'AppointmentUpdated' as WebhookEventType, // Fix the type error by casting to WebhookEventType
+                ClientId: parseInt(appt.clientId) || 0,
+                Appointment: this.convertToIntakeQFormat(appt)
+              };
+              
+              // Use the appointment sync handler to process
+              const appointmentSyncHandler = new AppointmentSyncHandler(this.sheetsService);
+              const result = await appointmentSyncHandler.processAppointmentEvent(webhookPayload);
+              
+              if (result.success) {
+                console.log(`Successfully assigned office for appointment ${appt.appointmentId}`);
+              } else {
+                console.error(`Failed to assign office for appointment ${appt.appointmentId}:`, result.error);
+              }
+            }
+          }
+        }
+        
+        // Then attempt conflict resolution
         const resolvedCount = await this.dailyScheduleService.resolveSchedulingConflicts(date);
         console.log(`Resolved ${resolvedCount} scheduling conflicts`);
         
-        if (resolvedCount > 0) {
+        if (resolvedCount > 0 || tbdCount > 0) {
           // Add a short delay to ensure Google Sheets updates are reflected
           console.log('Waiting for Google Sheets to update...');
           await new Promise(resolve => setTimeout(resolve, 2000));
         }
       } catch (error) {
-        console.warn('Error resolving conflicts, proceeding with report generation:', error);
+        console.warn('Error resolving assignments or conflicts, proceeding with report generation:', error);
       }
-
-    // 1. Generate the daily schedule
-    const scheduleData = await this.dailyScheduleService.generateDailySchedule(date);
-    
-    // 2. Create email template
-    const emailTemplate = EmailTemplates.dailySchedule(scheduleData);
-    
-    // 3. Get recipients
-    const recipients = await this.emailService.getScheduleRecipients();
-    
-    if (recipients.length === 0) {
-      console.warn('No recipients configured for daily schedule email');
+  
+      // Generate the daily schedule
+      const scheduleData = await this.dailyScheduleService.generateDailySchedule(date);
+      
+      // Create email template
+      const emailTemplate = EmailTemplates.dailySchedule(scheduleData);
+      
+      // Get recipients
+      const recipients = await this.emailService.getScheduleRecipients();
+      
+      if (recipients.length === 0) {
+        console.warn('No recipients configured for daily schedule email');
+        return false;
+      }
+      
+      // Send email
+      const success = await this.emailService.sendEmail(recipients, emailTemplate, {
+        category: 'daily_schedule',
+        priority: 'normal'
+      });
+      
+      // Log result
+      await this.sheetsService.addAuditLog({
+        timestamp: new Date().toISOString(),
+        eventType: AuditEventType.DAILY_ASSIGNMENTS_UPDATED,
+        description: `Daily schedule email for ${date} ${success ? 'sent' : 'failed'}`,
+        user: 'SYSTEM',
+        systemNotes: JSON.stringify({
+          date,
+          displayDate: getDisplayDate(date),
+          recipients: recipients.map((r: { email: string }) => r.email),
+          appointmentCount: scheduleData.appointments.length,
+          conflictCount: scheduleData.conflicts.length,
+          success
+        })
+      });
+      
+      return success;
+    } catch (error) {
+      console.error('Error generating and sending daily report:', error);
+      
+      // Log error to audit system
+      await this.sheetsService.addAuditLog({
+        timestamp: new Date().toISOString(),
+        eventType: AuditEventType.SYSTEM_ERROR,
+        description: 'Failed to generate and send daily report',
+        user: 'SYSTEM',
+        systemNotes: error instanceof Error ? error.message : 'Unknown error'
+      });
+      
+      // Try to send error notification
+      try {
+        const errorTemplate = EmailTemplates.errorNotification(
+          error instanceof Error ? error : new Error('Unknown error'),
+          'Daily Schedule Generation',
+          { targetDate }
+        );
+        
+        // Just use the same recipients for errors
+        const errorRecipients = await this.emailService.getScheduleRecipients();
+        
+        await this.emailService.sendEmail(errorRecipients, errorTemplate, {
+          priority: 'high',
+          category: 'error_notification'
+        });
+      } catch (emailError) {
+        console.error('Failed to send error notification:', emailError);
+      }
+      
       return false;
     }
-    
-    // 4. Send email
-    const success = await this.emailService.sendEmail(recipients, emailTemplate, {
-      category: 'daily_schedule',
-      priority: 'normal'
-    });
-    
-    // 5. Log result
-    await this.sheetsService.addAuditLog({
-      timestamp: new Date().toISOString(),
-      eventType: AuditEventType.DAILY_ASSIGNMENTS_UPDATED,
-      description: `Daily schedule email for ${date} ${success ? 'sent' : 'failed'}`,
-      user: 'SYSTEM',
-      systemNotes: JSON.stringify({
-        date,
-        displayDate: getDisplayDate(date),
-        recipients: recipients.map((r: { email: string }) => r.email),
-        appointmentCount: scheduleData.appointments.length,
-        conflictCount: scheduleData.conflicts.length,
-        success
-      })
-    });
-    
-    return success;
-  } catch (error) {
-    console.error('Error generating and sending daily report:', error);
-    
-    // Log error to audit system
-    await this.sheetsService.addAuditLog({
-      timestamp: new Date().toISOString(),
-      eventType: AuditEventType.SYSTEM_ERROR,
-      description: 'Failed to generate and send daily report',
-      user: 'SYSTEM',
-      systemNotes: error instanceof Error ? error.message : 'Unknown error'
-    });
-    
-    // Try to send error notification
-    try {
-      const errorTemplate = EmailTemplates.errorNotification(
-        error instanceof Error ? error : new Error('Unknown error'),
-        'Daily Schedule Generation',
-        { targetDate }
-      );
-      
-      // Just use the same recipients for errors
-      const errorRecipients = await this.emailService.getScheduleRecipients();
-      
-      await this.emailService.sendEmail(errorRecipients, errorTemplate, {
-        priority: 'high',
-        category: 'error_notification'
-      });
-    } catch (emailError) {
-      console.error('Failed to send error notification:', emailError);
-    }
-    
-    return false;
   }
-}
 
 /**
    * Sync appointment statuses from IntakeQ
