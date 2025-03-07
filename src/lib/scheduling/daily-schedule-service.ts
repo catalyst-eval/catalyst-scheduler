@@ -40,6 +40,7 @@ export interface DailyScheduleData {
   displayDate: string;
   appointments: ProcessedAppointment[];
   conflicts: ScheduleConflict[];
+  conflictsByClinicianMap?: Record<string, ScheduleConflict[]>; // Add this for clinician-specific conflicts
   stats: {
     totalAppointments: number;
     inPersonCount: number;
@@ -66,6 +67,8 @@ export interface ProcessedAppointment {
     specialFeatures?: string[];
   };
   notes?: string;
+  requiresOfficeChange?: boolean; // New property to flag office changes
+  previousOffice?: string; // New property to track previous office
 }
 
 export interface ScheduleConflict {
@@ -75,6 +78,7 @@ export interface ScheduleConflict {
   appointmentIds?: string[];
   officeId?: string;
   timeBlock?: string;
+  clinicianIds?: string[]; // New property to track clinicians involved
 }
 
 export class DailyScheduleService {
@@ -114,15 +118,43 @@ async generateDailySchedule(date: string): Promise<DailyScheduleData> {
     const processedAppointments = this.processAppointments(appointments, offices);
     
     // 5. Detect conflicts
-    const conflicts = this.detectConflicts(processedAppointments);
+    let conflicts = this.detectConflicts(processedAppointments);
     
-    // 6. Calculate stats
-    const stats = this.calculateStats(processedAppointments);
+    // 6. Try to resolve conflicts - if any exist, attempt resolution
+    if (conflicts.length > 0) {
+      console.log(`Detected ${conflicts.length} conflicts, attempting resolution`);
+      
+      // Attempt to resolve conflicts
+      const resolvedCount = await this.resolveSchedulingConflicts(date);
+      
+      if (resolvedCount > 0) {
+        console.log(`Resolved ${resolvedCount} conflicts, refreshing appointments`);
+        
+        // Re-fetch and process appointments after resolution
+        const updatedAppointments = await this.sheetsService.getAppointments(start, end);
+        const updatedProcessed = this.processAppointments(updatedAppointments, offices);
+        
+        // Re-detect conflicts after resolution
+        conflicts = this.detectConflicts(updatedProcessed);
+        
+        // Use updated appointments if there were resolutions
+        if (resolvedCount > 0) {
+          console.log(`Using updated appointments after conflict resolution`);
+          return {
+            date,
+            displayDate: getDisplayDate(date),
+            appointments: updatedProcessed,
+            conflicts,
+            stats: this.calculateStats(updatedProcessed)
+          };
+        }
+      }
+    }
     
     // 7. Log audit entry for schedule generation
     await this.sheetsService.addAuditLog({
       timestamp: new Date().toISOString(),
-      eventType: AuditEventType.DAILY_ASSIGNMENTS_UPDATED,
+      eventType: 'DAILY_ASSIGNMENTS_UPDATED', // Use string directly
       description: `Generated daily schedule for ${date}`,
       user: 'SYSTEM',
       systemNotes: JSON.stringify({
@@ -133,13 +165,27 @@ async generateDailySchedule(date: string): Promise<DailyScheduleData> {
       })
     });
     
-    // 8. Return compiled data
+    // 8. Group conflicts by clinician for template use
+    const conflictsByClinicianMap = new Map<string, ScheduleConflict[]>();
+    conflicts.forEach(conflict => {
+      if (conflict.clinicianIds) {
+        conflict.clinicianIds.forEach(clinicianName => {
+          if (!conflictsByClinicianMap.has(clinicianName)) {
+            conflictsByClinicianMap.set(clinicianName, []);
+          }
+          conflictsByClinicianMap.get(clinicianName)?.push(conflict);
+        });
+      }
+    });
+    
+    // 9. Return compiled data with clinician-specific conflicts
     return {
       date,
       displayDate: getDisplayDate(date),
       appointments: processedAppointments,
       conflicts,
-      stats
+      conflictsByClinicianMap: Object.fromEntries(conflictsByClinicianMap),
+      stats: this.calculateStats(processedAppointments)
     };
   } catch (error) {
     console.error('Error generating daily schedule:', error);
@@ -147,7 +193,7 @@ async generateDailySchedule(date: string): Promise<DailyScheduleData> {
     // Log error to audit system
     await this.sheetsService.addAuditLog({
       timestamp: new Date().toISOString(),
-      eventType: AuditEventType.SYSTEM_ERROR,
+      eventType: 'SYSTEM_ERROR', // Use string directly
       description: `Failed to generate daily schedule for ${date}`,
       user: 'SYSTEM',
       systemNotes: error instanceof Error ? error.message : 'Unknown error'
@@ -257,117 +303,168 @@ async refreshAppointmentsFromIntakeQ(date: string): Promise<number> {
 }
 
   /**
-   * Process appointments for display - UPDATED to use suggestedOfficeId
-   */
+ * Process appointments for display with office change tracking
+ */
   private processAppointments(
     appointments: AppointmentRecord[],
     offices: any[]
   ): ProcessedAppointment[] {
-    return appointments
+    // Sort appointments by clinician and time to detect office changes
+    const sortedAppointments = [...appointments]
       .filter(appt => appt.status !== 'cancelled' && appt.status !== 'rescheduled')
-      .map(appt => {
-        // Use suggestedOfficeId if available, otherwise fall back to officeId
-        const displayOfficeId = standardizeOfficeId(appt.suggestedOfficeId || appt.officeId);
-        
-        // Find office details
-        const office = offices.find(o => standardizeOfficeId(o.officeId) === displayOfficeId);
-        
-        const hasSpecialRequirements = !!(
-          appt.requirements?.accessibility || 
-          (appt.requirements?.specialFeatures && appt.requirements.specialFeatures.length > 0)
-        );
-        
-        // Add debug logging to trace office ID values
-        console.log(`Processing appointment ${appt.appointmentId}:`, {
-          originalOfficeId: appt.officeId,
-          suggestedOfficeId: appt.suggestedOfficeId,
-          finalOfficeId: displayOfficeId
-        });
-        
-        return {
-          appointmentId: appt.appointmentId,
-          clientName: appt.clientName,
-          clinicianName: appt.clinicianName,
-          officeId: displayOfficeId, // Use the display office ID
-          officeDisplay: office ? `${office.name} (${displayOfficeId})` : displayOfficeId,
-          startTime: appt.startTime,
-          endTime: appt.endTime,
-          formattedTime: `${formatESTTime(appt.startTime)} - ${formatESTTime(appt.endTime)}`,
-          sessionType: appt.sessionType,
-          hasSpecialRequirements,
-          requirements: appt.requirements,
-          notes: appt.notes
-        };
-      })
       .sort((a, b) => {
-        // Sort by time, then by office
-        const timeCompare = new Date(a.startTime).getTime() - new Date(b.startTime).getTime();
-        if (timeCompare !== 0) return timeCompare;
-        return a.officeId.localeCompare(b.officeId);
+        // First sort by clinician
+        const clinicianCompare = a.clinicianName.localeCompare(b.clinicianName);
+        if (clinicianCompare !== 0) return clinicianCompare;
+        
+        // Then by start time
+        return new Date(a.startTime).getTime() - new Date(b.startTime).getTime();
       });
+    
+    // Track the last office used by each clinician
+    const clinicianLastOffice: Record<string, string> = {};
+    
+    return sortedAppointments.map(appt => {
+      // Use suggestedOfficeId if available, otherwise fall back to officeId
+      const displayOfficeId = standardizeOfficeId(appt.suggestedOfficeId || appt.officeId);
+      
+      // Find office details
+      const office = offices.find(o => standardizeOfficeId(o.officeId) === displayOfficeId);
+      
+      const hasSpecialRequirements = !!(
+        appt.requirements?.accessibility || 
+        (appt.requirements?.specialFeatures && appt.requirements.specialFeatures.length > 0)
+      );
+      
+      // Check if this appointment requires an office change for the clinician
+      const previousOffice = clinicianLastOffice[appt.clinicianName];
+      let requiresOfficeChange: boolean | undefined = undefined;
+      
+      // Only set requiresOfficeChange if we have a previous office
+      if (previousOffice) {
+        requiresOfficeChange = previousOffice !== displayOfficeId;
+      }
+      
+      // Update last office for this clinician
+      clinicianLastOffice[appt.clinicianName] = displayOfficeId;
+      
+      // Add debug logging to trace office ID values
+      console.log(`Processing appointment ${appt.appointmentId}:`, {
+        originalOfficeId: appt.officeId,
+        suggestedOfficeId: appt.suggestedOfficeId,
+        finalOfficeId: displayOfficeId,
+        requiresOfficeChange,
+        previousOffice
+      });
+      
+      return {
+        appointmentId: appt.appointmentId,
+        clientName: appt.clientName,
+        clinicianName: appt.clinicianName,
+        officeId: displayOfficeId, // Use the display office ID
+        officeDisplay: office ? `${office.name} (${displayOfficeId})` : displayOfficeId,
+        startTime: appt.startTime,
+        endTime: appt.endTime,
+        formattedTime: `${formatESTTime(appt.startTime)} - ${formatESTTime(appt.endTime)}`,
+        sessionType: appt.sessionType,
+        hasSpecialRequirements,
+        requirements: appt.requirements,
+        notes: appt.notes,
+        requiresOfficeChange, // Now this is properly typed as boolean | undefined
+        previousOffice // This is fine as string | undefined
+      };
+    });
   }
 
-  /**
-   * Detect scheduling conflicts
-   */
-  private detectConflicts(appointments: ProcessedAppointment[]): ScheduleConflict[] {
-    const conflicts: ScheduleConflict[] = [];
+  // In src/lib/scheduling/daily-schedule-service.ts
+
+/**
+ * Detect scheduling conflicts with improved accuracy
+ */
+private detectConflicts(appointments: ProcessedAppointment[]): ScheduleConflict[] {
+  const conflicts: ScheduleConflict[] = [];
+  
+  // Map to track office usage by time blocks
+  const officeTimeMap: Record<string, ProcessedAppointment[]> = {};
+  
+  // Process each appointment to find overlaps
+  appointments.forEach(appt => {
+    // Skip telehealth/virtual appointments for conflict detection
+    if (appt.officeId === 'A-v' || appt.sessionType === 'telehealth') {
+      return;
+    }
     
-    // Map to track office usage by time blocks
-    const officeTimeMap: Record<string, ProcessedAppointment[]> = {};
+    const startTime = new Date(appt.startTime).getTime();
+    const endTime = new Date(appt.endTime).getTime();
     
-    // Process each appointment to find overlaps
-    appointments.forEach(appt => {
-      const startTime = new Date(appt.startTime).getTime();
-      const endTime = new Date(appt.endTime).getTime();
+    // Check each appointment against all others for the same office
+    appointments.forEach(otherAppt => {
+      // Skip comparing with itself or with telehealth appointments
+      if (appt.appointmentId === otherAppt.appointmentId || 
+          otherAppt.officeId === 'A-v' || 
+          otherAppt.sessionType === 'telehealth') {
+        return;
+      }
       
-      // Use 15-minute blocks for tracking
-      const startBlock = Math.floor(startTime / (15 * 60 * 1000));
-      const endBlock = Math.ceil(endTime / (15 * 60 * 1000));
+      // Only check appointments in the same office
+      if (appt.officeId !== otherAppt.officeId) {
+        return;
+      }
       
-      // Check each time block
-      for (let block = startBlock; block <= endBlock; block++) {
-        const timeBlockKey = `${appt.officeId}-${block}`;
+      // Get times for other appointment
+      const otherStartTime = new Date(otherAppt.startTime).getTime();
+      const otherEndTime = new Date(otherAppt.endTime).getTime();
+      
+      // Check for ACTUAL time overlap (not just consecutive appointments)
+      const hasOverlap = (
+        // This appointment starts during other appointment
+        (startTime >= otherStartTime && startTime < otherEndTime) || 
+        // This appointment ends during other appointment
+        (endTime > otherStartTime && endTime <= otherEndTime) ||
+        // This appointment completely contains other appointment 
+        (startTime <= otherStartTime && endTime >= otherEndTime)
+      );
+      
+      // If there's a true overlap, record the conflict
+      if (hasOverlap) {
+        // Create a unique key for this conflict to avoid duplicates
+        const conflictKey = [appt.appointmentId, otherAppt.appointmentId].sort().join('-');
         
-        if (!officeTimeMap[timeBlockKey]) {
-          officeTimeMap[timeBlockKey] = [];
-        }
+        // Use the formatted time string that spans both appointments
+        const startDisplay = new Date(Math.min(startTime, otherStartTime));
+        const endDisplay = new Date(Math.max(endTime, otherEndTime));
         
-        // If we already have an appointment in this office at this time
-        if (officeTimeMap[timeBlockKey].length > 0) {
-          const conflictingAppt = officeTimeMap[timeBlockKey][0];
-          
-          // Create conflict record
+        // Format start/end times for display
+        const formattedStart = formatESTTime(startDisplay.toISOString());
+        const formattedEnd = formatESTTime(endDisplay.toISOString());
+        const timeDisplay = `${formattedStart} - ${formattedEnd}`;
+        
+        // Create detailed conflict description
+        const description = `Double booking in ${appt.officeDisplay}: ${appt.clientName} with ${appt.clinicianName} and ${otherAppt.clientName} with ${otherAppt.clinicianName} at ${timeDisplay}`;
+        
+        // Check if this conflict has already been recorded
+        const existingConflict = conflicts.find(c => 
+          c.appointmentIds?.includes(appt.appointmentId) && 
+          c.appointmentIds?.includes(otherAppt.appointmentId)
+        );
+        
+        if (!existingConflict) {
           conflicts.push({
             type: 'double-booking',
-            description: `Double booking in ${appt.officeDisplay}: ${conflictingAppt.clientName} with ${conflictingAppt.clinicianName} and ${appt.clientName} with ${appt.clinicianName} at ${appt.formattedTime}`,
+            description,
             severity: 'high',
-            appointmentIds: [appt.appointmentId, conflictingAppt.appointmentId],
+            appointmentIds: [appt.appointmentId, otherAppt.appointmentId],
             officeId: appt.officeId,
-            timeBlock: appt.formattedTime
+            clinicianIds: [appt.clinicianName], // Track clinicians involved in conflict
+            timeBlock: timeDisplay
           });
         }
-        
-        officeTimeMap[timeBlockKey].push(appt);
-      }
-      
-      // Check for accessibility requirements
-      if (appt.requirements?.accessibility) {
-        // We would check if the assigned office meets the requirements
-        // This would need additional logic and data
       }
     });
-    
-    // Remove duplicates (same conflict may be detected in multiple time blocks)
-    const uniqueConflicts = conflicts.filter((conflict, index, self) =>
-      index === self.findIndex(c => 
-        c.appointmentIds?.join(',') === conflict.appointmentIds?.join(',') &&
-        c.type === conflict.type
-      )
-    );
-    
-    return uniqueConflicts;
-  }
+  });
+  
+  return conflicts;
+}
 
   /**
    * Calculate schedule statistics - UPDATED to use the corrected office IDs

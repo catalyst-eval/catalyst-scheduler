@@ -15,24 +15,8 @@ export class EmailTemplates {
   static dailySchedule(data: DailyScheduleData): EmailTemplate {
     const { displayDate, appointments, conflicts, stats } = data;
     
-    // Group appointments by clinician
-    const appointmentsByClinicianMap = new Map<string, ProcessedAppointment[]>();
-    
-    appointments.forEach(appt => {
-      if (!appointmentsByClinicianMap.has(appt.clinicianName)) {
-        appointmentsByClinicianMap.set(appt.clinicianName, []);
-      }
-      appointmentsByClinicianMap.get(appt.clinicianName)?.push(appt);
-    });
-    
-    // Convert to array for easier rendering
-    const appointmentsByClinician = Array.from(appointmentsByClinicianMap.entries())
-      .map(([clinicianName, appts]) => ({ 
-        clinicianName, 
-        appointments: appts.sort((a, b) => 
-          new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
-        )
-      }));
+    // Sort clinicians by last name
+    const clinicianGroups = this.groupAppointmentsByClinicianLastName(appointments);
     
     // Generate the HTML email
     const htmlBody = `
@@ -117,6 +101,24 @@ export class EmailTemplates {
       margin-top: 5px;
       font-size: 0.9em;
     }
+    .office-change {
+      color: #e74c3c;
+      font-weight: bold;
+    }
+    .office-change-note {
+      background-color: #fef2f2;
+      border-left: 4px solid #e74c3c;
+      padding: 8px;
+      margin-top: 5px;
+      font-size: 0.9em;
+    }
+    .clinician-conflicts {
+      background-color: #fff0f0;
+      border-left: 4px solid #ff6b6b;
+      padding: 10px;
+      margin: 8px 0;
+      font-size: 0.9em;
+    }
     .footer { 
       font-size: 12px; 
       color: #666; 
@@ -131,10 +133,8 @@ export class EmailTemplates {
     <h1>Daily Schedule: ${displayDate}</h1>
   </div>
   <div class="content">
-    ${this.renderConflictsSection(conflicts)}
-    
     <h2>Appointments</h2>
-    ${this.renderAppointmentsByClinician(appointmentsByClinician)}
+    ${this.renderClinicianGroups(clinicianGroups, data)}
     
     <h2>Schedule Overview</h2>
     <div class="stats">
@@ -164,7 +164,7 @@ export class EmailTemplates {
     `;
     
     // Generate plain text version
-    const textBody = this.generateTextVersion(data);
+    const textBody = this.generateTextVersion(data, clinicianGroups);
     
     return {
       subject: `Daily Schedule: ${displayDate}`,
@@ -174,33 +174,96 @@ export class EmailTemplates {
   }
   
   /**
-   * Render appointments grouped by clinician
+   * Group appointments by clinician's last name
    */
-  private static renderAppointmentsByClinician(
-    clinicianGroups: { clinicianName: string; appointments: ProcessedAppointment[] }[]
+  private static groupAppointmentsByClinicianLastName(
+    appointments: ProcessedAppointment[]
+  ): { clinicianName: string; appointments: ProcessedAppointment[]; lastName: string }[] {
+    // Group appointments by clinician
+    const appointmentsByClinicianMap = new Map<string, ProcessedAppointment[]>();
+    
+    appointments.forEach(appt => {
+      if (!appointmentsByClinicianMap.has(appt.clinicianName)) {
+        appointmentsByClinicianMap.set(appt.clinicianName, []);
+      }
+      appointmentsByClinicianMap.get(appt.clinicianName)?.push(appt);
+    });
+    
+    // Convert to array with last name for sorting
+    const clinicianGroups = Array.from(appointmentsByClinicianMap.entries())
+      .map(([clinicianName, appointments]) => {
+        // Extract last name for sorting (assumes format "First Last")
+        const nameParts = clinicianName.split(' ');
+        const lastName = nameParts.length > 1 ? nameParts[nameParts.length - 1] : clinicianName;
+        
+        return {
+          clinicianName,
+          appointments: appointments.sort((a, b) => 
+            new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
+          ),
+          lastName
+        };
+      });
+    
+    // Sort by last name
+    return clinicianGroups.sort((a, b) => a.lastName.localeCompare(b.lastName));
+  }
+  
+  /**
+   * Render clinician groups with their appointments
+   */
+  private static renderClinicianGroups(
+    clinicianGroups: { clinicianName: string; appointments: ProcessedAppointment[]; lastName: string }[],
+    data: DailyScheduleData
   ): string {
     if (clinicianGroups.length === 0) {
       return '<p>No appointments scheduled for today.</p>';
     }
     
-    return clinicianGroups.map(group => `
-      <div class="clinician-section">
-        <div class="clinician-name">${group.clinicianName}</div>
-        <table>
-          <thead>
-            <tr>
-              <th>Time</th>
-              <th>Client</th>
-              <th>Office</th>
-              <th>Type</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${group.appointments.map(appt => this.renderAppointmentRow(appt)).join('')}
-          </tbody>
-        </table>
+    return clinicianGroups.map(group => {
+      // Get conflicts for this clinician
+      const clinicianConflicts = data.conflictsByClinicianMap?.[group.clinicianName] || [];
+      
+      return `
+        <div class="clinician-section">
+          <div class="clinician-name">${group.clinicianName}</div>
+          
+          ${clinicianConflicts.length > 0 ? this.renderClinicianConflicts(clinicianConflicts) : ''}
+          
+          <table>
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>Client</th>
+                <th>Office</th>
+                <th>Type</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${group.appointments.map(appt => this.renderAppointmentRow(appt)).join('')}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }).join('');
+  }
+  
+  /**
+   * Render conflicts specific to a clinician
+   */
+  private static renderClinicianConflicts(conflicts: ScheduleConflict[]): string {
+    return `
+      <div class="clinician-conflicts">
+        <strong>⚠️ Scheduling Notes:</strong>
+        <ul>
+          ${conflicts.map(conflict => `
+            <li class="${conflict.severity}">
+              ${conflict.description}
+            </li>
+          `).join('')}
+        </ul>
       </div>
-    `).join('');
+    `;
   }
   
   /**
@@ -217,46 +280,23 @@ export class EmailTemplates {
          </div>`
       : '';
     
-    // Log for debugging
-    console.log(`Rendering appointment row for ${appt.appointmentId}:`, {
-      officeId: appt.officeId,
-      officeDisplay: appt.officeDisplay
-    });
+    // Handle office change highlighting
+    const officeChangeHtml = appt.requiresOfficeChange 
+      ? `<div class="office-change-note">
+           ⚠️ <span class="office-change">Office change required</span> from ${appt.previousOffice}
+         </div>`
+      : '';
+    
+    // Add office-change class to the office cell if needed
+    const officeClass = appt.requiresOfficeChange ? ' class="office-change"' : '';
     
     return `
       <tr>
         <td>${appt.formattedTime}</td>
         <td>${appt.clientName}${requirementsHtml}</td>
-        <td>${appt.officeDisplay}</td>
+        <td${officeClass}>${appt.officeDisplay}${officeChangeHtml}</td>
         <td>${this.formatSessionType(appt.sessionType)}</td>
       </tr>
-    `;
-  }
-  
-  /**
-   * Generate HTML for conflicts section
-   */
-  private static renderConflictsSection(conflicts: ScheduleConflict[]): string {
-    if (conflicts.length === 0) {
-      return `
-        <div class="stats">
-          <h3>Conflicts</h3>
-          <p>✅ No scheduling conflicts detected for today.</p>
-        </div>
-      `;
-    }
-    
-    return `
-      <div class="conflicts">
-        <h3>⚠️ Scheduling Conflicts (${conflicts.length})</h3>
-        <ul>
-          ${conflicts.map(conflict => `
-            <li class="${conflict.severity}">
-              ${conflict.description}
-            </li>
-          `).join('')}
-        </ul>
-      </div>
     `;
   }
   
@@ -281,53 +321,42 @@ export class EmailTemplates {
   /**
    * Generate a plain text version of the email for clients without HTML
    */
-  private static generateTextVersion(data: DailyScheduleData): string {
-    const { displayDate, appointments, conflicts, stats } = data;
-    
-    // Group appointments by clinician for text version
-    const appointmentsByClinicianMap = new Map<string, ProcessedAppointment[]>();
-    
-    appointments.forEach(appt => {
-      if (!appointmentsByClinicianMap.has(appt.clinicianName)) {
-        appointmentsByClinicianMap.set(appt.clinicianName, []);
-      }
-      appointmentsByClinicianMap.get(appt.clinicianName)?.push(appt);
-    });
-    
-    // Convert to array for easier rendering
-    const appointmentsByClinician = Array.from(appointmentsByClinicianMap.entries())
-      .map(([clinicianName, appts]) => ({ 
-        clinicianName, 
-        appointments: appts.sort((a, b) => 
-          new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
-        )
-      }));
+  private static generateTextVersion(
+    data: DailyScheduleData,
+    clinicianGroups: { clinicianName: string; appointments: ProcessedAppointment[]; lastName: string }[]
+  ): string {
+    const { displayDate, conflicts, stats } = data;
     
     let text = `DAILY SCHEDULE: ${displayDate}\n\n`;
-    
-    // Conflicts section
-    text += `CONFLICTS\n`;
-    if (conflicts.length === 0) {
-      text += `No scheduling conflicts detected for today.\n`;
-    } else {
-      text += `${conflicts.length} scheduling conflicts found:\n`;
-      conflicts.forEach(conflict => {
-        text += `- ${conflict.description}\n`;
-      });
-    }
-    text += `\n`;
     
     // Appointments section
     text += `APPOINTMENTS\n\n`;
     
-    appointmentsByClinician.forEach(group => {
+    clinicianGroups.forEach(group => {
       text += `${group.clinicianName}\n`;
       text += `${'-'.repeat(group.clinicianName.length)}\n`;
+      
+      // Add clinician-specific conflicts
+      const clinicianConflicts = data.conflictsByClinicianMap?.[group.clinicianName] || [];
+      if (clinicianConflicts.length > 0) {
+        text += `\nScheduling Notes:\n`;
+        clinicianConflicts.forEach(conflict => {
+          text += `* ${conflict.description}\n`;
+        });
+        text += `\n`;
+      }
+      
       text += `Time | Client | Office | Type\n`;
       text += `${'-'.repeat(60)}\n`;
       
       group.appointments.forEach(appt => {
-        let appText = `${appt.formattedTime} | ${appt.clientName} | ${appt.officeDisplay} | ${this.formatSessionType(appt.sessionType)}\n`;
+        let appText = `${appt.formattedTime} | ${appt.clientName} | ${appt.officeDisplay}`;
+        
+        if (appt.requiresOfficeChange) {
+          appText += ` (OFFICE CHANGE from ${appt.previousOffice})`;
+        }
+        
+        appText += ` | ${this.formatSessionType(appt.sessionType)}\n`;
         
         if (appt.hasSpecialRequirements) {
           if (appt.requirements?.accessibility) {
@@ -374,10 +403,12 @@ export class EmailTemplates {
    * Generate error notification email
    */
   static errorNotification(
-    error: Error,
+    errorOrMessage: Error | string,
     context: string,
     details?: any
   ): EmailTemplate {
+    const error = errorOrMessage instanceof Error ? errorOrMessage : new Error(errorOrMessage);
+    
     const htmlBody = `
 <!DOCTYPE html>
 <html>

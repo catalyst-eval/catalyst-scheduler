@@ -10,14 +10,35 @@ export function toEST(date: string | Date): Date {
     
     // Use direct UTC date methods for more reliable conversion
     // This avoids issues with browser's local timezone
-    return new Date(
-      inputDate.getUTCFullYear(),
-      inputDate.getUTCMonth(),
-      inputDate.getUTCDate(),
-      inputDate.getUTCHours(),
-      inputDate.getUTCMinutes(),
-      inputDate.getUTCSeconds()
-    );
+    const options = { timeZone: 'America/New_York' };
+    const estDateStr = inputDate.toLocaleString('en-US', options);
+    
+    // Parse the formatted date string back to a Date object
+    const [datePart, timePart] = estDateStr.split(', ');
+    const [month, day, year] = datePart.split('/').map(num => parseInt(num));
+    let [hour, minute, second] = [0, 0, 0];
+    
+    if (timePart) {
+      const timeParts = timePart.match(/(\d+):(\d+):?(\d+)?\s*(AM|PM)/i);
+      if (timeParts) {
+        hour = parseInt(timeParts[1]);
+        minute = parseInt(timeParts[2]);
+        second = timeParts[3] ? parseInt(timeParts[3]) : 0;
+        
+        // Adjust for PM
+        if (timeParts[4].toUpperCase() === 'PM' && hour < 12) {
+          hour += 12;
+        }
+        // Adjust for AM 12
+        else if (timeParts[4].toUpperCase() === 'AM' && hour === 12) {
+          hour = 0;
+        }
+      }
+    }
+    
+    // Create a new date in local time with the EST components
+    // Month is 0-indexed in JavaScript Date
+    return new Date(year, month - 1, day, hour, minute, second);
   } catch (error) {
     console.error('Error in toEST:', error);
     return new Date(); // Return current date as fallback
@@ -32,16 +53,15 @@ export function formatESTTime(isoTime: string): string {
     // Parse the input date
     const date = new Date(isoTime);
     
-    // Calculate EST time (UTC-5) - adjust hours for timezone
-    const estDate = new Date(date);
-    estDate.setHours(date.getUTCHours() - 5); // Adjust for EST (UTC-5)
+    // Format in eastern time
+    const options = { 
+      timeZone: 'America/New_York',
+      hour: 'numeric' as const, 
+      minute: '2-digit' as const,
+      hour12: true 
+    };
     
-    // Format with hours and minutes
-    return estDate.toLocaleTimeString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true
-    });
+    return date.toLocaleTimeString('en-US', options);
   } catch (error) {
     console.error('Error formatting EST time:', error);
     return 'Invalid Time';
@@ -60,19 +80,18 @@ export function getESTDayRange(dateString: string): { start: string; end: string
       return getESTDayRange(new Date().toISOString());
     }
     
-    // Use the date directly (already in UTC from ISO string)
-    const startOfDay = new Date(inputDate);
-    startOfDay.setUTCHours(0, 0, 0, 0);
+    // Get the date in Eastern Time
+    const options = { timeZone: 'America/New_York' };
+    const estDateStr = inputDate.toLocaleString('en-US', options);
+    const [datePart] = estDateStr.split(', ');
+    const [month, day, year] = datePart.split('/').map(num => parseInt(num));
     
-    const endOfDay = new Date(inputDate);
-    endOfDay.setUTCHours(23, 59, 59, 999);
+    // Create start of day (midnight EST)
+    const startOfDay = new Date(Date.UTC(year, month - 1, day, 5, 0, 0)); // 00:00 EST is 05:00 UTC
     
-    // Log for debugging
-    console.log(`Date range for ${dateString}:`, {
-      start: startOfDay.toISOString(),
-      end: endOfDay.toISOString()
-    });
-    
+    // Create end of day (23:59:59.999 EST)
+    const endOfDay = new Date(Date.UTC(year, month - 1, day, 29, 59, 59, 999)); // 23:59:59.999 EST is 04:59:59.999 UTC next day
+
     return {
       start: startOfDay.toISOString(),
       end: endOfDay.toISOString()
@@ -82,8 +101,11 @@ export function getESTDayRange(dateString: string): { start: string; end: string
     
     // Fallback to current day
     const today = new Date();
-    const startOfToday = new Date(today.setUTCHours(0, 0, 0, 0));
-    const endOfToday = new Date(today.setUTCHours(23, 59, 59, 999));
+    const startOfToday = new Date(today);
+    startOfToday.setHours(0, 0, 0, 0);
+    
+    const endOfToday = new Date(today);
+    endOfToday.setHours(23, 59, 59, 999);
     
     return {
       start: startOfToday.toISOString(),
@@ -96,8 +118,8 @@ export function getESTDayRange(dateString: string): { start: string; end: string
  * Get today's date in EST as YYYY-MM-DD
  */
 export function getTodayEST(): string {
-  const now = new Date();
-  return now.toISOString().split('T')[0];
+  const estDate = toEST(new Date());
+  return estDate.toISOString().split('T')[0];
 }
 
 /**
@@ -105,14 +127,48 @@ export function getTodayEST(): string {
  */
 export function isSameESTDay(date1: string | Date, date2: string | Date): boolean {
   try {
-    // Extract just the date portions
-    const d1Str = new Date(date1).toISOString().split('T')[0];
-    const d2Str = new Date(date2).toISOString().split('T')[0];
+    // Extract just the date portions in EST timezone
+    const d1 = toEST(date1);
+    const d2 = toEST(date2);
     
-    return d1Str === d2Str;
+    return (
+      d1.getFullYear() === d2.getFullYear() &&
+      d1.getMonth() === d2.getMonth() &&
+      d1.getDate() === d2.getDate()
+    );
   } catch (error) {
     console.error('Error in isSameESTDay:', error);
     return false;
+  }
+}
+
+/**
+ * Check if two time ranges overlap
+ * Returns true if there is any overlap
+ */
+export function doTimeRangesOverlap(
+  start1: string | Date, 
+  end1: string | Date,
+  start2: string | Date,
+  end2: string | Date
+): boolean {
+  try {
+    // Convert to timestamps for easy comparison
+    const s1 = new Date(start1).getTime();
+    const e1 = new Date(end1).getTime();
+    const s2 = new Date(start2).getTime();
+    const e2 = new Date(end2).getTime();
+    
+    // Check for any overlap scenario
+    // Must be a TRUE overlap, not just touching at endpoints
+    return (
+      (s1 >= s2 && s1 < e2) || // start1 is within range2
+      (e1 > s2 && e1 <= e2) || // end1 is within range2
+      (s1 <= s2 && e1 >= e2)   // range1 completely contains range2
+    );
+  } catch (error) {
+    console.error('Error comparing time ranges:', error);
+    return false; // Assume no overlap on error
   }
 }
 
@@ -129,15 +185,15 @@ export function formatDateRange(startTime: string, endTime: string): string {
 }
 
 /**
- * Get a user-friendly date string for display
+ * Get a user-friendly date string in EST
  */
 export function getDisplayDate(date: string): string {
   try {
-    // Parse the date
-    const displayDate = new Date(date);
+    // Parse the date and convert to EST
+    const estDate = toEST(date);
     
-    // Format using toLocaleDateString for consistent results
-    return displayDate.toLocaleDateString('en-US', {
+    // Format for display
+    return estDate.toLocaleDateString('en-US', {
       weekday: 'long',
       year: 'numeric',
       month: 'long',
@@ -160,6 +216,20 @@ export function isValidISODate(dateString: string | null | undefined): boolean {
     return !isNaN(date.getTime());
   } catch (error) {
     return false;
+  }
+}
+
+/**
+ * Get the minutes difference between two times
+ */
+export function getMinutesBetween(start: string | Date, end: string | Date): number {
+  try {
+    const startTime = new Date(start).getTime();
+    const endTime = new Date(end).getTime();
+    return Math.round((endTime - startTime) / (1000 * 60));
+  } catch (error) {
+    console.error('Error calculating minutes between times:', error);
+    return 0;
   }
 }
 
