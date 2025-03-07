@@ -69,6 +69,30 @@ export function formatESTTime(isoTime: string): string {
 }
 
 /**
+ * Normalize a date string to ensure consistent format and timezone
+ */
+export function normalizeDateString(dateString: string): string {
+  try {
+    // Parse the date and convert to EST
+    const estDate = toEST(dateString);
+    
+    // Format as YYYY-MM-DD
+    const year = estDate.getFullYear();
+    const month = String(estDate.getMonth() + 1).padStart(2, '0');
+    const day = String(estDate.getDate()).padStart(2, '0');
+    
+    const normalizedDate = `${year}-${month}-${day}`;
+    console.log(`Normalized date: ${dateString} -> ${normalizedDate}`);
+    
+    return normalizedDate;
+  } catch (error) {
+    console.error(`Error normalizing date ${dateString}:`, error);
+    // Return original on error
+    return dateString;
+  }
+}
+
+/**
  * Get start and end of day in EST for a given date string
  */
 export function getESTDayRange(dateString: string): { start: string; end: string } {

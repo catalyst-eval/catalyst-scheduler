@@ -376,8 +376,9 @@ private processAppointments(
       appointmentId: appt.appointmentId,
       clientName: appt.clientName,
       clinicianName: appt.clinicianName,
-      officeId: displayOfficeId, // Use the display office ID
-      officeDisplay: office ? `Office ${office.name} (${displayOfficeId})` : displayOfficeId,
+      officeId: displayOfficeId,
+      // Fix the display format to eliminate the duplicate "Office"
+      officeDisplay: `Office ${displayOfficeId}`,
       startTime: appt.startTime,
       endTime: appt.endTime,
       formattedTime: `${formatESTTime(appt.startTime)} - ${formatESTTime(appt.endTime)}`,
