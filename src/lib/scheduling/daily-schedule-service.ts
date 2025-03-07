@@ -183,7 +183,7 @@ export class DailyScheduleService {
  */
 private async resolveOfficeAssignments(appointments: AppointmentRecord[]): Promise<AppointmentRecord[]> {
   try {
-    console.log('Resolving TBD office assignments using priority rules');
+    console.log('Resolving office assignments using priority rules');
     
     // Get necessary configuration data for rule application
     const offices = await this.sheetsService.getOffices();
@@ -196,6 +196,9 @@ private async resolveOfficeAssignments(appointments: AppointmentRecord[]): Promi
     
     // Sort rules by priority (highest first)
     const sortedRules = [...rules].sort((a, b) => b.priority - a.priority);
+    
+    // Track office assignments for logging
+    const assignmentLog: Record<string, string> = {};
     
     // Process each appointment that needs office assignment
     const updatedAppointments = await Promise.all(
@@ -219,7 +222,9 @@ private async resolveOfficeAssignments(appointments: AppointmentRecord[]): Promi
           };
         }
         
-        console.log(`Resolving office for appointment ${appt.appointmentId}: ${appt.clientName} with ${appt.clinicianName}`);
+        // Log the appointment we're processing
+        const apptKey = `${appt.appointmentId} (${appt.clientName})`;
+        console.log(`Resolving office for appointment ${apptKey}: ${appt.clientName} with ${appt.clinicianName}`);
         
         // Get data needed for rule application
         const clinician = clinicians.find(c => c.name === appt.clinicianName);
@@ -230,22 +235,39 @@ private async resolveOfficeAssignments(appointments: AppointmentRecord[]): Promi
         let assignedOffice = null;
         let assignmentReason = '';
         
+        // First, log what we found for this appointment
+        if (clientPreference?.assignedOffice) {
+          console.log(`  Client ${appt.clientName} has assigned office: ${clientPreference.assignedOffice}`);
+        }
+        
+        if (clientAccessibility?.hasMobilityNeeds) {
+          console.log(`  Client ${appt.clientName} has mobility needs`);
+        }
+        
+        if (clinician) {
+          console.log(`  Clinician ${clinician.name} primary office: ${clinician.preferredOffices?.[0] || 'None'}`);
+          console.log(`  Clinician preferred offices: ${clinician.preferredOffices?.join(', ') || 'None'}`);
+        }
+        
+        // Iterate through each rule in priority order
         for (const rule of sortedRules) {
           // Skip inactive rules
           if (!rule.active) continue;
           
-          // Apply rule based on its type
+          console.log(`  Checking rule: ${rule.ruleName} (Priority ${rule.priority})`);
+          
           switch (rule.ruleType) {
             case 'client': // Priority 100: Client Specific Requirement
-              if (clientPreference?.assignedOffice) {
+              if (rule.priority === 100 && clientPreference?.assignedOffice) {
                 assignedOffice = clientPreference.assignedOffice;
                 assignmentReason = `Priority ${rule.priority}: Client specific requirement`;
+                console.log(`  MATCH: ${assignmentReason} - Office ${assignedOffice}`);
                 break;
               }
               continue;
               
             case 'accessibility': // Priority 90: Accessibility Requirements
-              if (clientAccessibility?.hasMobilityNeeds) {
+              if (rule.priority === 90 && clientAccessibility?.hasMobilityNeeds) {
                 const accessibleOffices = rule.officeIds
                   .map(id => standardizeOfficeId(id))
                   .filter(id => activeOffices.some(o => standardizeOfficeId(o.officeId) === id));
@@ -253,86 +275,91 @@ private async resolveOfficeAssignments(appointments: AppointmentRecord[]): Promi
                 if (accessibleOffices.length > 0) {
                   assignedOffice = accessibleOffices[0];
                   assignmentReason = `Priority ${rule.priority}: Client requires accessible office`;
+                  console.log(`  MATCH: ${assignmentReason} - Office ${assignedOffice}`);
                   break;
                 }
               }
               continue;
               
             case 'age': // Priorities 80/75/70: Age-based rules
-              // We would need client age, which we don't have in this context
-              // Skip for now - would need client DOB from IntakeQ
+              // For testing purposes, implement basic age handling
+              // In production, you'd need client DOB from IntakeQ
               continue;
               
-            case 'session': // Priorities 65/60/40/10: Session type rules
-              if (rule.condition.includes('session_type')) {
-                const sessionType = appt.sessionType;
+            case 'session': // Session type rules (Family sessions, In-person)
+              if (rule.priority === 65 && rule.condition.includes('session_type') && appt.sessionType === 'family') {
+                const familyOffices = rule.officeIds
+                  .map(id => standardizeOfficeId(id))
+                  .filter(id => activeOffices.some(o => standardizeOfficeId(o.officeId) === id));
+                  
+                if (familyOffices.length > 0) {
+                  assignedOffice = familyOffices[0];
+                  assignmentReason = `Priority ${rule.priority}: Family session requires larger office`;
+                  console.log(`  MATCH: ${assignmentReason} - Office ${assignedOffice}`);
+                  break;
+                }
+              }
+              
+              if (rule.priority === 55 && rule.condition.includes('in-person') && appt.sessionType === 'in-person') {
+                const inPersonOffices = rule.officeIds
+                  .map(id => standardizeOfficeId(id))
+                  .filter(id => activeOffices.some(o => standardizeOfficeId(o.officeId) === id));
+                  
+                if (inPersonOffices.length > 0) {
+                  assignedOffice = inPersonOffices[0];
+                  assignmentReason = `Priority ${rule.priority}: In-person session assignment`;
+                  console.log(`  MATCH: ${assignmentReason} - Office ${assignedOffice}`);
+                  break;
+                }
+              }
+              
+              if ((rule.priority === 40 || rule.priority === 10) && 
+                  rule.condition.includes('telehealth') && 
+                  appt.sessionType === 'telehealth') {
                 
-                // Priority 65: Family Sessions
-                if (sessionType === 'family' && rule.condition.includes('family')) {
-                  const familyOffices = rule.officeIds
+                if (rule.priority === 40 && clinician?.preferredOffices?.length) {
+                  // Telehealth to preferred office
+                  const preferredOffices = clinician.preferredOffices
                     .map(id => standardizeOfficeId(id))
                     .filter(id => activeOffices.some(o => standardizeOfficeId(o.officeId) === id));
                     
-                  if (familyOffices.length > 0) {
-                    assignedOffice = familyOffices[0];
-                    assignmentReason = `Priority ${rule.priority}: Family session requires larger office`;
+                  if (preferredOffices.length > 0) {
+                    assignedOffice = preferredOffices[0];
+                    assignmentReason = `Priority ${rule.priority}: Telehealth to clinician's preferred office`;
+                    console.log(`  MATCH: ${assignmentReason} - Office ${assignedOffice}`);
                     break;
                   }
-                }
-                
-                // Priority 60: In-Person Priority
-                if (sessionType === 'in-person' && rule.condition.includes('in-person')) {
-                  const inPersonOffices = rule.officeIds
-                    .map(id => standardizeOfficeId(id))
-                    .filter(id => activeOffices.some(o => standardizeOfficeId(o.officeId) === id));
-                    
-                  if (inPersonOffices.length > 0) {
-                    assignedOffice = inPersonOffices[0];
-                    assignmentReason = `Priority ${rule.priority}: In-person session assignment`;
-                    break;
-                  }
-                }
-                
-                // Priority 40: Telehealth to Preferred Office
-                if (sessionType === 'telehealth' && rule.condition.includes('telehealth') && clinician) {
-                  if (clinician.preferredOffices && clinician.preferredOffices.length > 0) {
-                    const preferredOffices = clinician.preferredOffices
-                      .map(id => standardizeOfficeId(id))
-                      .filter(id => activeOffices.some(o => standardizeOfficeId(o.officeId) === id));
-                      
-                    if (preferredOffices.length > 0) {
-                      assignedOffice = preferredOffices[0];
-                      assignmentReason = `Priority ${rule.priority}: Telehealth to clinician's preferred office`;
-                      break;
-                    }
-                  }
-                }
-                
-                // Priority 10: Default Telehealth
-                if (sessionType === 'telehealth' && rule.condition.includes('telehealth')) {
+                } else if (rule.priority === 10) {
+                  // Default telehealth assignment
                   assignedOffice = 'A-v';
                   assignmentReason = `Priority ${rule.priority}: Default virtual office for telehealth`;
+                  console.log(`  MATCH: ${assignmentReason} - Office ${assignedOffice}`);
                   break;
                 }
               }
               continue;
               
-            case 'clinician': // Priorities 50/45: Clinician office preferences
+            case 'clinician': // Clinician office preferences
               if (!clinician) continue;
               
-              // Priority 50: Clinician Primary Office
-              if (rule.condition.includes('is_primary_office') && clinician.preferredOffices && clinician.preferredOffices.length > 0) {
+              // Priority 65: Clinician Primary Office
+              if (rule.priority === 65 && rule.condition.includes('is_primary_office') && 
+                  clinician.preferredOffices && clinician.preferredOffices.length > 0) {
+                
                 // Assuming first preferred office is primary
                 const primaryOffice = standardizeOfficeId(clinician.preferredOffices[0]);
                 if (activeOffices.some(o => standardizeOfficeId(o.officeId) === primaryOffice)) {
                   assignedOffice = primaryOffice;
                   assignmentReason = `Priority ${rule.priority}: Clinician's primary office`;
+                  console.log(`  MATCH: ${assignmentReason} - Office ${assignedOffice}`);
                   break;
                 }
               }
               
-              // Priority 45: Clinician Preferred Office
-              if (rule.condition.includes('is_preferred_office') && clinician.preferredOffices && clinician.preferredOffices.length > 0) {
+              // Priority 62: Clinician Preferred Office
+              if (rule.priority === 62 && rule.condition.includes('is_preferred_office') && 
+                  clinician.preferredOffices && clinician.preferredOffices.length > 0) {
+                
                 const preferredOffices = clinician.preferredOffices
                   .map(id => standardizeOfficeId(id))
                   .filter(id => activeOffices.some(o => standardizeOfficeId(o.officeId) === id));
@@ -340,30 +367,37 @@ private async resolveOfficeAssignments(appointments: AppointmentRecord[]): Promi
                 if (preferredOffices.length > 0) {
                   assignedOffice = preferredOffices[0];
                   assignmentReason = `Priority ${rule.priority}: Clinician's preferred office`;
+                  console.log(`  MATCH: ${assignmentReason} - Office ${assignedOffice}`);
                   break;
                 }
               }
               continue;
               
+            case 'features': // Priority 35: Special Features Match
+              // Feature matching logic would go here
+              continue;
+              
+            case 'availability': // Priority 20: Any Available Office
+              if (rule.priority === 20 && activeOffices.length > 0) {
+                // Assign first available active office
+                assignedOffice = standardizeOfficeId(activeOffices[0].officeId);
+                assignmentReason = `Priority ${rule.priority}: Available office`;
+                console.log(`  MATCH: ${assignmentReason} - Office ${assignedOffice}`);
+                break;
+              }
+              continue;
+              
             case 'office': // Priority 15: Break Room Last Resort
-              if (rule.condition.includes('office_id')) {
+              if (rule.priority === 15 && rule.condition.includes('office_id')) {
                 const breakRoomId = standardizeOfficeId(rule.officeIds[0]);
                 const breakRoom = activeOffices.find(o => standardizeOfficeId(o.officeId) === breakRoomId);
                 
                 if (breakRoom) {
                   assignedOffice = breakRoomId;
                   assignmentReason = `Priority ${rule.priority}: Break room as last resort`;
+                  console.log(`  MATCH: ${assignmentReason} - Office ${assignedOffice}`);
                   break;
                 }
-              }
-              continue;
-              
-            case 'availability': // Priority 20: Any Available Office
-              // For simplicity, just assign first available active office
-              if (activeOffices.length > 0) {
-                assignedOffice = standardizeOfficeId(activeOffices[0].officeId);
-                assignmentReason = `Priority ${rule.priority}: Available office`;
-                break;
               }
               continue;
               
@@ -394,9 +428,11 @@ private async resolveOfficeAssignments(appointments: AppointmentRecord[]): Promi
               assignmentReason = 'Error: No active offices available';
             }
           }
+          console.log(`  FALLBACK: ${assignmentReason} - Office ${assignedOffice}`);
         }
         
-        console.log(`Assigned office ${assignedOffice} to appointment ${appt.appointmentId}: ${assignmentReason}`);
+        // Store assignment reason for logging
+        assignmentLog[apptKey] = assignmentReason;
         
         // Return updated appointment with assigned office
         return {
@@ -405,6 +441,17 @@ private async resolveOfficeAssignments(appointments: AppointmentRecord[]): Promi
         };
       })
     );
+    
+    // Log audit entry with assignment details
+    await this.sheetsService.addAuditLog({
+      timestamp: new Date().toISOString(),
+      eventType: 'OFFICE_ASSIGNMENTS_RESOLVED',
+      description: `Resolved office assignments for ${updatedAppointments.length} appointments`,
+      user: 'SYSTEM',
+      systemNotes: JSON.stringify({
+        assignmentReasons: assignmentLog
+      })
+    });
     
     // Update the appointments in the sheet
     for (const appt of updatedAppointments) {
@@ -421,6 +468,16 @@ private async resolveOfficeAssignments(appointments: AppointmentRecord[]): Promi
     return updatedAppointments;
   } catch (error) {
     console.error('Error resolving office assignments:', error);
+    
+    // Log error
+    await this.sheetsService.addAuditLog({
+      timestamp: new Date().toISOString(),
+      eventType: 'SYSTEM_ERROR',
+      description: 'Error resolving office assignments',
+      user: 'SYSTEM',
+      systemNotes: error instanceof Error ? error.message : 'Unknown error'
+    });
+    
     return appointments; // Return original appointments on error
   }
 }
@@ -623,11 +680,11 @@ async refreshAppointmentsFromIntakeQ(date: string): Promise<number> {
 /**
  * Detect scheduling conflicts with improved accuracy
  */
+/**
+ * Detect scheduling conflicts with improved accuracy
+ */
 private detectConflicts(appointments: ProcessedAppointment[]): ScheduleConflict[] {
   const conflicts: ScheduleConflict[] = [];
-  
-  // Map to track office usage by time blocks
-  const officeTimeMap: Record<string, ProcessedAppointment[]> = {};
   
   // Process each appointment to find overlaps
   appointments.forEach(appt => {
@@ -697,7 +754,7 @@ private detectConflicts(appointments: ProcessedAppointment[]): ScheduleConflict[
             severity: 'high',
             appointmentIds: [appt.appointmentId, otherAppt.appointmentId],
             officeId: appt.officeId,
-            clinicianIds: [appt.clinicianName], // Track clinicians involved in conflict
+            clinicianIds: [appt.clinicianName, otherAppt.clinicianName], // Track BOTH clinicians involved
             timeBlock: timeDisplay
           });
         }
