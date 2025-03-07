@@ -9,6 +9,7 @@ import fs from 'fs';
 // Import directly from the module
 import importAppointmentsFromCSV from '../scripts/manual-import-appointments';
 import deduplicateAccessibilityInfo from '../scripts/deduplicate-accessibility';
+import { DailyScheduleService } from '../lib/scheduling/daily-schedule-service';
 
 // Create the router
 const router = express.Router();
@@ -309,6 +310,106 @@ router.post('/import-single-day', async (req: Request, res: Response) => {
       });
   } catch (error) {
     console.error('Error starting single-day import:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+/**
+ * Run office assignment test
+ */
+router.get('/test-office-assignment', async (req: Request, res: Response) => {
+  try {
+    const date = req.query.date as string || new Date().toISOString().split('T')[0];
+    console.log(`Testing office assignment for ${date}`);
+    
+    // Initialize services
+    const sheetsService = new GoogleSheetsService();
+    const dailyScheduleService = new DailyScheduleService(sheetsService);
+    
+    // Create a log collection array
+    const testLogs: string[] = [];
+    const log = (message: string) => {
+      console.log(message);
+      testLogs.push(message);
+    };
+    
+    // Log the start of the test
+    await sheetsService.addAuditLog({
+      timestamp: new Date().toISOString(),
+      eventType: 'TEST_STARTED',
+      description: `Starting office assignment test for ${date}`,
+      user: 'SYSTEM',
+      systemNotes: 'Triggered via API'
+    });
+    
+    log(`\n==== TESTING OFFICE ASSIGNMENT FOR ${date} ====\n`);
+    
+    // Load configuration data
+    log('Loading configuration data...');
+    const offices = await sheetsService.getOffices();
+    log(`Loaded ${offices.length} offices`);
+    
+    const clinicians = await sheetsService.getClinicians();
+    log(`Loaded ${clinicians.length} clinicians`);
+    
+    const rules = await sheetsService.getAssignmentRules();
+    log(`Loaded ${rules.length} assignment rules`);
+    
+    // More detailed test process... 
+    // (Similar to the script implementation, adapted for the API context)
+    
+    // Check appointment data
+    log('\nRetrieving appointments for date...');
+    const appointmentData = await dailyScheduleService.generateDailySchedule(date);
+    log(`Found ${appointmentData.appointments.length} appointments`);
+    
+    // Process appointments and detect conflicts...
+    
+    // End test
+    log('\n==== TEST COMPLETED ====\n');
+    
+    // Log completion
+    await sheetsService.addAuditLog({
+      timestamp: new Date().toISOString(),
+      eventType: 'TEST_COMPLETED',
+      description: `Completed office assignment test for ${date}`,
+      user: 'SYSTEM',
+      systemNotes: JSON.stringify({
+        appointmentsProcessed: appointmentData.appointments.length,
+        conflictsDetected: appointmentData.conflicts.length
+      })
+    });
+    
+    // Return results
+    res.json({
+      success: true,
+      date,
+      logs: testLogs,
+      appointments: appointmentData.appointments,
+      conflicts: appointmentData.conflicts,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Error running assignment test:', error);
+    
+    // Log the error
+    try {
+      const sheetsService = new GoogleSheetsService();
+      await sheetsService.addAuditLog({
+        timestamp: new Date().toISOString(),
+        eventType: 'TEST_ERROR',
+        description: 'Error running office assignment test',
+        user: 'SYSTEM',
+        systemNotes: error instanceof Error ? error.message : 'Unknown error'
+      });
+    } catch (logError) {
+      console.error('Failed to log error:', logError);
+    }
+    
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
