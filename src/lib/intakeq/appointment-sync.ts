@@ -469,11 +469,9 @@ export class AppointmentSyncHandler {
     return 'in-person';
   }
 
-  /**
-   * Determine best office assignment for an appointment
-   * This is a simplified version until we implement the full office assignment logic
-   */
-
+/**
+ * Determine best office assignment for an appointment
+ */
 async determineOfficeAssignment(appointment: IntakeQAppointment): Promise<OfficeAssignmentResult> {
   try {
     console.log(`Determining office assignment for appointment ${appointment.Id}`);
@@ -498,11 +496,34 @@ async determineOfficeAssignment(appointment: IntakeQAppointment): Promise<Office
       .filter(rule => rule.active)
       .sort((a, b) => b.priority - a.priority);
     
+    // Log rules for debugging
     console.log(`Processing ${activeRules.length} active assignment rules`);
+    
+    // Determine session type early for use in later rules
+    const sessionType = this.determineSessionType(appointment);
+    console.log(`Session type determined as: ${sessionType}`);
+    
+    // If telehealth, we might skip some rules and go straight to telehealth handling
+    if (sessionType === 'telehealth') {
+      console.log('Telehealth session detected, may use virtual office');
+    }
+    
+    // Find the matching clinician
+    const clinician = clinicians.find(c => c.intakeQPractitionerId === appointment.PractitionerId);
+    if (!clinician) {
+      console.warn(`No matching clinician found for practitioner ID ${appointment.PractitionerId}`);
+    } else {
+      console.log(`Found matching clinician: ${clinician.name} with ID ${clinician.clinicianId}`);
+      if (clinician.preferredOffices?.length) {
+        console.log(`Clinician preferred offices: ${clinician.preferredOffices.join(', ')}`);
+      }
+    }
     
     // 2. RULE PRIORITY 100: Client Specific Requirement
     // Check if client has a required office from Client_Preferences
     try {
+      console.log(`Checking for client ${appointment.ClientId} specific office requirements (Priority 100)`);
+      
       const clientPreferences = await this.sheetsService.getClientPreferences();
       
       // Look for client by ID
@@ -513,105 +534,159 @@ async determineOfficeAssignment(appointment: IntakeQAppointment): Promise<Office
         console.log(`Client ${appointment.ClientName} has assigned office: ${clientPreference.assignedOffice}`);
         return {
           officeId: standardizeOfficeId(clientPreference.assignedOffice),
-          reasons: ['Client has specific office requirement from preferences']
+          reasons: ['Client has specific assigned office in preferences (Priority 100)']
         };
       }
       
-      // Also check Required Offices (legacy method)
+      // Also check client required offices from another method (for backward compatibility)
       const clientRequirements = await this.sheetsService.getClientRequiredOffices();
       
-      // Match by name since ID might not be available
-      let clientRequirement = null;
+      // Try to match by name or ID
+      const clientRequirement = clientRequirements.find(
+        (r: any) => !r.inactive && 
+          (r.clientId === appointment.ClientId.toString() || 
+          (r.lastName === appointment.ClientLastName && 
+           r.firstName === appointment.ClientFirstName))
+      );
       
-      if (appointment.ClientLastName && appointment.ClientFirstName) {
-        clientRequirement = clientRequirements.find(
-          (r: any) => !r.inactive && 
-             r.lastName === appointment.ClientLastName &&
-             r.firstName === appointment.ClientFirstName &&
-             r.requiredOfficeId
-        );
-      }
-      
-      // If client has a specific required office, use it
       if (clientRequirement && clientRequirement.requiredOfficeId) {
         console.log(`Client ${appointment.ClientName} has required office: ${clientRequirement.requiredOfficeId}`);
         return {
           officeId: standardizeOfficeId(clientRequirement.requiredOfficeId),
-          reasons: ['Client has specific office requirement noted by clinician']
+          reasons: ['Client has specific office requirement (Priority 100)']
         };
       }
+      
+      console.log(`No client-specific office requirement found for ${appointment.ClientName}`);
     } catch (error) {
-      console.error('Error checking client required offices, continuing with other rules:', error);
+      console.error('Error checking client required offices:', error);
       // Continue to next rule if this fails
     }
     
     // 3. RULE PRIORITY 90: Accessibility Requirements
-    // Check if client has accessibility needs from Client Accessibility Info tab
-    const clientAccessibilityInfo = await this.sheetsService.getClientAccessibilityInfo(appointment.ClientId.toString());
-    
-    if (clientAccessibilityInfo && clientAccessibilityInfo.hasMobilityNeeds) {
-      console.log(`Client ${appointment.ClientName} has mobility needs, finding accessible office`);
+    // Check if client has accessibility needs from Client Accessibility Info
+    try {
+      console.log(`Checking client accessibility needs (Priority 90)`);
       
-      // Get accessible offices
-      const accessibleOffices = activeOffices.filter(o => o.isAccessible);
+      const clientAccessibilityInfo = await this.sheetsService.getClientAccessibilityInfo(appointment.ClientId.toString());
       
-      if (accessibleOffices.length > 0) {
-        // Prioritize B-4 first, then C-3 as specified in rule
-        const prioritizedOffices = ['B-4', 'C-3'];
+      if (clientAccessibilityInfo && clientAccessibilityInfo.hasMobilityNeeds) {
+        console.log(`Client ${appointment.ClientName} has mobility needs, finding accessible office`);
         
-        for (const officeId of prioritizedOffices) {
-          const matchingOffice = accessibleOffices.find(o => 
-            standardizeOfficeId(o.officeId) === standardizeOfficeId(officeId)
-          );
+        // If it's telehealth, accessibility doesn't matter for office assignment
+        if (sessionType === 'telehealth') {
+          console.log('Telehealth session with accessibility needs - physical office not required');
+        } else {
+          // Get accessible offices
+          const accessibleOffices = activeOffices.filter(o => o.isAccessible);
           
-          if (matchingOffice) {
-            const availableOffice = await this.isOfficeAvailable(matchingOffice.officeId, appointment);
-            if (availableOffice) {
-              return {
-                officeId: standardizeOfficeId(matchingOffice.officeId),
-                reasons: ['Client requires accessible office space']
-              };
+          if (accessibleOffices.length > 0) {
+            // Prioritize B-4 first, then C-3 as specified in rule
+            const prioritizedOffices = ['B-4', 'C-3'];
+            
+            for (const officeId of prioritizedOffices) {
+              const matchingOffice = accessibleOffices.find(o => 
+                standardizeOfficeId(o.officeId) === standardizeOfficeId(officeId)
+              );
+              
+              if (matchingOffice) {
+                const availableOffice = await this.isOfficeAvailable(matchingOffice.officeId, appointment);
+                if (availableOffice) {
+                  return {
+                    officeId: standardizeOfficeId(matchingOffice.officeId),
+                    reasons: ['Client requires accessible office space (Priority 90)']
+                  };
+                }
+              }
             }
+            
+            // If specific accessible offices not found or not available, try any accessible office
+            for (const office of accessibleOffices) {
+              const availableOffice = await this.isOfficeAvailable(office.officeId, appointment);
+              if (availableOffice) {
+                return {
+                  officeId: standardizeOfficeId(office.officeId),
+                  reasons: ['Client requires accessible office space (Priority 90)']
+                };
+              }
+            }
+            
+            console.log('No accessible offices available, continuing to next rules');
+          } else {
+            console.log('No accessible offices found, continuing to next rules');
           }
         }
-        
-        // If specific accessible offices not found or not available, try any accessible office
-        for (const office of accessibleOffices) {
-          const availableOffice = await this.isOfficeAvailable(office.officeId, appointment);
-          if (availableOffice) {
+      } else {
+        console.log('Client does not have accessibility needs or info not found');
+      }
+    } catch (error) {
+      console.error('Error checking accessibility needs:', error);
+      // Continue to next rule if this fails
+    }
+    
+    // 4. RULE PRIORITY 80-75: Age-based assignments
+    // This would require knowing client age - skip for now
+    
+    // 5. RULE PRIORITY 70: Adult client assignments
+    // Also requires client age info - skip for now
+    
+    // 6. RULE PRIORITY 65: Family session room size
+    if (sessionType === 'family') {
+      console.log('Family session detected, checking for larger room (Priority 65)');
+      
+      // Look for medium or large size rooms
+      const familyOffices = activeOffices.filter(o => o.size === 'medium' || o.size === 'large');
+      
+      // Prefer C-2, C-3 for family sessions
+      const priorityFamilyOffices = ['C-2', 'C-3'];
+      
+      for (const officeId of priorityFamilyOffices) {
+        const office = activeOffices.find(o => standardizeOfficeId(o.officeId) === standardizeOfficeId(officeId));
+        if (office) {
+          const available = await this.isOfficeAvailable(office.officeId, appointment);
+          if (available) {
             return {
               officeId: standardizeOfficeId(office.officeId),
-              reasons: ['Client requires accessible office space']
+              reasons: [`Family session assigned to larger room (Priority 65): ${office.name}`]
             };
           }
         }
       }
+      
+      // Try any suitable family session room
+      for (const office of familyOffices) {
+        const available = await this.isOfficeAvailable(office.officeId, appointment);
+        if (available) {
+          return {
+            officeId: standardizeOfficeId(office.officeId),
+            reasons: [`Family session assigned to suitable room (Priority 65): ${office.name}`]
+          };
+        }
+      }
     }
     
-    // Determine session type early for use in later rules
-    const sessionType = this.determineSessionType(appointment);
-    
-    // Find the matching clinician
-    const clinician = clinicians.find(c => c.intakeQPractitionerId === appointment.PractitionerId);
-    if (!clinician) {
-      console.warn(`No matching clinician found for practitioner ID ${appointment.PractitionerId}`);
-    } else {
-      console.log(`Found matching clinician: ${clinician.name}`);
+    // 7. RULE PRIORITY 60: In-Person Priority
+    // In-person sessions get physical offices
+    if (sessionType === 'in-person' || sessionType === 'family' || sessionType === 'group') {
+      console.log('In-person session type, prioritizing physical offices (Priority 60)');
+      // This is handled implicitly by later rules
     }
     
-    // 8. RULE PRIORITY 50: Clinician Primary Office - IMPROVED IMPLEMENTATION
+    // 8. RULE PRIORITY 50: Clinician Primary Office
     if (clinician) {
+      console.log(`Checking clinician primary office (Priority 50)`);
+      
       // Check if clinician has a primary office defined
       const primaryOffices = activeOffices.filter(o => o.primaryClinician === clinician.clinicianId);
       
       for (const primaryOffice of primaryOffices) {
-        console.log(`Checking clinician primary office: ${primaryOffice.officeId}`);
+        console.log(`Found clinician primary office: ${primaryOffice.officeId}`);
         const availableOffice = await this.isOfficeAvailable(primaryOffice.officeId, appointment);
         
         if (availableOffice) {
           return {
             officeId: standardizeOfficeId(primaryOffice.officeId),
-            reasons: [`Clinician primary office (priority 50): ${primaryOffice.name}`]
+            reasons: [`Clinician primary office (Priority 50): ${primaryOffice.name}`]
           };
         } else {
           console.log(`Primary office ${primaryOffice.officeId} not available during appointment time`);
@@ -619,9 +694,9 @@ async determineOfficeAssignment(appointment: IntakeQAppointment): Promise<Office
       }
     }
     
-    // 9. RULE PRIORITY 45: Clinician Preferred Office - IMPROVED IMPLEMENTATION
+    // 9. RULE PRIORITY 45: Clinician Preferred Office
     if (clinician && clinician.preferredOffices && clinician.preferredOffices.length > 0) {
-      console.log(`Checking clinician preferred offices: ${clinician.preferredOffices.join(', ')}`);
+      console.log(`Checking clinician preferred offices (Priority 45): ${clinician.preferredOffices.join(', ')}`);
       
       for (const officeId of clinician.preferredOffices) {
         // Verify the office exists and is active
@@ -635,7 +710,7 @@ async determineOfficeAssignment(appointment: IntakeQAppointment): Promise<Office
           if (availableOffice) {
             return {
               officeId: standardizeOfficeId(officeId),
-              reasons: [`Clinician preferred office (priority 45): ${preferredOffice.name}`]
+              reasons: [`Clinician preferred office (Priority 45): ${preferredOffice.name}`]
             };
           } else {
             console.log(`Preferred office ${officeId} not available during appointment time`);
@@ -644,7 +719,7 @@ async determineOfficeAssignment(appointment: IntakeQAppointment): Promise<Office
       }
     }
     
-    // 10. RULE PRIORITY 40: Telehealth to Preferred Office - IMPROVED IMPLEMENTATION
+    // 10. RULE PRIORITY 40: Telehealth to Preferred Office
     if (sessionType === 'telehealth' && clinician) {
       console.log('Telehealth session, applying rule priority 40');
       
@@ -661,7 +736,7 @@ async determineOfficeAssignment(appointment: IntakeQAppointment): Promise<Office
             if (availableOffice) {
               return {
                 officeId: standardizeOfficeId(officeId),
-                reasons: [`Telehealth assigned to clinician preferred office (priority 40): ${preferredOffice.name}`]
+                reasons: [`Telehealth assigned to clinician preferred office (Priority 40): ${preferredOffice.name}`]
               };
             }
           }
@@ -683,21 +758,78 @@ async determineOfficeAssignment(appointment: IntakeQAppointment): Promise<Office
       }
     }
     
-    // Continue with the rest of the rules...
+    // 11. RULE PRIORITY 35: Special Features Match
+    // This would require matching client needs to office features
     
-    // If we get to the end and it's a telehealth session, only then use A-v as a last resort
+    // 12. RULE PRIORITY 30: Alternative Clinician Office
+    if (clinician) {
+      console.log('Checking alternative clinician offices (Priority 30)');
+      
+      // Find offices where this clinician is listed as an alternative
+      const alternativeOffices = activeOffices.filter(o => 
+        o.alternativeClinicians && 
+        o.alternativeClinicians.includes(clinician.clinicianId)
+      );
+      
+      for (const office of alternativeOffices) {
+        const available = await this.isOfficeAvailable(office.officeId, appointment);
+        if (available) {
+          return {
+            officeId: standardizeOfficeId(office.officeId),
+            reasons: [`Alternative clinician office (Priority 30): ${office.name}`]
+          };
+        }
+      }
+    }
+    
+    // 13. RULE PRIORITY 20: Any Available Office
+    if (sessionType !== 'telehealth') {
+      console.log('Checking any available office (Priority 20)');
+      
+      // Try any available office for in-person sessions
+      for (const office of activeOffices) {
+        const available = await this.isOfficeAvailable(office.officeId, appointment);
+        if (available) {
+          return {
+            officeId: standardizeOfficeId(office.officeId),
+            reasons: [`Available office (Priority 20): ${office.name}`]
+          };
+        }
+      }
+    }
+    
+    // 14. RULE PRIORITY 15: Break Room Last Resort
+    if (sessionType !== 'telehealth') {
+      console.log('Checking break room as last resort (Priority 15)');
+      
+      // Try break room (B-1) as last resort for in-person
+      const breakRoom = activeOffices.find(o => standardizeOfficeId(o.officeId) === 'B-1');
+      if (breakRoom) {
+        const available = await this.isOfficeAvailable(breakRoom.officeId, appointment);
+        if (available) {
+          return {
+            officeId: standardizeOfficeId(breakRoom.officeId),
+            reasons: ['Break room as last resort for in-person session (Priority 15)']
+          };
+        }
+      }
+    }
+    
+    // 15. RULE PRIORITY 10: Default Telehealth
+    // If telehealth session, or if no other office found, use virtual office
     if (sessionType === 'telehealth') {
+      console.log('Using virtual office for telehealth session (Priority 10)');
       return {
         officeId: 'A-v',
-        reasons: ['Last resort for telehealth: virtual office assignment']
+        reasons: ['Virtual office for telehealth session (Priority 10)']
       };
     }
     
-    // If we get here, something went wrong - default to A-v
-    console.warn('No suitable office found, defaulting to A-v');
+    // If we get here, something went wrong - log and default to A-v
+    console.warn('No suitable office found despite exhausting all rules, defaulting to A-v');
     return {
       officeId: 'A-v',
-      reasons: ['No suitable office found, using default virtual office']
+      reasons: ['No suitable office found after trying all rules, using default virtual office']
     };
   } catch (error) {
     console.error('Error determining office assignment:', error);

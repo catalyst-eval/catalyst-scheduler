@@ -303,78 +303,93 @@ async refreshAppointmentsFromIntakeQ(date: string): Promise<number> {
 }
 
   /**
- * Process appointments for display with office change tracking
+ * Process appointments for display with improved office change tracking
  */
-  private processAppointments(
-    appointments: AppointmentRecord[],
-    offices: any[]
-  ): ProcessedAppointment[] {
-    // Sort appointments by clinician and time to detect office changes
-    const sortedAppointments = [...appointments]
-      .filter(appt => appt.status !== 'cancelled' && appt.status !== 'rescheduled')
-      .sort((a, b) => {
-        // First sort by clinician
-        const clinicianCompare = a.clinicianName.localeCompare(b.clinicianName);
-        if (clinicianCompare !== 0) return clinicianCompare;
-        
-        // Then by start time
-        return new Date(a.startTime).getTime() - new Date(b.startTime).getTime();
-      });
+private processAppointments(
+  appointments: AppointmentRecord[],
+  offices: any[]
+): ProcessedAppointment[] {
+  // Sort appointments by clinician and time to detect office changes
+  const sortedAppointments = [...appointments]
+    .filter(appt => appt.status !== 'cancelled' && appt.status !== 'rescheduled')
+    .sort((a, b) => {
+      // First sort by clinician
+      const clinicianCompare = a.clinicianName.localeCompare(b.clinicianName);
+      if (clinicianCompare !== 0) return clinicianCompare;
+      
+      // Then by start time
+      return new Date(a.startTime).getTime() - new Date(b.startTime).getTime();
+    });
+  
+  // Track the last office used by each clinician
+  const clinicianLastOffice: Record<string, string> = {};
+  
+  return sortedAppointments.map(appt => {
+    // Use suggestedOfficeId if available, otherwise fall back to officeId
+    const displayOfficeId = standardizeOfficeId(appt.suggestedOfficeId || appt.officeId);
     
-    // Track the last office used by each clinician
-    const clinicianLastOffice: Record<string, string> = {};
+    // Find office details
+    const office = offices.find(o => standardizeOfficeId(o.officeId) === displayOfficeId);
     
-    return sortedAppointments.map(appt => {
-      // Use suggestedOfficeId if available, otherwise fall back to officeId
-      const displayOfficeId = standardizeOfficeId(appt.suggestedOfficeId || appt.officeId);
-      
-      // Find office details
-      const office = offices.find(o => standardizeOfficeId(o.officeId) === displayOfficeId);
-      
-      const hasSpecialRequirements = !!(
-        appt.requirements?.accessibility || 
-        (appt.requirements?.specialFeatures && appt.requirements.specialFeatures.length > 0)
-      );
-      
-      // Check if this appointment requires an office change for the clinician
-      const previousOffice = clinicianLastOffice[appt.clinicianName];
-      let requiresOfficeChange: boolean | undefined = undefined;
-      
-      // Only set requiresOfficeChange if we have a previous office
-      if (previousOffice) {
+    const hasSpecialRequirements = !!(
+      appt.requirements?.accessibility || 
+      (appt.requirements?.specialFeatures && appt.requirements.specialFeatures.length > 0)
+    );
+    
+    // Check if this appointment requires an office change for the clinician
+    const previousOffice = clinicianLastOffice[appt.clinicianName];
+    let requiresOfficeChange: boolean | undefined = undefined;
+    
+    // Only set requiresOfficeChange if:
+    // 1. We have a previous office
+    // 2. Previous office is different from current office
+    // 3. Not a virtual-to-virtual change (A-v to A-v)
+    // 4. If current is telehealth (A-v), don't show change from physical office
+    if (previousOffice) {
+      if (displayOfficeId === 'A-v') {
+        // For telehealth appointments, don't show office changes
+        requiresOfficeChange = false;
+      } else if (previousOffice === 'A-v') {
+        // Coming from telehealth to physical is not a "change"
+        requiresOfficeChange = false;
+      } else {
+        // For physical offices, show changes
         requiresOfficeChange = previousOffice !== displayOfficeId;
       }
-      
-      // Update last office for this clinician
-      clinicianLastOffice[appt.clinicianName] = displayOfficeId;
-      
-      // Add debug logging to trace office ID values
-      console.log(`Processing appointment ${appt.appointmentId}:`, {
-        originalOfficeId: appt.officeId,
-        suggestedOfficeId: appt.suggestedOfficeId,
-        finalOfficeId: displayOfficeId,
-        requiresOfficeChange,
-        previousOffice
-      });
-      
-      return {
-        appointmentId: appt.appointmentId,
-        clientName: appt.clientName,
-        clinicianName: appt.clinicianName,
-        officeId: displayOfficeId, // Use the display office ID
-        officeDisplay: office ? `${office.name} (${displayOfficeId})` : displayOfficeId,
-        startTime: appt.startTime,
-        endTime: appt.endTime,
-        formattedTime: `${formatESTTime(appt.startTime)} - ${formatESTTime(appt.endTime)}`,
-        sessionType: appt.sessionType,
-        hasSpecialRequirements,
-        requirements: appt.requirements,
-        notes: appt.notes,
-        requiresOfficeChange, // Now this is properly typed as boolean | undefined
-        previousOffice // This is fine as string | undefined
-      };
+    }
+    
+    // Update last office for this clinician
+    clinicianLastOffice[appt.clinicianName] = displayOfficeId;
+    
+    // Add debug logging to trace office ID values
+    console.log(`Processing appointment ${appt.appointmentId}:`, {
+      originalOfficeId: appt.officeId,
+      suggestedOfficeId: appt.suggestedOfficeId,
+      displayOfficeId: displayOfficeId,
+      requiresOfficeChange,
+      previousOffice,
+      isVirtual: displayOfficeId === 'A-v',
+      sessionType: appt.sessionType
     });
-  }
+    
+    return {
+      appointmentId: appt.appointmentId,
+      clientName: appt.clientName,
+      clinicianName: appt.clinicianName,
+      officeId: displayOfficeId, // Use the display office ID
+      officeDisplay: office ? `Office ${office.name} (${displayOfficeId})` : displayOfficeId,
+      startTime: appt.startTime,
+      endTime: appt.endTime,
+      formattedTime: `${formatESTTime(appt.startTime)} - ${formatESTTime(appt.endTime)}`,
+      sessionType: appt.sessionType,
+      hasSpecialRequirements,
+      requirements: appt.requirements,
+      notes: appt.notes,
+      requiresOfficeChange,
+      previousOffice
+    };
+  });
+}
 
   // In src/lib/scheduling/daily-schedule-service.ts
 

@@ -196,23 +196,46 @@ async getClientAccessibilityRecords(): Promise<any[]> {
           const sheetName = range.substring(0, exclamationIndex);
           const cellRange = range.substring(exclamationIndex + 1);
           
-          // Make API request with properly constructed range
+          // Check if the sheet name matches our constants
+          const matchesConstants = Object.values(SHEET_NAMES).includes(sheetName);
+          if (!matchesConstants) {
+            console.warn(`Sheet name ${sheetName} doesn't match any constant in SHEET_NAMES. This may cause issues.`);
+          }
+          
+          // Make API request with proper error handling
           try {
             const response = await this.sheets.spreadsheets.values.get({
               spreadsheetId: this.spreadsheetId,
               range: range, // Google's API will handle the encoding
             });
             
-            console.log(`Successfully read sheet range: ${range}`);
+            console.log(`Successfully read sheet range: ${range} - Retrieved ${response.data.values?.length || 0} rows`);
             return response.data.values || [];
           } catch (apiError: unknown) {
             console.error(`Google Sheets API error for range ${range}:`, apiError);
             
-            // If error is due to range parsing, log detailed information
+            // If missing sheet, provide helpful error
             if (apiError && typeof apiError === 'object' && 'message' in apiError && 
                 typeof apiError.message === 'string' && apiError.message.includes('Unable to parse range')) {
-              console.error('This may be due to sheet name format mismatch. Check if sheet names have changed.');
+              console.error('This may be due to missing sheet or name format mismatch.');
               console.error('Attempted to read from sheet name:', sheetName);
+              
+              // Try to get all sheet names for debugging
+              // Try to get all sheet names for debugging
+try {
+  const metaResponse = await this.sheets.spreadsheets.get({
+    spreadsheetId: this.spreadsheetId
+  });
+  
+  const availableSheets = metaResponse.data.sheets
+    ? metaResponse.data.sheets.map((s: any) => s.properties.title)
+    : [];
+  
+  console.error('Available sheets:', availableSheets);
+  console.error('Check for naming mismatches - expected sheet names with underscores.');
+} catch (metaError) {
+  console.error('Failed to get sheet metadata:', metaError);
+}
             }
             
             throw apiError;
@@ -316,43 +339,75 @@ async getClientAccessibilityRecords(): Promise<any[]> {
   }
 
   async getOffices(): Promise<SheetOffice[]> {
-    const values = await this.readSheet(`${SHEET_NAMES.OFFICES}!A2:M`);
-    
-    return values?.map((row: SheetRow) => ({
-      officeId: row[0],
-      name: row[1],
-      unit: row[2],
-      inService: row[3] === 'TRUE',
-      floor: row[4] as 'upstairs' | 'downstairs',
-      isAccessible: row[5] === 'TRUE',
-      size: row[6] as 'small' | 'medium' | 'large',
-      ageGroups: row[7]?.split(',').map((s: string) => s.trim()) || [],
-      specialFeatures: row[8]?.split(',').map((s: string) => s.trim()) || [],
-      primaryClinician: row[9] || undefined,
-      alternativeClinicians: row[10]?.split(',').map((s: string) => s.trim()) || [],
-      isFlexSpace: row[11] === 'TRUE',
-      notes: row[12]
-    })) ?? [];
+    console.log(`Reading offices from ${SHEET_NAMES.OFFICES}!A2:M`);
+    try {
+      const values = await this.readSheet(`${SHEET_NAMES.OFFICES}!A2:M`);
+      
+      console.log(`Retrieved ${values?.length || 0} office records`);
+      if (values?.length === 0) {
+        console.warn('No office records found in sheet!');
+      }
+      
+      return values?.map((row: SheetRow) => {
+        const office = {
+          officeId: row[0],
+          name: row[1],
+          unit: row[2],
+          inService: row[3] === 'TRUE',
+          floor: row[4] as 'upstairs' | 'downstairs',
+          isAccessible: row[5] === 'TRUE',
+          size: row[6] as 'small' | 'medium' | 'large',
+          ageGroups: row[7]?.split(',').map((s: string) => s.trim()) || [],
+          specialFeatures: row[8]?.split(',').map((s: string) => s.trim()) || [],
+          primaryClinician: row[9] || undefined,
+          alternativeClinicians: row[10]?.split(',').map((s: string) => s.trim()) || [],
+          isFlexSpace: row[11] === 'TRUE',
+          notes: row[12]
+        };
+        
+        console.log(`Mapped office: ${office.officeId}, Name: ${office.name}, Status: ${office.inService ? 'Active' : 'Inactive'}`);
+        return office;
+      }) ?? [];
+    } catch (error) {
+      console.error(`Error retrieving offices:`, error);
+      return [];
+    }
   }
 
   async getClinicians(): Promise<SheetClinician[]> {
-    const values = await this.readSheet(`${SHEET_NAMES.CLINICIANS}!A2:M`);
-    
-    return values?.map((row: SheetRow) => ({
-      clinicianId: row[0],
-      name: row[1],
-      email: row[2],
-      role: row[3] as 'owner' | 'admin' | 'clinician' | 'intern',
-      ageRangeMin: Number(row[4]),
-      ageRangeMax: Number(row[5]),
-      specialties: row[6]?.split(',').map((s: string) => s.trim()) || [],
-      caseloadLimit: Number(row[7]),
-      currentCaseload: Number(row[8]),
-      preferredOffices: row[9]?.split(',').map((s: string) => s.trim()) || [],
-      allowsRelationship: row[10] === 'TRUE',
-      certifications: row[11]?.split(',').map((s: string) => s.trim()) || [],
-      intakeQPractitionerId: row[12]
-    })) ?? [];
+    console.log(`Reading clinicians from ${SHEET_NAMES.CLINICIANS}!A2:M`);
+    try {
+      const values = await this.readSheet(`${SHEET_NAMES.CLINICIANS}!A2:M`);
+      
+      console.log(`Retrieved ${values?.length || 0} clinician records`);
+      if (values?.length === 0) {
+        console.warn('No clinician records found in sheet!');
+      }
+      
+      return values?.map((row: SheetRow) => {
+        const clinician = {
+          clinicianId: row[0],
+          name: row[1],
+          email: row[2],
+          role: row[3] as 'owner' | 'admin' | 'clinician' | 'intern',
+          ageRangeMin: Number(row[4]),
+          ageRangeMax: Number(row[5]),
+          specialties: row[6]?.split(',').map((s: string) => s.trim()) || [],
+          caseloadLimit: Number(row[7]),
+          currentCaseload: Number(row[8]),
+          preferredOffices: row[9]?.split(',').map((s: string) => s.trim()) || [],
+          allowsRelationship: row[10] === 'TRUE',
+          certifications: row[11]?.split(',').map((s: string) => s.trim()) || [],
+          intakeQPractitionerId: row[12]
+        };
+        
+        console.log(`Mapped clinician: ${clinician.clinicianId}, Name: ${clinician.name}, IntakeQ ID: ${clinician.intakeQPractitionerId}`);
+        return clinician;
+      }) ?? [];
+    } catch (error) {
+      console.error(`Error retrieving clinicians:`, error);
+      return [];
+    }
   }
 
   async getAssignmentRules(): Promise<AssignmentRule[]> {
