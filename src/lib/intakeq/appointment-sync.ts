@@ -8,8 +8,12 @@ import type {
 } from '../../types/webhooks';
 
 import type { IGoogleSheetsService, AuditEventType } from '../google/sheets';
-import type { AppointmentRecord } from '../../types/scheduling';
-import { standardizeOfficeId } from '../../types/scheduling';
+import { 
+  AppointmentRecord, 
+  standardizeOfficeId,
+  normalizeAppointmentRecord,
+  RulePriority
+} from '../../types/scheduling';
 
 // Interface for webhook processing results
 export interface WebhookResponse {
@@ -34,8 +38,6 @@ export class AppointmentSyncHandler {
   /**
    * Process appointment webhook events
    */
-  // Update in src/lib/intakeq/appointment-sync.ts - processAppointmentEvent method:
-
   async processAppointmentEvent(
     payload: IntakeQWebhookPayload
   ): Promise<WebhookResponse> {
@@ -79,13 +81,8 @@ export class AppointmentSyncHandler {
         return await this.handleAppointmentCancellation(payload.Appointment);
       }
       else if (eventType?.includes('Deleted')) {
-        // Handle deletion events if you have a method for it
-        // return await this.handleAppointmentDeletion(payload.Appointment);
-        return {
-          success: false,
-          error: `Deletion events not yet supported: ${eventType}`,
-          retryable: false
-        };
+        // Handle deletion events
+        return await this.handleAppointmentDeletion(payload.Appointment);
       }
       else {
         // Unsupported event type
@@ -126,7 +123,11 @@ export class AppointmentSyncHandler {
       
       // 2. Find optimal office assignment
       const assignedOffice = await this.determineOfficeAssignment(appointment);
-      appointmentRecord.officeId = assignedOffice.officeId;
+      appointmentRecord.assignedOfficeId = assignedOffice.officeId;
+      appointmentRecord.assignmentReason = assignedOffice.reasons[0];
+      
+      // Also set currentOfficeId to the same value for new appointments
+      appointmentRecord.currentOfficeId = assignedOffice.officeId;
       
       // 3. Save appointment to Google Sheets
       await this.sheetsService.addAppointment(appointmentRecord);
@@ -176,8 +177,10 @@ export class AppointmentSyncHandler {
       const appointmentRecord = await this.convertToAppointmentRecord(appointment);
       
       // 3. Determine if office reassignment is needed
-      const currentOfficeId = existingAppointment.officeId;
-      let newOfficeId = currentOfficeId;
+      const currentOfficeId = existingAppointment.currentOfficeId || existingAppointment.officeId || 'TBD';
+      
+      // Keep track of the current office ID (for tracking changes)
+      appointmentRecord.currentOfficeId = currentOfficeId;
       
       // Check if time or clinician changed, which would require reassignment
       const timeChanged = 
@@ -188,11 +191,17 @@ export class AppointmentSyncHandler {
         appointmentRecord.clinicianId !== existingAppointment.clinicianId;
       
       if (timeChanged || clinicianChanged) {
+        // Determine new office assignment
         const assignedOffice = await this.determineOfficeAssignment(appointment);
-        newOfficeId = assignedOffice.officeId;
+        
+        // Set new assignedOfficeId and reason
+        appointmentRecord.assignedOfficeId = assignedOffice.officeId;
+        appointmentRecord.assignmentReason = assignedOffice.reasons[0];
+      } else {
+        // Keep the existing assignedOfficeId and reason if no changes
+        appointmentRecord.assignedOfficeId = existingAppointment.assignedOfficeId || existingAppointment.currentOfficeId || existingAppointment.officeId;
+        appointmentRecord.assignmentReason = existingAppointment.assignmentReason || '';
       }
-      
-      appointmentRecord.officeId = newOfficeId;
       
       // 4. Update appointment in Google Sheets
       await this.sheetsService.updateAppointment(appointmentRecord);
@@ -211,9 +220,10 @@ export class AppointmentSyncHandler {
         success: true,
         details: {
           appointmentId: appointment.Id,
-          officeId: newOfficeId,
+          currentOfficeId: appointmentRecord.currentOfficeId,
+          assignedOfficeId: appointmentRecord.assignedOfficeId,
           action: 'updated',
-          officeReassigned: newOfficeId !== currentOfficeId
+          officeReassigned: appointmentRecord.assignedOfficeId !== currentOfficeId
         }
       };
     } catch (error) {
@@ -240,11 +250,11 @@ export class AppointmentSyncHandler {
       }
       
       // 2. Update appointment status to cancelled
-      const updatedAppointment: AppointmentRecord = {
+      const updatedAppointment: AppointmentRecord = normalizeAppointmentRecord({
         ...existingAppointment,
         status: 'cancelled',
         lastUpdated: new Date().toISOString()
-      };
+      });
       
       // 3. Update appointment in Google Sheets
       await this.sheetsService.updateAppointment(updatedAppointment);
@@ -358,23 +368,27 @@ export class AppointmentSyncHandler {
         c => c.intakeQPractitionerId === appointment.PractitionerId
       );
       
-      // Convert the appointment to our format
-      return {
+      // Convert the appointment to our format with updated field names
+      const appointmentRecord: AppointmentRecord = normalizeAppointmentRecord({
         appointmentId: appointment.Id,
         clientId: appointment.ClientId.toString(),
         clientName: safeClientName,
         clinicianId: clinician?.clinicianId || appointment.PractitionerId,
         clinicianName: clinician?.name || safePractitionerName,
-        officeId: 'A-v', // Default to virtual until office assignment
+        currentOfficeId: 'TBD', // Will be set by office assignment
+        assignedOfficeId: 'TBD', // Will be set by office assignment
+        assignmentReason: '',    // Will be set by office assignment
         sessionType: this.determineSessionType(appointment),
         startTime: appointment.StartDateIso,
         endTime: appointment.EndDateIso,
-        status: 'scheduled',
+        status: this.mapIntakeQStatus(appointment.Status || ''),
         lastUpdated: new Date().toISOString(),
         source: 'intakeq',
         requirements: await this.determineRequirements(appointment),
         notes: `Service: ${safeServiceName}`
-      };
+      });
+      
+      return appointmentRecord;
     } catch (error: unknown) {
       console.error('Error converting appointment:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -396,50 +410,104 @@ export class AppointmentSyncHandler {
   private async determineRequirements(
     appointment: IntakeQAppointment
   ): Promise<{ accessibility?: boolean; specialFeatures?: string[] }> {
-    // Try to find client preferences
-    const preferences = await this.sheetsService.getClientPreferences();
-    const clientPreference = preferences.find(
-      p => p.clientId === appointment.ClientId.toString()
-    );
-    
-    if (!clientPreference) {
-      return { accessibility: false, specialFeatures: [] };
+    // Try to get client accessibility info first (new schema)
+    try {
+      const accessibilityInfo = await this.sheetsService.getClientAccessibilityInfo(appointment.ClientId.toString());
+      
+      if (accessibilityInfo) {
+        // Process accessibility requirements from the new schema
+        const specialFeatures: string[] = [];
+        
+        // Add sensory features if any
+        if (accessibilityInfo.hasSensoryNeeds && accessibilityInfo.sensoryDetails) {
+          specialFeatures.push(accessibilityInfo.sensoryDetails);
+        }
+        
+        // Add physical features if any
+        if (accessibilityInfo.hasPhysicalNeeds && accessibilityInfo.physicalDetails) {
+          specialFeatures.push(accessibilityInfo.physicalDetails);
+        }
+        
+        // Return formatted accessibility requirements
+        return {
+          accessibility: accessibilityInfo.hasMobilityNeeds,
+          specialFeatures: specialFeatures.filter(f => f.trim() !== '')
+        };
+      }
+    } catch (error) {
+      console.warn('Error getting client accessibility info, falling back to preferences:', error);
     }
     
-    // Process accessibility requirements
-    return {
-      accessibility: Array.isArray(clientPreference.mobilityNeeds) && 
-                    clientPreference.mobilityNeeds.length > 0,
-      specialFeatures: [
-        ...(Array.isArray(clientPreference.sensoryPreferences) ? clientPreference.sensoryPreferences : []),
-        ...(Array.isArray(clientPreference.physicalNeeds) ? clientPreference.physicalNeeds : [])
-      ]
-    };
+    // Fall back to client preferences (old schema)
+    try {
+      const preferences = await this.sheetsService.getClientPreferences();
+      const clientPreference = preferences.find(
+        p => p.clientId === appointment.ClientId.toString()
+      );
+      
+      if (!clientPreference) {
+        return { accessibility: false, specialFeatures: [] };
+      }
+      
+      // Process accessibility requirements
+      return {
+        accessibility: Array.isArray(clientPreference.mobilityNeeds) && 
+                      clientPreference.mobilityNeeds.length > 0,
+        specialFeatures: [
+          ...(Array.isArray(clientPreference.sensoryPreferences) ? clientPreference.sensoryPreferences : []),
+          ...(Array.isArray(clientPreference.physicalNeeds) ? clientPreference.physicalNeeds : [])
+        ]
+      };
+    } catch (error) {
+      console.error('Error determining client requirements:', error);
+      return { accessibility: false, specialFeatures: [] };
+    }
   }
 
   /**
    * Check if client has any special requirements
    */
   private async hasSpecialRequirements(appointment: IntakeQAppointment): Promise<boolean> {
-    // Get client preferences
-    const preferences = await this.sheetsService.getClientPreferences();
-    const clientPreference = preferences.find(
-      p => p.clientId === appointment.ClientId.toString()
-    );
+    // Check client accessibility info first (new schema)
+    try {
+      const accessibilityInfo = await this.sheetsService.getClientAccessibilityInfo(appointment.ClientId.toString());
+      
+      if (accessibilityInfo) {
+        return (
+          accessibilityInfo.hasMobilityNeeds ||
+          accessibilityInfo.hasSensoryNeeds ||
+          accessibilityInfo.hasPhysicalNeeds ||
+          accessibilityInfo.hasSupport
+        );
+      }
+    } catch (error) {
+      console.warn('Error checking client accessibility info, falling back to preferences:', error);
+    }
     
-    if (!clientPreference) return false;
-    
-    // Check for special requirements
-    const hasAccessibilityNeeds = Array.isArray(clientPreference.mobilityNeeds) && 
-                                 clientPreference.mobilityNeeds.length > 0;
-    
-    const hasSensoryPreferences = Array.isArray(clientPreference.sensoryPreferences) && 
-                                 clientPreference.sensoryPreferences.length > 0;
-    
-    const hasPhysicalNeeds = Array.isArray(clientPreference.physicalNeeds) && 
-                            clientPreference.physicalNeeds.length > 0;
-    
-    return hasAccessibilityNeeds || hasSensoryPreferences || hasPhysicalNeeds;
+    // Fall back to client preferences (old schema)
+    try {
+      const preferences = await this.sheetsService.getClientPreferences();
+      const clientPreference = preferences.find(
+        p => p.clientId === appointment.ClientId.toString()
+      );
+      
+      if (!clientPreference) return false;
+      
+      // Check for special requirements
+      const hasAccessibilityNeeds = Array.isArray(clientPreference.mobilityNeeds) && 
+                                  clientPreference.mobilityNeeds.length > 0;
+      
+      const hasSensoryPreferences = Array.isArray(clientPreference.sensoryPreferences) && 
+                                  clientPreference.sensoryPreferences.length > 0;
+      
+      const hasPhysicalNeeds = Array.isArray(clientPreference.physicalNeeds) && 
+                              clientPreference.physicalNeeds.length > 0;
+      
+      return hasAccessibilityNeeds || hasSensoryPreferences || hasPhysicalNeeds;
+    } catch (error) {
+      console.error('Error checking for special requirements:', error);
+      return false;
+    }
   }
 
   /**
@@ -471,6 +539,7 @@ export class AppointmentSyncHandler {
 
 /**
  * Determine best office assignment for an appointment
+ * Updated to match the priority-based logic in daily-schedule-service.ts
  */
 async determineOfficeAssignment(appointment: IntakeQAppointment): Promise<OfficeAssignmentResult> {
   try {
@@ -480,6 +549,7 @@ async determineOfficeAssignment(appointment: IntakeQAppointment): Promise<Office
     const assignmentRules = await this.sheetsService.getAssignmentRules();
     const offices = await this.sheetsService.getOffices();
     const clinicians = await this.sheetsService.getClinicians();
+    const appointments = await this.sheetsService.getAllAppointments();
     
     // Filter for active offices
     const activeOffices = offices.filter(o => o.inService);
@@ -491,18 +561,7 @@ async determineOfficeAssignment(appointment: IntakeQAppointment): Promise<Office
       };
     }
     
-    // Get active rules sorted by priority (highest first)
-    const activeRules = assignmentRules
-      .filter(rule => rule.active)
-      .sort((a, b) => b.priority - a.priority);
-    
-    // Log all rules we're about to process
-    console.log(`Processing ${activeRules.length} active assignment rules:`);
-    activeRules.forEach(rule => {
-      console.log(`Rule: ${rule.ruleName} (Priority ${rule.priority})`);
-    });
-    
-    // Determine session type and client age for rule evaluation
+    // Determine session type for rule evaluation
     const sessionType = this.determineSessionType(appointment);
     
     // Find matching clinician
@@ -512,6 +571,9 @@ async determineOfficeAssignment(appointment: IntakeQAppointment): Promise<Office
     } else {
       console.log(`Found matching clinician: ${clinician.name}`);
     }
+    
+    // Convert to AppointmentRecord for office availability checks
+    const appointmentRecord = await this.convertToAppointmentRecord(appointment);
     
     // RULE PRIORITY 100: Client Specific Requirement
     // From Client_Preferences tab
@@ -524,7 +586,7 @@ async determineOfficeAssignment(appointment: IntakeQAppointment): Promise<Office
         console.log(`Client ${appointment.ClientName} has assigned office: ${clientPreference.assignedOffice}`);
         return {
           officeId: standardizeOfficeId(clientPreference.assignedOffice),
-          reasons: ['Priority 100: Client has specific office requirement']
+          reasons: [`Client has specific office requirement (Priority ${RulePriority.CLIENT_SPECIFIC_REQUIREMENT})`]
         };
       }
     } catch (error) {
@@ -549,11 +611,11 @@ async determineOfficeAssignment(appointment: IntakeQAppointment): Promise<Office
           );
           
           if (matchingOffice) {
-            const availableOffice = await this.isOfficeAvailable(matchingOffice.officeId, appointment);
-            if (availableOffice) {
+            const isAvailable = await this.isOfficeAvailable(matchingOffice.officeId, appointmentRecord, appointments);
+            if (isAvailable) {
               return {
                 officeId: standardizeOfficeId(matchingOffice.officeId),
-                reasons: ['Priority 90: Client requires accessible office space']
+                reasons: [`Client requires accessible office (Priority ${RulePriority.ACCESSIBILITY_REQUIREMENT})`]
               };
             }
           }
@@ -587,11 +649,11 @@ async determineOfficeAssignment(appointment: IntakeQAppointment): Promise<Office
         
         const b5Office = activeOffices.find(o => standardizeOfficeId(o.officeId) === 'B-5');
         if (b5Office) {
-          const available = await this.isOfficeAvailable('B-5', appointment);
-          if (available) {
+          const isAvailable = await this.isOfficeAvailable('B-5', appointmentRecord, appointments);
+          if (isAvailable) {
             return {
               officeId: 'B-5',
-              reasons: ['Priority 80: Young children (10 and under) assigned to B-5']
+              reasons: [`Young child (${clientAge} years old) assigned to B-5 (Priority ${RulePriority.YOUNG_CHILDREN})`]
             };
           }
         }
@@ -622,11 +684,11 @@ async determineOfficeAssignment(appointment: IntakeQAppointment): Promise<Office
         
         const c1Office = activeOffices.find(o => standardizeOfficeId(o.officeId) === 'C-1');
         if (c1Office) {
-          const available = await this.isOfficeAvailable('C-1', appointment);
-          if (available) {
+          const isAvailable = await this.isOfficeAvailable('C-1', appointmentRecord, appointments);
+          if (isAvailable) {
             return {
               officeId: 'C-1',
-              reasons: ['Priority 75: Older children and teens (11-17) assigned to C-1']
+              reasons: [`Older child/teen (${clientAge} years old) assigned to C-1 (Priority ${RulePriority.OLDER_CHILDREN_TEENS})`]
             };
           }
         }
@@ -661,11 +723,11 @@ async determineOfficeAssignment(appointment: IntakeQAppointment): Promise<Office
         for (const officeId of adultOffices) {
           const office = activeOffices.find(o => standardizeOfficeId(o.officeId) === standardizeOfficeId(officeId));
           if (office) {
-            const available = await this.isOfficeAvailable(officeId, appointment);
-            if (available) {
+            const isAvailable = await this.isOfficeAvailable(officeId, appointmentRecord, appointments);
+            if (isAvailable) {
               return {
                 officeId: standardizeOfficeId(officeId),
-                reasons: [`Priority 70: Adult client assigned to ${officeId}`]
+                reasons: [`Adult client assigned to ${officeId} (Priority ${RulePriority.ADULTS})`]
               };
             }
           }
@@ -686,19 +748,54 @@ async determineOfficeAssignment(appointment: IntakeQAppointment): Promise<Office
       for (const officeId of familyOffices) {
         const office = activeOffices.find(o => standardizeOfficeId(o.officeId) === standardizeOfficeId(officeId));
         if (office) {
-          const available = await this.isOfficeAvailable(officeId, appointment);
-          if (available) {
+          const isAvailable = await this.isOfficeAvailable(officeId, appointmentRecord, appointments);
+          if (isAvailable) {
             return {
               officeId: standardizeOfficeId(officeId),
-              reasons: [`Priority 65: Family session assigned to larger room ${officeId}`]
+              reasons: [`Family session assigned to larger room ${officeId} (Priority ${RulePriority.FAMILY_SESSIONS})`]
             };
           }
         }
       }
     }
     
-    // RULE PRIORITY 60: In-Person Priority
-    console.log("Checking PRIORITY 60: In-Person Priority");
+    // RULE PRIORITY 62: Clinician Primary Office
+    console.log("Checking PRIORITY 62: Clinician Primary Office");
+    if (clinician && clinician.preferredOffices && clinician.preferredOffices.length > 0) {
+      // First preferred office is considered the primary
+      const primaryOfficeId = clinician.preferredOffices[0];
+      console.log(`Checking clinician primary office: ${primaryOfficeId}`);
+      
+      const isAvailable = await this.isOfficeAvailable(primaryOfficeId, appointmentRecord, appointments);
+      if (isAvailable) {
+        return {
+          officeId: standardizeOfficeId(primaryOfficeId),
+          reasons: [`Assigned to clinician's primary office (Priority ${RulePriority.CLINICIAN_PRIMARY_OFFICE})`]
+        };
+      }
+    }
+    
+    // RULE PRIORITY 60: Clinician Preferred Office
+    console.log("Checking PRIORITY 60: Clinician Preferred Office");
+    if (clinician && clinician.preferredOffices?.length > 1) {
+      console.log(`Checking clinician preferred offices: ${clinician.preferredOffices.slice(1).join(', ')}`);
+      
+      // Start from the second preferred office (first one was checked in previous rule)
+      for (let i = 1; i < clinician.preferredOffices.length; i++) {
+        const officeId = clinician.preferredOffices[i];
+        const isAvailable = await this.isOfficeAvailable(officeId, appointmentRecord, appointments);
+        
+        if (isAvailable) {
+          return {
+            officeId: standardizeOfficeId(officeId),
+            reasons: [`Assigned to clinician's preferred office (Priority ${RulePriority.CLINICIAN_PREFERRED_OFFICE})`]
+          };
+        }
+      }
+    }
+    
+    // RULE PRIORITY 55: In-Person Priority
+    console.log("Checking PRIORITY 55: In-Person Priority");
     if (sessionType === 'in-person') {
       console.log('In-person session, checking all physical offices');
       
@@ -708,54 +805,11 @@ async determineOfficeAssignment(appointment: IntakeQAppointment): Promise<Office
       for (const officeId of physicalOffices) {
         const office = activeOffices.find(o => standardizeOfficeId(o.officeId) === standardizeOfficeId(officeId));
         if (office) {
-          const available = await this.isOfficeAvailable(officeId, appointment);
-          if (available) {
+          const isAvailable = await this.isOfficeAvailable(officeId, appointmentRecord, appointments);
+          if (isAvailable) {
             return {
               officeId: standardizeOfficeId(officeId),
-              reasons: [`Priority 60: In-person session assigned to ${officeId}`]
-            };
-          }
-        }
-      }
-    }
-    
-    // RULE PRIORITY 50: Clinician Primary Office
-    console.log("Checking PRIORITY 50: Clinician Primary Office");
-    if (clinician) {
-      // Find offices where this clinician is the primary
-      const primaryOffices = activeOffices.filter(o => o.primaryClinician === clinician.clinicianId);
-      
-      for (const office of primaryOffices) {
-        console.log(`Checking clinician primary office: ${office.officeId}`);
-        const available = await this.isOfficeAvailable(office.officeId, appointment);
-        
-        if (available) {
-          return {
-            officeId: standardizeOfficeId(office.officeId),
-            reasons: [`Priority 50: Assigned to clinician's primary office`]
-          };
-        }
-      }
-    }
-    
-    // RULE PRIORITY 45: Clinician Preferred Office
-    console.log("Checking PRIORITY 45: Clinician Preferred Office");
-    if (clinician && clinician.preferredOffices && clinician.preferredOffices.length > 0) {
-      console.log(`Clinician preferred offices: ${clinician.preferredOffices.join(', ')}`);
-      
-      for (const officeId of clinician.preferredOffices) {
-        // Verify the office exists and is active
-        const office = activeOffices.find(o => 
-          standardizeOfficeId(o.officeId) === standardizeOfficeId(officeId)
-        );
-        
-        if (office) {
-          const available = await this.isOfficeAvailable(officeId, appointment);
-          
-          if (available) {
-            return {
-              officeId: standardizeOfficeId(officeId),
-              reasons: [`Priority 45: Assigned to clinician's preferred office`]
+              reasons: [`In-person session assigned to ${officeId} (Priority ${RulePriority.IN_PERSON_PRIORITY})`]
             };
           }
         }
@@ -773,12 +827,12 @@ async determineOfficeAssignment(appointment: IntakeQAppointment): Promise<Office
         );
         
         if (office) {
-          const available = await this.isOfficeAvailable(officeId, appointment);
+          const isAvailable = await this.isOfficeAvailable(officeId, appointmentRecord, appointments);
           
-          if (available) {
+          if (isAvailable) {
             return {
               officeId: standardizeOfficeId(officeId),
-              reasons: [`Priority 40: Telehealth assigned to clinician's preferred office`]
+              reasons: [`Telehealth assigned to clinician's preferred office (Priority ${RulePriority.TELEHEALTH_PREFERRED})`]
             };
           }
         }
@@ -789,38 +843,26 @@ async determineOfficeAssignment(appointment: IntakeQAppointment): Promise<Office
     console.log("Checking PRIORITY 35: Special Features Match");
     try {
       // Get client requirements
-      const clientPreferences = await this.sheetsService.getClientPreferences();
-      const clientPreference = clientPreferences.find(p => p.clientId === appointment.ClientId.toString());
+      const requirements = await this.determineRequirements(appointment);
       
-      if (clientPreference && 
-          (clientPreference.specialFeatures || 
-           clientPreference.sensoryPreferences || 
-           clientPreference.physicalNeeds)) {
-        
+      if (requirements.specialFeatures && requirements.specialFeatures.length > 0) {
         console.log(`Client has special features requirements`);
         
-        // Collect all client requirements
-        const clientFeatures = [
-          ...(clientPreference.specialFeatures || []),
-          ...(clientPreference.sensoryPreferences || []),
-          ...(clientPreference.physicalNeeds || [])
-        ];
-        
-        // Find offices with matching features
+        // Check each office for matching features
         for (const office of activeOffices) {
           if (office.specialFeatures && office.specialFeatures.length > 0) {
             // Check if any client features match office features
-            const hasMatch = clientFeatures.some(feature => 
+            const hasMatch = requirements.specialFeatures.some(feature => 
               office.specialFeatures.includes(feature)
             );
             
             if (hasMatch) {
-              const available = await this.isOfficeAvailable(office.officeId, appointment);
+              const isAvailable = await this.isOfficeAvailable(office.officeId, appointmentRecord, appointments);
               
-              if (available) {
+              if (isAvailable) {
                 return {
                   officeId: standardizeOfficeId(office.officeId),
-                  reasons: [`Priority 35: Office has matching special features`]
+                  reasons: [`Office has matching special features (Priority ${RulePriority.SPECIAL_FEATURES_MATCH})`]
                 };
               }
             }
@@ -842,12 +884,12 @@ async determineOfficeAssignment(appointment: IntakeQAppointment): Promise<Office
       
       for (const office of alternativeOffices) {
         console.log(`Checking alternative clinician office: ${office.officeId}`);
-        const available = await this.isOfficeAvailable(office.officeId, appointment);
+        const isAvailable = await this.isOfficeAvailable(office.officeId, appointmentRecord, appointments);
         
-        if (available) {
+        if (isAvailable) {
           return {
             officeId: standardizeOfficeId(office.officeId),
-            reasons: [`Priority 30: Assigned to alternative clinician office`]
+            reasons: [`Assigned to alternative clinician office (Priority ${RulePriority.ALTERNATIVE_CLINICIAN})`]
           };
         }
       }
@@ -855,15 +897,15 @@ async determineOfficeAssignment(appointment: IntakeQAppointment): Promise<Office
     
     // RULE PRIORITY 20: Available Office
     console.log("Checking PRIORITY 20: Available Office");
-    // Check all offices for availability
+    // Check all offices for availability, exclude break room (B-1)
     for (const office of activeOffices) {
-      if (office.officeId !== 'B-1') { // Skip the break room for this rule
-        const available = await this.isOfficeAvailable(office.officeId, appointment);
+      if (office.officeId !== 'B-1') {
+        const isAvailable = await this.isOfficeAvailable(office.officeId, appointmentRecord, appointments);
         
-        if (available) {
+        if (isAvailable) {
           return {
             officeId: standardizeOfficeId(office.officeId),
-            reasons: [`Priority 20: Assigned to available office ${office.officeId}`]
+            reasons: [`Assigned to available office ${office.officeId} (Priority ${RulePriority.AVAILABLE_OFFICE})`]
           };
         }
       }
@@ -874,12 +916,12 @@ async determineOfficeAssignment(appointment: IntakeQAppointment): Promise<Office
     if (sessionType !== 'telehealth') {
       const breakRoom = activeOffices.find(o => standardizeOfficeId(o.officeId) === 'B-1');
       if (breakRoom) {
-        const available = await this.isOfficeAvailable('B-1', appointment);
+        const isAvailable = await this.isOfficeAvailable('B-1', appointmentRecord, appointments);
         
-        if (available) {
+        if (isAvailable) {
           return {
             officeId: 'B-1',
-            reasons: ['Priority 15: Break room used as last resort for physical session']
+            reasons: [`Break room used as last resort for physical session (Priority ${RulePriority.BREAK_ROOM_LAST_RESORT})`]
           };
         }
       }
@@ -890,7 +932,7 @@ async determineOfficeAssignment(appointment: IntakeQAppointment): Promise<Office
     if (sessionType === 'telehealth') {
       return {
         officeId: 'A-v',
-        reasons: ['Priority 10: Virtual office (A-v) for telehealth as last resort']
+        reasons: [`Virtual office (A-v) for telehealth as last resort (Priority ${RulePriority.DEFAULT_TELEHEALTH})`]
       };
     }
     
@@ -913,45 +955,50 @@ async determineOfficeAssignment(appointment: IntakeQAppointment): Promise<Office
 /**
  * Helper method to check if an office is available during the appointment time
  */
-private async isOfficeAvailable(officeId: string, appointment: IntakeQAppointment): Promise<boolean> {
+private async isOfficeAvailable(
+  officeId: string, 
+  appointment: AppointmentRecord, 
+  allAppointments: AppointmentRecord[]
+): Promise<boolean> {
   try {
-    // Get the appointment date from the ISO string
-    const appointmentDate = appointment.StartDateIso.split('T')[0];
-    
-    // Get all appointments for the day
-    const appointments = await this.sheetsService.getAppointments(
-      appointmentDate, 
-      appointmentDate
-    );
-    
-    // Skip appointments with the same ID (for updates)
-    const existingAppointments = appointments.filter(appt => 
-      appt.appointmentId !== appointment.Id &&
-      appt.status !== 'cancelled' &&
-      appt.status !== 'rescheduled'
-    );
-    
-    // Check for time conflicts with the target office
+    // Standardize the office ID
     const targetOfficeId = standardizeOfficeId(officeId);
-    const startTime = new Date(appointment.StartDateIso).getTime();
-    const endTime = new Date(appointment.EndDateIso).getTime();
     
-    const conflictingAppt = existingAppointments.find(appt => {
-      // Skip if different office
-      if (standardizeOfficeId(appt.officeId) !== targetOfficeId) return false;
+    // Parse appointment times
+    const startTime = new Date(appointment.startTime).getTime();
+    const endTime = new Date(appointment.endTime).getTime();
+    
+    // Check for conflicts with other appointments in the same office
+    const conflictingAppt = allAppointments.find(appt => {
+      // Skip the appointment being checked
+      if (appt.appointmentId === appointment.appointmentId) return false;
       
-      // Parse times
+      // Skip cancelled or rescheduled appointments
+      if (appt.status === 'cancelled' || appt.status === 'rescheduled') return false;
+      
+      // Check if this appointment is in the target office
+      // IMPORTANT: We check assignedOfficeId first, then currentOfficeId
+      const apptOfficeId = standardizeOfficeId(
+        appt.assignedOfficeId || appt.currentOfficeId || 
+        // For backward compatibility, access officeId with bracket notation
+        (appt as any)['officeId'] || 'TBD'
+      );
+      
+      // If not the same office, there's no conflict
+      if (apptOfficeId !== targetOfficeId) return false;
+      
+      // Parse appointment times
       const apptStart = new Date(appt.startTime).getTime();
       const apptEnd = new Date(appt.endTime).getTime();
       
-      // Check for ACTUAL overlap - ensuring we don't flag back-to-back appointments
+      // Check for time overlap - ensuring we correctly detect overlapping appointments
       return (
-        // Appointment starts during existing appointment
+        // This appointment starts during existing appointment
         (startTime >= apptStart && startTime < apptEnd) ||
-        // Appointment ends during existing appointment
+        // This appointment ends during existing appointment
         (endTime > apptStart && endTime <= apptEnd) ||
-        // Appointment completely contains existing appointment
-        (startTime < apptStart && endTime > apptEnd)
+        // This appointment completely contains existing appointment
+        (startTime <= apptStart && endTime >= apptEnd)
       );
     });
     

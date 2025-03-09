@@ -14,7 +14,8 @@ import {
 } from '../../types/sheets';
 import { 
   AppointmentRecord, 
-  standardizeOfficeId 
+  standardizeOfficeId,
+  normalizeAppointmentRecord 
 } from '../../types/scheduling';
 import { SheetsCacheService } from './sheets-cache';
 
@@ -29,6 +30,7 @@ export interface IGoogleSheetsService {
   getRecentAuditLogs(limit?: number): Promise<AuditLogEntry[]>;
   getOfficeAppointments(officeId: string, date: string): Promise<AppointmentRecord[]>;
   addAppointment(appt: AppointmentRecord): Promise<void>;
+  getAllAppointments(): Promise<AppointmentRecord[]>; // Add this method to the interface
   getAppointments(startDate: string, endDate: string): Promise<AppointmentRecord[]>;
   updateAppointment(appointment: AppointmentRecord): Promise<void>;
   getAppointment(appointmentId: string): Promise<AppointmentRecord | null>;
@@ -74,7 +76,8 @@ export enum AuditEventType {
   WEBHOOK_RECEIVED = 'WEBHOOK_RECEIVED',
   INTEGRATION_UPDATED = 'INTEGRATION_UPDATED',
   DAILY_ASSIGNMENTS_UPDATED = 'DAILY_ASSIGNMENTS_UPDATED',
-  CRITICAL_ERROR = 'CRITICAL_ERROR'
+  CRITICAL_ERROR = 'CRITICAL_ERROR',
+  OFFICE_ASSIGNMENTS_RESOLVED = 'OFFICE_ASSIGNMENTS_RESOLVED'
 }
 
 // Sheet name constants to avoid typos and make updates easier
@@ -140,42 +143,41 @@ export class GoogleSheetsService implements IGoogleSheetsService {
   }
 
   /**
- * Get all client accessibility records
- */
-async getClientAccessibilityRecords(): Promise<any[]> {
-  try {
-    const values = await this.readSheet(`${SHEET_NAMES.CLIENT_ACCESSIBILITY}!A2:O`);
-    
-    if (!values || values.length === 0) {
+   * Get all client accessibility records
+   */
+  async getClientAccessibilityRecords(): Promise<any[]> {
+    try {
+      const values = await this.readSheet(`${SHEET_NAMES.CLIENT_ACCESSIBILITY}!A2:O`);
+      
+      if (!values || values.length === 0) {
+        return [];
+      }
+      
+      return values.map(row => ({
+        clientId: row[0] || '',
+        clientName: row[1] || '',
+        lastUpdated: row[2] || '',
+        hasMobilityNeeds: row[3] === 'TRUE',
+        mobilityDetails: row[4] || '',
+        hasSensoryNeeds: row[5] === 'TRUE',
+        sensoryDetails: row[6] || '',
+        hasPhysicalNeeds: row[7] === 'TRUE',
+        physicalDetails: row[8] || '',
+        roomConsistency: parseInt(row[9] || '3'),
+        hasSupport: row[10] === 'TRUE',
+        supportDetails: row[11] || '',
+        additionalNotes: row[12] || '',
+        formType: row[13] || '',
+        formId: row[14] || ''
+      }));
+    } catch (error) {
+      console.error('Error getting client accessibility records:', error);
       return [];
     }
-    
-    return values.map(row => ({
-      clientId: row[0] || '',
-      clientName: row[1] || '',
-      lastUpdated: row[2] || '',
-      hasMobilityNeeds: row[3] === 'TRUE',
-      mobilityDetails: row[4] || '',
-      hasSensoryNeeds: row[5] === 'TRUE',
-      sensoryDetails: row[6] || '',
-      hasPhysicalNeeds: row[7] === 'TRUE',
-      physicalDetails: row[8] || '',
-      roomConsistency: parseInt(row[9] || '3'),
-      hasSupport: row[10] === 'TRUE',
-      supportDetails: row[11] || '',
-      additionalNotes: row[12] || '',
-      formType: row[13] || '',
-      formId: row[14] || ''
-    }));
-  } catch (error) {
-    console.error('Error getting client accessibility records:', error);
-    return [];
   }
-}
 
   /**
    * Read data from a Google Sheet
-   * Improved to handle sheet names with spaces/underscores properly
    */
   private async readSheet(range: string) {
     const cacheKey = `sheet:${range}`;
@@ -221,21 +223,20 @@ async getClientAccessibilityRecords(): Promise<any[]> {
               console.error('Attempted to read from sheet name:', sheetName);
               
               // Try to get all sheet names for debugging
-              // Try to get all sheet names for debugging
-try {
-  const metaResponse = await this.sheets.spreadsheets.get({
-    spreadsheetId: this.spreadsheetId
-  });
-  
-  const availableSheets = metaResponse.data.sheets
-    ? metaResponse.data.sheets.map((s: any) => s.properties.title)
-    : [];
-  
-  console.error('Available sheets:', availableSheets);
-  console.error('Check for naming mismatches - expected sheet names with underscores.');
-} catch (metaError) {
-  console.error('Failed to get sheet metadata:', metaError);
-}
+              try {
+                const metaResponse = await this.sheets.spreadsheets.get({
+                  spreadsheetId: this.spreadsheetId
+                });
+                
+                const availableSheets = metaResponse.data.sheets
+                  ? metaResponse.data.sheets.map((s: any) => s.properties.title)
+                  : [];
+                
+                console.error('Available sheets:', availableSheets);
+                console.error('Check for naming mismatches - expected sheet names with underscores.');
+              } catch (metaError) {
+                console.error('Failed to get sheet metadata:', metaError);
+              }
             }
             
             throw apiError;
@@ -265,7 +266,6 @@ try {
 
   /**
    * Append rows to a Google Sheet
-   * Improved to handle sheet names with spaces/underscores properly
    */
   private async appendRows(range: string, values: any[][]) {
     try {
@@ -444,7 +444,6 @@ try {
       assignedOffice: row[11]
     })) ?? [];
   }
-  
 
   async getScheduleConfig(): Promise<ScheduleConfig[]> {
     const values = await this.readSheet(`${SHEET_NAMES.SCHEDULE_CONFIG}!A2:E`);
@@ -536,10 +535,11 @@ try {
   
   /**
    * Get all appointments regardless of date range
+   * Updated to handle both old and new field names
    */
   async getAllAppointments(): Promise<AppointmentRecord[]> {
     try {
-      const values = await this.readSheet(`${SHEET_NAMES.APPOINTMENTS}!A2:O`);
+      const values = await this.readSheet(`${SHEET_NAMES.APPOINTMENTS}!A2:Q`);
       
       if (!values || !Array.isArray(values)) {
         console.log('No appointments found in sheet');
@@ -551,43 +551,65 @@ try {
       const mappedAppointments = values
         .map((row: SheetRow) => {
           try {
-            const assignedOffice = row[5] || 'A-a';
-            const suggestedOffice = row[14] || assignedOffice;
-            
-            const standardizedOfficeId = standardizeOfficeId(assignedOffice);
-            const standardizedSuggestedId = standardizeOfficeId(suggestedOffice);
-    
-            let requirements = { accessibility: false, specialFeatures: [] };
-            try {
-              const requirementsStr = row[12]?.toString().trim();
-              if (requirementsStr) {
-                const cleanJson = requirementsStr
-                  .replace(/[\u0000-\u0019]+/g, '')
-                  .replace(/\s+/g, ' ')
-                  .trim();
-                requirements = JSON.parse(cleanJson);
-              }
-            } catch (err) {
-              console.error('Error parsing requirements JSON:', err, {value: row[12]});
-            }
-            
-            return {
+            // Map all base fields
+            const appointment: Partial<AppointmentRecord> = {
               appointmentId: row[0] || '',
               clientId: row[1] || '',
               clientName: row[2] || row[1] || '',
               clinicianId: row[3] || '',
               clinicianName: row[4] || row[3] || '',
-              officeId: standardizedOfficeId,
-              suggestedOfficeId: standardizedSuggestedId,
-              sessionType: (row[6] || 'in-person') as 'in-person' | 'telehealth' | 'group' | 'family',
-              startTime: row[7] || '',
-              endTime: row[8] || '',
-              status: (row[9] || 'scheduled') as 'scheduled' | 'completed' | 'cancelled' | 'rescheduled',
-              lastUpdated: row[10] || new Date().toISOString(),
-              source: (row[11] || 'manual') as 'intakeq' | 'manual',
-              requirements,
-              notes: row[13] || ''
-            } as AppointmentRecord;
+              sessionType: (row[7] || 'in-person') as 'in-person' | 'telehealth' | 'group' | 'family',
+              startTime: row[8] || '',
+              endTime: row[9] || '',
+              status: (row[10] || 'scheduled') as 'scheduled' | 'completed' | 'cancelled' | 'rescheduled',
+              lastUpdated: row[11] || new Date().toISOString(),
+              source: (row[12] || 'manual') as 'intakeq' | 'manual',
+              notes: row[14] || ''
+            };
+            
+            // Handle requirements parsing
+            try {
+              const requirementsStr = row[13]?.toString().trim();
+              if (requirementsStr) {
+                const cleanJson = requirementsStr
+                  .replace(/[\u0000-\u0019]+/g, '')
+                  .replace(/\s+/g, ' ')
+                  .trim();
+                appointment.requirements = JSON.parse(cleanJson);
+              } else {
+                appointment.requirements = { accessibility: false, specialFeatures: [] };
+              }
+            } catch (err) {
+              console.error('Error parsing requirements JSON:', err, {value: row[13]});
+              appointment.requirements = { accessibility: false, specialFeatures: [] };
+            }
+            
+            // Handle office IDs - NEW FIELD NAMES
+            // Column 5 (index 5) = currentOfficeId (previously officeId)
+            // Column 15 (index 15) = assignedOfficeId (previously suggestedOfficeId)
+            // Column 16 (index 16) = assignmentReason
+
+            // Set currentOfficeId (formerly officeId)
+            if (row[5]) {
+              appointment.currentOfficeId = standardizeOfficeId(row[5]);
+              // Set officeId too for backward compatibility
+              appointment.officeId = appointment.currentOfficeId;
+            }
+            
+            // Set assignedOfficeId (formerly suggestedOfficeId)
+            if (row[15]) {
+              appointment.assignedOfficeId = standardizeOfficeId(row[15]);
+              // Set suggestedOfficeId too for backward compatibility
+              appointment.suggestedOfficeId = appointment.assignedOfficeId;
+            }
+            
+            // Set assignmentReason if available
+            if (row[16]) {
+              appointment.assignmentReason = row[16];
+            }
+            
+            // Normalize the record to ensure consistent fields
+            return normalizeAppointmentRecord(appointment);
           } catch (error) {
             console.error('Error mapping appointment row:', error, { row });
             return null;
@@ -621,34 +643,54 @@ try {
     }
   
     const standardizedTargetId = standardizeOfficeId(officeId);
-    return appointments.filter(appt => standardizeOfficeId(appt.officeId) === standardizedTargetId);
+    
+    // Updated to check both currentOfficeId and assignedOfficeId
+    return appointments.filter(appt => {
+      const appointmentOfficeId = standardizeOfficeId(
+        appt.assignedOfficeId || appt.currentOfficeId || appt.officeId || 'TBD'
+      );
+      return appointmentOfficeId === standardizedTargetId;
+    });
   }
 
+  /**
+   * Add a new appointment - Updated for new field names
+   */
   async addAppointment(appt: AppointmentRecord): Promise<void> {
     try {
-      const standardizedOfficeId = standardizeOfficeId(appt.officeId);
-      const standardizedSuggestedId = appt.suggestedOfficeId ? 
-        standardizeOfficeId(appt.suggestedOfficeId) : standardizedOfficeId;
+      // Normalize to ensure we have all required fields
+      const normalizedAppointment = normalizeAppointmentRecord(appt);
+      
+      // Ensure both old and new field values are set
+      const currentOfficeId = standardizeOfficeId(
+        normalizedAppointment.currentOfficeId || normalizedAppointment.officeId || 'TBD'
+      );
+      
+      const assignedOfficeId = standardizeOfficeId(
+        normalizedAppointment.assignedOfficeId || normalizedAppointment.suggestedOfficeId || currentOfficeId || 'TBD'
+      );
   
+      // Prepare row data - notice the column ordering must match the sheet structure
       const rowData = [
-        appt.appointmentId,
-        appt.clientId,
-        appt.clientName,
-        appt.clinicianId,
-        appt.clinicianName,
-        standardizedOfficeId,
-        appt.sessionType,
-        appt.startTime,
-        appt.endTime,
-        appt.status,
-        appt.lastUpdated,
-        appt.source,
-        JSON.stringify(appt.requirements || {}),
-        appt.notes || '',
-        standardizedSuggestedId
+        normalizedAppointment.appointmentId,
+        normalizedAppointment.clientId,
+        normalizedAppointment.clientName,
+        normalizedAppointment.clinicianId,
+        normalizedAppointment.clinicianName,
+        currentOfficeId,                                        // Column F: currentOfficeId (was officeId)
+        normalizedAppointment.sessionType,
+        normalizedAppointment.startTime,
+        normalizedAppointment.endTime,
+        normalizedAppointment.status,
+        normalizedAppointment.lastUpdated,
+        normalizedAppointment.source,
+        JSON.stringify(normalizedAppointment.requirements || {}),
+        normalizedAppointment.notes || '',
+        assignedOfficeId,                                       // Column O: assignedOfficeId (was suggestedOfficeId)
+        normalizedAppointment.assignmentReason || ''            // Column P: assignmentReason (new column)
       ];
   
-      await this.appendRows(`${SHEET_NAMES.APPOINTMENTS}!A:O`, [rowData]);
+      await this.appendRows(`${SHEET_NAMES.APPOINTMENTS}!A:Q`, [rowData]);
   
       await this.addAuditLog({
         timestamp: new Date().toISOString(),
@@ -656,22 +698,25 @@ try {
         description: `Added appointment ${appt.appointmentId}`,
         user: 'SYSTEM',
         systemNotes: JSON.stringify({
-          ...appt,
-          officeId: standardizedOfficeId,
-          suggestedOfficeId: standardizedSuggestedId
+          ...normalizedAppointment,
+          currentOfficeId,
+          assignedOfficeId
         })
       });
   
-      await this.refreshCache(`${SHEET_NAMES.APPOINTMENTS}!A2:O`);
+      await this.refreshCache(`${SHEET_NAMES.APPOINTMENTS}!A2:Q`);
     } catch (error) {
       console.error('Error adding appointment:', error);
       throw new Error('Failed to add appointment');
     }
   }
 
+  /**
+   * Get appointments for a specific date range - Updated for new field names
+   */
   async getAppointments(startDate: string, endDate: string): Promise<AppointmentRecord[]> {
     try {
-      const values = await this.readSheet(`${SHEET_NAMES.APPOINTMENTS}!A2:O`);
+      const values = await this.readSheet(`${SHEET_NAMES.APPOINTMENTS}!A2:Q`);
       
       if (!values || !Array.isArray(values)) {
         console.log('No appointments found in sheet');
@@ -691,22 +736,23 @@ try {
       const initialAppointments = values
         .map((row: SheetRow) => {
           try {
-            // Ensure we properly get the assigned and suggested office IDs
-            const assignedOffice = row[5] || 'A-a';
-            const suggestedOffice = row[14] || ''; // Column O, suggested office ID
+            // Map all base fields
+            const appointment: Partial<AppointmentRecord> = {
+              appointmentId: row[0] || '',
+              clientId: row[1] || '',
+              clientName: row[2] || row[1] || '',
+              clinicianId: row[3] || '',
+              clinicianName: row[4] || row[3] || '',
+              sessionType: (row[6] || 'in-person') as 'in-person' | 'telehealth' | 'group' | 'family',
+              startTime: row[7] || '',
+              endTime: row[8] || '',
+              status: (row[9] || 'scheduled') as 'scheduled' | 'completed' | 'cancelled' | 'rescheduled',
+              lastUpdated: row[10] || new Date().toISOString(),
+              source: (row[11] || 'manual') as 'intakeq' | 'manual',
+              notes: row[13] || ''
+            };
             
-            const standardizedOfficeId = standardizeOfficeId(assignedOffice);
-            const standardizedSuggestedId = suggestedOffice ? standardizeOfficeId(suggestedOffice) : '';
-    
-            // Log for debugging
-            console.log(`Processing row for appointment ${row[0]}:`, {
-              assignedOffice: assignedOffice,
-              suggestedOffice: suggestedOffice,
-              standardizedOfficeId: standardizedOfficeId,
-              standardizedSuggestedId: standardizedSuggestedId
-            });
-  
-            let requirements = { accessibility: false, specialFeatures: [] };
+            // Handle requirements parsing
             try {
               const requirementsStr = row[12]?.toString().trim();
               if (requirementsStr) {
@@ -714,29 +760,48 @@ try {
                   .replace(/[\u0000-\u0019]+/g, '')
                   .replace(/\s+/g, ' ')
                   .trim();
-                requirements = JSON.parse(cleanJson);
+                appointment.requirements = JSON.parse(cleanJson);
+              } else {
+                appointment.requirements = { accessibility: false, specialFeatures: [] };
               }
             } catch (err) {
               console.error('Error parsing requirements JSON:', err, {value: row[12]});
+              appointment.requirements = { accessibility: false, specialFeatures: [] };
             }
             
-            return {
-              appointmentId: row[0] || '',
-              clientId: row[1] || '',
-              clientName: row[2] || row[1] || '',
-              clinicianId: row[3] || '',
-              clinicianName: row[4] || row[3] || '',
-              officeId: standardizedOfficeId, 
-              suggestedOfficeId: standardizedSuggestedId || standardizedOfficeId, // Use suggestedOfficeId or fall back to officeId
-              sessionType: (row[6] || 'in-person') as 'in-person' | 'telehealth' | 'group' | 'family',
-              startTime: row[7] || '',
-              endTime: row[8] || '',
-              status: (row[9] || 'scheduled') as 'scheduled' | 'completed' | 'cancelled' | 'rescheduled',
-              lastUpdated: row[10] || new Date().toISOString(),
-              source: (row[11] || 'manual') as 'intakeq' | 'manual',
-              requirements,
-              notes: row[13] || ''
-            } as AppointmentRecord;
+            // Handle both old and new office ID fields
+            // Column 5 (index 5) = currentOfficeId (previously officeId)
+            // Column 14 (index 14) = assignedOfficeId (previously suggestedOfficeId)
+            // Column 15 (index 15) = assignmentReason
+
+            // Set currentOfficeId (formerly officeId)
+            if (row[5]) {
+              appointment.currentOfficeId = standardizeOfficeId(row[5]);
+              // Set officeId too for backward compatibility
+              appointment.officeId = appointment.currentOfficeId;
+            }
+            
+            // Set assignedOfficeId (formerly suggestedOfficeId)
+            if (row[14]) {
+              appointment.assignedOfficeId = standardizeOfficeId(row[14]);
+              // Set suggestedOfficeId too for backward compatibility
+              appointment.suggestedOfficeId = appointment.assignedOfficeId;
+            }
+            
+            // Set assignmentReason if available
+            if (row[15]) {
+              appointment.assignmentReason = row[15];
+            }
+            
+            console.log(`Processed appointment ${appointment.appointmentId} with office info:`, {
+              currentOfficeId: appointment.currentOfficeId,
+              assignedOfficeId: appointment.assignedOfficeId,
+              officeId: appointment.officeId,
+              suggestedOfficeId: appointment.suggestedOfficeId
+            });
+            
+            // Normalize the record to ensure consistent fields
+            return normalizeAppointmentRecord(appointment);
           } catch (error) {
             console.error('Error mapping appointment row:', error, { row });
             return null;
@@ -763,8 +828,10 @@ try {
             appointmentDate: apptDateStr,
             targetDate: targetDateStr,
             matches: matches,
-            officeId: appt.officeId,
-            suggestedOfficeId: appt.suggestedOfficeId
+            officeIds: {
+              currentOfficeId: appt.currentOfficeId,
+              assignedOfficeId: appt.assignedOfficeId
+            }
           });
           
           return matches;
@@ -841,98 +908,96 @@ try {
   /**
    * Update client accessibility information
    */
-  // Modify in src/lib/google/sheets.ts
-async updateClientAccessibilityInfo(accessibilityInfo: {
-  clientId: string;
-  clientName: string;
-  hasMobilityNeeds: boolean;
-  mobilityDetails: string;
-  hasSensoryNeeds: boolean;
-  sensoryDetails: string;
-  hasPhysicalNeeds: boolean;
-  physicalDetails: string;
-  roomConsistency: number;
-  hasSupport: boolean;
-  supportDetails: string;
-  additionalNotes: string;
-  formType: string;
-  formId: string;
-}): Promise<void> {
-  try {
-    console.log(`Updating accessibility info for client ${accessibilityInfo.clientId}`);
-    
-    // Check if client already exists in the sheet
-    const values = await this.readSheet(`${SHEET_NAMES.CLIENT_ACCESSIBILITY}!A:A`);
-    const clientRowIndex = values?.findIndex(row => row[0] === accessibilityInfo.clientId);
-    
-    // Format data for sheet
-    const rowData = [
-      accessibilityInfo.clientId,
-      accessibilityInfo.clientName,
-      new Date().toISOString(), // Last updated timestamp
-      accessibilityInfo.hasMobilityNeeds ? 'TRUE' : 'FALSE',
-      accessibilityInfo.mobilityDetails,
-      accessibilityInfo.hasSensoryNeeds ? 'TRUE' : 'FALSE',
-      accessibilityInfo.sensoryDetails,
-      accessibilityInfo.hasPhysicalNeeds ? 'TRUE' : 'FALSE',
-      accessibilityInfo.physicalDetails,
-      accessibilityInfo.roomConsistency.toString(),
-      accessibilityInfo.hasSupport ? 'TRUE' : 'FALSE',
-      accessibilityInfo.supportDetails,
-      accessibilityInfo.additionalNotes,
-      accessibilityInfo.formType,
-      accessibilityInfo.formId
-    ];
-    
-    if (clientRowIndex !== undefined && clientRowIndex >= 0) {
-      // Update existing row
-      console.log(`Updating existing row for client ${accessibilityInfo.clientId}`);
-      await this.sheets.spreadsheets.values.update({
-        spreadsheetId: this.spreadsheetId,
-        range: `${SHEET_NAMES.CLIENT_ACCESSIBILITY}!A${clientRowIndex + 2}:O${clientRowIndex + 2}`,
-        valueInputOption: 'RAW',
-        requestBody: {
-          values: [rowData]
-        }
+  async updateClientAccessibilityInfo(accessibilityInfo: {
+    clientId: string;
+    clientName: string;
+    hasMobilityNeeds: boolean;
+    mobilityDetails: string;
+    hasSensoryNeeds: boolean;
+    sensoryDetails: string;
+    hasPhysicalNeeds: boolean;
+    physicalDetails: string;
+    roomConsistency: number;
+    hasSupport: boolean;
+    supportDetails: string;
+    additionalNotes: string;
+    formType: string;
+    formId: string;
+  }): Promise<void> {
+    try {
+      console.log(`Updating accessibility info for client ${accessibilityInfo.clientId}`);
+      
+      // Check if client already exists in the sheet
+      const values = await this.readSheet(`${SHEET_NAMES.CLIENT_ACCESSIBILITY}!A:A`);
+      const clientRowIndex = values?.findIndex(row => row[0] === accessibilityInfo.clientId);
+      
+      // Format data for sheet
+      const rowData = [
+        accessibilityInfo.clientId,
+        accessibilityInfo.clientName,
+        new Date().toISOString(), // Last updated timestamp
+        accessibilityInfo.hasMobilityNeeds ? 'TRUE' : 'FALSE',
+        accessibilityInfo.mobilityDetails,
+        accessibilityInfo.hasSensoryNeeds ? 'TRUE' : 'FALSE',
+        accessibilityInfo.sensoryDetails,
+        accessibilityInfo.hasPhysicalNeeds ? 'TRUE' : 'FALSE',
+        accessibilityInfo.physicalDetails,
+        accessibilityInfo.roomConsistency.toString(),
+        accessibilityInfo.hasSupport ? 'TRUE' : 'FALSE',
+        accessibilityInfo.supportDetails,
+        accessibilityInfo.additionalNotes,
+        accessibilityInfo.formType,
+        accessibilityInfo.formId
+      ];
+      
+      if (clientRowIndex !== undefined && clientRowIndex >= 0) {
+        // Update existing row
+        console.log(`Updating existing row for client ${accessibilityInfo.clientId}`);
+        await this.sheets.spreadsheets.values.update({
+          spreadsheetId: this.spreadsheetId,
+          range: `${SHEET_NAMES.CLIENT_ACCESSIBILITY}!A${clientRowIndex + 2}:O${clientRowIndex + 2}`,
+          valueInputOption: 'RAW',
+          requestBody: {
+            values: [rowData]
+          }
+        });
+      } else {
+        // Add new row
+        console.log(`Adding new row for client ${accessibilityInfo.clientId}`);
+        await this.appendRows(`${SHEET_NAMES.CLIENT_ACCESSIBILITY}!A:O`, [rowData]);
+      }
+      
+      // Log the update
+      await this.addAuditLog({
+        timestamp: new Date().toISOString(),
+        eventType: AuditEventType.CLIENT_PREFERENCES_UPDATED,
+        description: `Updated accessibility info for client ${accessibilityInfo.clientId}`,
+        user: 'SYSTEM',
+        systemNotes: JSON.stringify({
+          clientId: accessibilityInfo.clientId,
+          hasMobilityNeeds: accessibilityInfo.hasMobilityNeeds,
+          hasSensoryNeeds: accessibilityInfo.hasSensoryNeeds,
+          hasPhysicalNeeds: accessibilityInfo.hasPhysicalNeeds,
+          roomConsistency: accessibilityInfo.roomConsistency
+        })
       });
-    } else {
-      // Add new row
-      console.log(`Adding new row for client ${accessibilityInfo.clientId}`);
-      await this.appendRows(`${SHEET_NAMES.CLIENT_ACCESSIBILITY}!A:O`, [rowData]);
+      
+      console.log(`Successfully updated accessibility info for client ${accessibilityInfo.clientId}`);
+    } catch (error) {
+      console.error(`Error updating client accessibility info for ${accessibilityInfo.clientId}:`, error);
+      
+      // Log error and throw
+      await this.addAuditLog({
+        timestamp: new Date().toISOString(),
+        eventType: AuditEventType.SYSTEM_ERROR,
+        description: `Failed to update accessibility info for client ${accessibilityInfo.clientId}`,
+        user: 'SYSTEM',
+        systemNotes: error instanceof Error ? error.message : 'Unknown error'
+      });
+      
+      throw error;
     }
-    
-    // Log the update
-    await this.addAuditLog({
-      timestamp: new Date().toISOString(),
-      eventType: AuditEventType.CLIENT_PREFERENCES_UPDATED,
-      description: `Updated accessibility info for client ${accessibilityInfo.clientId}`,
-      user: 'SYSTEM',
-      systemNotes: JSON.stringify({
-        clientId: accessibilityInfo.clientId,
-        hasMobilityNeeds: accessibilityInfo.hasMobilityNeeds,
-        hasSensoryNeeds: accessibilityInfo.hasSensoryNeeds,
-        hasPhysicalNeeds: accessibilityInfo.hasPhysicalNeeds,
-        roomConsistency: accessibilityInfo.roomConsistency
-      })
-    });
-    
-    console.log(`Successfully updated accessibility info for client ${accessibilityInfo.clientId}`);
-  } catch (error) {
-    console.error(`Error updating client accessibility info for ${accessibilityInfo.clientId}:`, error);
-    
-    // Log error and throw
-    await this.addAuditLog({
-      timestamp: new Date().toISOString(),
-      eventType: AuditEventType.SYSTEM_ERROR,
-      description: `Failed to update accessibility info for client ${accessibilityInfo.clientId}`,
-      user: 'SYSTEM',
-      systemNotes: error instanceof Error ? error.message : 'Unknown error'
-    });
-    
-    throw error;
   }
-}
-
 
   /**
    * Get client required offices
@@ -974,40 +1039,54 @@ async updateClientAccessibilityInfo(accessibilityInfo: {
     }
   }
 
+  /**
+   * Update an appointment - Updated for new field names
+   */
   async updateAppointment(appointment: AppointmentRecord): Promise<void> {
     try {
+      // Normalize to ensure we have all required fields
+      const normalizedAppointment = normalizeAppointmentRecord(appointment);
+      
+      // Find the appointment row
       const values = await this.readSheet(`${SHEET_NAMES.APPOINTMENTS}!A:A`);
-      const appointmentRow = values?.findIndex((row: SheetRow) => row[0] === appointment.appointmentId);
+      const appointmentRow = values?.findIndex((row: SheetRow) => row[0] === normalizedAppointment.appointmentId);
   
       if (!values || appointmentRow === undefined || appointmentRow < 0) {
-        throw new Error(`Appointment ${appointment.appointmentId} not found`);
+        throw new Error(`Appointment ${normalizedAppointment.appointmentId} not found`);
       }
   
-      const standardizedOfficeId = standardizeOfficeId(appointment.officeId);
-      const standardizedSuggestedId = appointment.suggestedOfficeId ? 
-        standardizeOfficeId(appointment.suggestedOfficeId) : standardizedOfficeId;
+      // Ensure both old and new field values are set
+      const currentOfficeId = standardizeOfficeId(
+        normalizedAppointment.currentOfficeId || normalizedAppointment.officeId || 'TBD'
+      );
+      
+      const assignedOfficeId = standardizeOfficeId(
+        normalizedAppointment.assignedOfficeId || normalizedAppointment.suggestedOfficeId || currentOfficeId || 'TBD'
+      );
   
+      // Prepare row data - notice the column ordering must match the sheet structure
       const rowData = [
-        appointment.appointmentId,
-        appointment.clientId,
-        appointment.clientName,
-        appointment.clinicianId,
-        appointment.clinicianName,
-        standardizedOfficeId,
-        appointment.sessionType,
-        appointment.startTime,
-        appointment.endTime,
-        appointment.status,
-        appointment.lastUpdated,
-        appointment.source,
-        JSON.stringify(appointment.requirements || {}),
-        appointment.notes || '',
-        standardizedSuggestedId
+        normalizedAppointment.appointmentId,
+        normalizedAppointment.clientId,
+        normalizedAppointment.clientName,
+        normalizedAppointment.clinicianId,
+        normalizedAppointment.clinicianName,
+        currentOfficeId,                                        // Column F: currentOfficeId (was officeId)
+        normalizedAppointment.sessionType,
+        normalizedAppointment.startTime,
+        normalizedAppointment.endTime,
+        normalizedAppointment.status,
+        normalizedAppointment.lastUpdated,
+        normalizedAppointment.source,
+        JSON.stringify(normalizedAppointment.requirements || {}),
+        normalizedAppointment.notes || '',
+        assignedOfficeId,                                       // Column O: assignedOfficeId (was suggestedOfficeId)
+        normalizedAppointment.assignmentReason || ''            // Column P: assignmentReason (new column)
       ];
   
       await this.sheets.spreadsheets.values.update({
         spreadsheetId: this.spreadsheetId,
-        range: `${SHEET_NAMES.APPOINTMENTS}!A${appointmentRow + 1}:O${appointmentRow + 1}`,
+        range: `${SHEET_NAMES.APPOINTMENTS}!A${appointmentRow + 1}:P${appointmentRow + 1}`,
         valueInputOption: 'RAW',
         requestBody: {
           values: [rowData]
@@ -1023,28 +1102,31 @@ async updateClientAccessibilityInfo(accessibilityInfo: {
         newValue: JSON.stringify(rowData)
       });
   
-      await this.refreshCache(`${SHEET_NAMES.APPOINTMENTS}!A2:O`);
+      await this.refreshCache(`${SHEET_NAMES.APPOINTMENTS}!A2:P`);
     } catch (error) {
       console.error('Error updating appointment:', error);
       throw new Error('Failed to update appointment');
     }
   }
     
+  /**
+   * Get a specific appointment by ID - Updated for new field names
+   */
   async getAppointment(appointmentId: string): Promise<AppointmentRecord | null> {
     try {
-      const values = await this.readSheet(`${SHEET_NAMES.APPOINTMENTS}!A2:O`);
+      const values = await this.readSheet(`${SHEET_NAMES.APPOINTMENTS}!A2:P`);
       if (!values) return null;
   
       const appointmentRow = values.find((row: SheetRow) => row[0] === appointmentId);
       if (!appointmentRow) return null;
   
-      return {
+      // Create appointment object with both old and new field names
+      const appointment: Partial<AppointmentRecord> = {
         appointmentId: appointmentRow[0],
         clientId: appointmentRow[1],
         clientName: appointmentRow[2],
         clinicianId: appointmentRow[3],
         clinicianName: appointmentRow[4],
-        officeId: appointmentRow[5],
         sessionType: appointmentRow[6] as 'in-person' | 'telehealth' | 'group' | 'family',
         startTime: appointmentRow[7],
         endTime: appointmentRow[8],
@@ -1052,15 +1134,36 @@ async updateClientAccessibilityInfo(accessibilityInfo: {
         lastUpdated: appointmentRow[10],
         source: appointmentRow[11] as 'intakeq' | 'manual',
         requirements: JSON.parse(appointmentRow[12] || '{}'),
-        notes: appointmentRow[13],
-        suggestedOfficeId: appointmentRow[14] || appointmentRow[5]
+        notes: appointmentRow[13]
       };
+      
+      // Handle old and new office ID fields
+      if (appointmentRow[5]) { // Column F (index 5): currentOfficeId (formerly officeId)
+        appointment.currentOfficeId = standardizeOfficeId(appointmentRow[5]);
+        appointment.officeId = appointment.currentOfficeId; // For backward compatibility
+      }
+      
+      if (appointmentRow[14]) { // Column O (index 14): assignedOfficeId (formerly suggestedOfficeId)
+        appointment.assignedOfficeId = standardizeOfficeId(appointmentRow[14]);
+        appointment.suggestedOfficeId = appointment.assignedOfficeId; // For backward compatibility
+      }
+      
+      // Handle assignment reason
+      if (appointmentRow[15]) { // Column P (index 15): assignmentReason
+        appointment.assignmentReason = appointmentRow[15];
+      }
+      
+      // Normalize the record to ensure consistent fields
+      return normalizeAppointmentRecord(appointment);
     } catch (error) {
       console.error('Error getting appointment:', error);
       return null;
     }
   }
 
+  /**
+   * Delete an appointment
+   */
   async deleteAppointment(appointmentId: string): Promise<void> {
     try {
       const values = await this.readSheet(`${SHEET_NAMES.APPOINTMENTS}!A:A`);
@@ -1072,10 +1175,10 @@ async updateClientAccessibilityInfo(accessibilityInfo: {
 
       await this.sheets.spreadsheets.values.clear({
         spreadsheetId: this.spreadsheetId,
-        range: `${SHEET_NAMES.APPOINTMENTS}!A${appointmentRow + 1}:O${appointmentRow + 1}`
+        range: `${SHEET_NAMES.APPOINTMENTS}!A${appointmentRow + 1}:P${appointmentRow + 1}`
       });
 
-      await this.refreshCache(`${SHEET_NAMES.APPOINTMENTS}!A2:O`);
+      await this.refreshCache(`${SHEET_NAMES.APPOINTMENTS}!A2:P`);
       
       await this.addAuditLog({
         timestamp: new Date().toISOString(),
@@ -1262,5 +1365,3 @@ async updateClientAccessibilityInfo(accessibilityInfo: {
     this.cache.clearAll();
   }
 }
-
-export default GoogleSheetsService;

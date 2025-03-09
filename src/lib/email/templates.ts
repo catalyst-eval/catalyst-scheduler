@@ -10,7 +10,7 @@ export interface EmailTemplate {
 
 export class EmailTemplates {
   /**
-   * Generate daily schedule email
+   * Generate daily schedule email with improved office assignment info
    */
   static dailySchedule(data: DailyScheduleData): EmailTemplate {
     const { displayDate, appointments, conflicts, stats } = data;
@@ -112,6 +112,14 @@ export class EmailTemplates {
       margin-top: 5px;
       font-size: 0.9em;
     }
+    .assignment-reason {
+      background-color: #ecf0f1;
+      border-left: 4px solid #7f8c8d;
+      padding: 8px;
+      margin-top: 5px;
+      font-size: 0.9em;
+      font-style: italic;
+    }
     .clinician-conflicts {
       background-color: #fff0f0;
       border-left: 4px solid #ff6b6b;
@@ -125,6 +133,10 @@ export class EmailTemplates {
       padding: 20px; 
       text-align: center;
       border-top: 1px solid #ddd;
+    }
+    .telehealth {
+      color: #3498db;
+      font-style: italic;
     }
   </style>
 </head>
@@ -259,6 +271,7 @@ export class EmailTemplates {
           ${conflicts.map(conflict => `
             <li class="${conflict.severity}">
               ${conflict.description}
+              ${conflict.resolutionSuggestion ? `<br><em>${conflict.resolutionSuggestion}</em>` : ''}
             </li>
           `).join('')}
         </ul>
@@ -267,9 +280,10 @@ export class EmailTemplates {
   }
   
   /**
-   * Generate HTML for an appointment row
+   * Generate HTML for an appointment row with enhanced office information
    */
   private static renderAppointmentRow(appt: ProcessedAppointment): string {
+    // Display special requirements if any
     const requirementsHtml = appt.hasSpecialRequirements 
       ? `<div class="special-requirements">
            ${appt.requirements?.accessibility ? '<div>♿ Accessibility needed</div>' : ''}
@@ -287,15 +301,25 @@ export class EmailTemplates {
          </div>`
       : '';
     
+    // Display assignment reason if available
+    const assignmentReasonHtml = appt.assignmentReason
+      ? `<div class="assignment-reason">
+           ℹ️ ${appt.assignmentReason}
+         </div>`
+      : '';
+    
     // Add office-change class to the office cell if needed
     const officeClass = appt.requiresOfficeChange ? ' class="office-change"' : '';
+    
+    // Add special class for telehealth sessions
+    const sessionTypeClass = appt.sessionType === 'telehealth' ? ' class="telehealth"' : '';
     
     return `
       <tr>
         <td>${appt.formattedTime}</td>
         <td>${appt.clientName}${requirementsHtml}</td>
-        <td${officeClass}>${appt.officeDisplay}${officeChangeHtml}</td>
-        <td>${this.formatSessionType(appt.sessionType)}</td>
+        <td${officeClass}>${appt.officeDisplay}${officeChangeHtml}${assignmentReasonHtml}</td>
+        <td${sessionTypeClass}>${this.formatSessionType(appt.sessionType)}</td>
       </tr>
     `;
   }
@@ -342,6 +366,9 @@ export class EmailTemplates {
         text += `\nScheduling Notes:\n`;
         clinicianConflicts.forEach(conflict => {
           text += `* ${conflict.description}\n`;
+          if (conflict.resolutionSuggestion) {
+            text += `  - ${conflict.resolutionSuggestion}\n`;
+          }
         });
         text += `\n`;
       }
@@ -357,6 +384,10 @@ export class EmailTemplates {
         }
         
         appText += ` | ${this.formatSessionType(appt.sessionType)}\n`;
+        
+        if (appt.assignmentReason) {
+          appText += `  * Office assignment: ${appt.assignmentReason}\n`;
+        }
         
         if (appt.hasSpecialRequirements) {
           if (appt.requirements?.accessibility) {
@@ -501,5 +532,3 @@ This is an automated message from Catalyst Scheduler
     };
   }
 }
-
-export default EmailTemplates;
