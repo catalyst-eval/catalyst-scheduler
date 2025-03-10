@@ -85,7 +85,6 @@ const SHEET_NAMES = {
   OFFICES: 'Offices_Configuration',
   CLINICIANS: 'Clinicians_Configuration',
   ASSIGNMENT_RULES: 'Assignment_Rules',
-  CLIENT_PREFERENCES: 'Client_Preferences',
   CLIENT_ACCESSIBILITY: 'Client_Accessibility_Info',
   SCHEDULE_CONFIG: 'Schedule_Configuration',
   INTEGRATION_SETTINGS: 'Integration_Settings',
@@ -426,24 +425,55 @@ export class GoogleSheetsService implements IGoogleSheetsService {
   }
 
   async getClientPreferences(): Promise<ClientPreference[]> {
-    const values = await this.readSheet(`${SHEET_NAMES.CLIENT_PREFERENCES}!A2:L`);
-    
-    return values?.map((row: SheetRow) => ({
-      clientId: row[0],
-      name: row[1],
-      email: row[2],
-      mobilityNeeds: this.safeParseJSON(row[3], []),
-      sensoryPreferences: this.safeParseJSON(row[4], []),
-      physicalNeeds: this.safeParseJSON(row[5], []),
-      roomConsistency: Number(row[6]),
-      supportNeeds: this.safeParseJSON(row[7], []),
-      specialFeatures: [], // Added required field with default empty array
-      additionalNotes: row[8],
-      lastUpdated: row[9],
-      preferredClinician: row[10],
-      assignedOffice: row[11]
-    })) ?? [];
+    try {
+      console.log('Getting client preferences from Client_Accessibility_Info');
+      
+      // Get data from Client_Accessibility_Info sheet instead
+      const accessibilityRecords = await this.getClientAccessibilityRecords();
+      
+      // Map to the expected ClientPreference format
+      return accessibilityRecords.map(record => ({
+        clientId: record.clientId,
+        name: record.clientName,
+        email: '', // Not available in accessibility info
+        mobilityNeeds: record.hasMobilityNeeds ? [record.mobilityDetails] : [],
+        sensoryPreferences: record.hasSensoryNeeds ? [record.sensoryDetails] : [],
+        physicalNeeds: record.hasPhysicalNeeds ? [record.physicalDetails] : [],
+        roomConsistency: record.roomConsistency || 3,
+        supportNeeds: record.hasSupport ? [record.supportDetails] : [],
+        specialFeatures: [], 
+        additionalNotes: record.additionalNotes || '',
+        lastUpdated: record.lastUpdated,
+        preferredClinician: '', // Not available in accessibility info
+        // Extract assigned office from additionalNotes if present
+        assignedOffice: this.extractAssignedOfficeFromNotes(record.additionalNotes)
+      }));
+    } catch (error) {
+      console.error('Error getting client preferences from accessibility info:', error);
+      await this.addAuditLog({
+        timestamp: new Date().toISOString(),
+        eventType: 'SYSTEM_ERROR',
+        description: 'Failed to get client preferences from accessibility info',
+        user: 'SYSTEM',
+        systemNotes: error instanceof Error ? error.message : 'Unknown error'
+      });
+      return [];
+    }
   }
+  
+  // Add this helper method:
+  private extractAssignedOfficeFromNotes(notes: string): string {
+    if (!notes) return '';
+    
+    // Check for patterns like "Assigned Office: B-4" in notes
+    const officeMatch = notes.match(/assigned\s+office:?\s*([A-C]-\d+|A-v)/i);
+    if (officeMatch && officeMatch[1]) {
+      return officeMatch[1];
+    }
+    
+    return '';
+  }
+  
 
   async getScheduleConfig(): Promise<ScheduleConfig[]> {
     const values = await this.readSheet(`${SHEET_NAMES.SCHEDULE_CONFIG}!A2:E`);
@@ -1004,33 +1034,42 @@ export class GoogleSheetsService implements IGoogleSheetsService {
    */
   async getClientRequiredOffices(): Promise<any[]> {
     try {
-      console.log('Getting client required offices from Client_Preferences');
+      console.log('Getting client required offices from Client_Accessibility_Info');
       
-      // Get client preferences instead since that contains the required office info
-      const clientPreferences = await this.getClientPreferences();
+      // Get client accessibility info
+      const accessibilityRecords = await this.getClientAccessibilityRecords();
       
-      // Filter and map to the expected format
-      return clientPreferences
-        .filter(pref => pref.assignedOffice) // Only include clients with an assigned office
-        .map(pref => ({
-          inactive: false,
-          requiredOfficeId: pref.assignedOffice || '',
-          lastName: pref.name?.split(' ').slice(1).join(' ') || '',
-          firstName: pref.name?.split(' ')[0] || '',
-          middleName: '',
-          dateOfBirth: '',
-          dateCreated: '',
-          lastActivity: pref.lastUpdated || '',
-          practitioner: pref.preferredClinician || ''
-        }));
+      // Filter for clients with assigned offices in their notes
+      return accessibilityRecords
+        .filter(record => {
+          const assignedOffice = this.extractAssignedOfficeFromNotes(record.additionalNotes);
+          return !!assignedOffice;
+        })
+        .map(record => {
+          const nameParts = record.clientName.split(' ');
+          const firstName = nameParts[0] || '';
+          const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '';
+          
+          return {
+            inactive: false,
+            requiredOfficeId: this.extractAssignedOfficeFromNotes(record.additionalNotes),
+            lastName,
+            firstName,
+            middleName: '',
+            dateOfBirth: '',
+            dateCreated: '',
+            lastActivity: record.lastUpdated || '',
+            practitioner: ''  // Not available in accessibility info
+          };
+        });
     } catch (error) {
-      console.error('Error getting client required offices from preferences:', error);
+      console.error('Error getting client required offices from accessibility info:', error);
       
       // Log error but don't throw - just return empty array
       await this.addAuditLog({
         timestamp: new Date().toISOString(),
         eventType: AuditEventType.SYSTEM_ERROR,
-        description: 'Failed to get client required offices from preferences',
+        description: 'Failed to get client required offices from accessibility info',
         user: 'SYSTEM',
         systemNotes: error instanceof Error ? error.message : 'Unknown error'
       });
@@ -1195,37 +1234,44 @@ export class GoogleSheetsService implements IGoogleSheetsService {
 
   async updateClientPreference(preference: ClientPreference): Promise<void> {
     try {
-      const values = await this.readSheet(`${SHEET_NAMES.CLIENT_PREFERENCES}!A:A`);
+      // Update to use CLIENT_ACCESSIBILITY instead of CLIENT_PREFERENCES
+      const values = await this.readSheet(`${SHEET_NAMES.CLIENT_ACCESSIBILITY}!A:A`);
       const clientRow = values?.findIndex((row: SheetRow) => row[0] === preference.clientId);
       
+      // Map to the format expected by Client_Accessibility_Info
       const rowData = [
-        preference.clientId,
-        preference.name,
-        preference.email,
-        JSON.stringify(preference.mobilityNeeds),
-        JSON.stringify(preference.sensoryPreferences),
-        JSON.stringify(preference.physicalNeeds),
-        preference.roomConsistency.toString(),
-        JSON.stringify(preference.supportNeeds),
-        preference.additionalNotes || '',
-        new Date().toISOString(),
-        preference.preferredClinician || '',
-        preference.assignedOffice || ''
+        preference.clientId, // clientId
+        preference.name,     // clientName
+        new Date().toISOString(), // lastUpdated
+        preference.mobilityNeeds && preference.mobilityNeeds.length > 0 ? 'TRUE' : 'FALSE', // hasMobilityNeeds
+        preference.mobilityNeeds?.join(', ') || '', // mobilityDetails
+        preference.sensoryPreferences && preference.sensoryPreferences.length > 0 ? 'TRUE' : 'FALSE', // hasSensoryNeeds
+        preference.sensoryPreferences?.join(', ') || '', // sensoryDetails
+        preference.physicalNeeds && preference.physicalNeeds.length > 0 ? 'TRUE' : 'FALSE', // hasPhysicalNeeds
+        preference.physicalNeeds?.join(', ') || '', // physicalDetails
+        preference.roomConsistency.toString(), // roomConsistency
+        preference.supportNeeds && preference.supportNeeds.length > 0 ? 'TRUE' : 'FALSE', // hasSupport
+        preference.supportNeeds?.join(', ') || '', // supportDetails
+        // Include assigned office in additionalNotes if present
+        (preference.additionalNotes || '') + 
+        (preference.assignedOffice ? `\nAssigned Office: ${preference.assignedOffice}` : ''), // additionalNotes
+        'migrated', // formType
+        '' // formId
       ];
-
-      if (clientRow !== undefined && clientRow > 0) {
+  
+      if (clientRow !== undefined && clientRow >= 0) {
         await this.sheets.spreadsheets.values.update({
           spreadsheetId: this.spreadsheetId,
-          range: `${SHEET_NAMES.CLIENT_PREFERENCES}!A${clientRow + 1}:L${clientRow + 1}`,
+          range: `${SHEET_NAMES.CLIENT_ACCESSIBILITY}!A${clientRow + 1}:O${clientRow + 1}`,
           valueInputOption: 'RAW',
           requestBody: {
             values: [rowData]
           }
         });
       } else {
-        await this.appendRows(`${SHEET_NAMES.CLIENT_PREFERENCES}!A:L`, [rowData]);
+        await this.appendRows(`${SHEET_NAMES.CLIENT_ACCESSIBILITY}!A:O`, [rowData]);
       }
-
+  
       await this.addAuditLog({
         timestamp: new Date().toISOString(),
         eventType: AuditEventType.CLIENT_PREFERENCES_UPDATED,
@@ -1233,8 +1279,8 @@ export class GoogleSheetsService implements IGoogleSheetsService {
         user: 'SYSTEM',
         systemNotes: JSON.stringify(preference)
       });
-
-      await this.refreshCache(`${SHEET_NAMES.CLIENT_PREFERENCES}!A2:L`);
+  
+      await this.refreshCache(`${SHEET_NAMES.CLIENT_ACCESSIBILITY}!A2:O`);
     } catch (error) {
       console.error('Error updating client preference:', error);
       throw error;
