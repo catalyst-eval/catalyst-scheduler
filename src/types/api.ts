@@ -1,6 +1,6 @@
 // src/types/api.ts
 
-import { SchedulingConflict } from './scheduling';
+import { ScheduleConflict } from './scheduling';
 
 export interface ApiResponse<T = any> {
   success: boolean;

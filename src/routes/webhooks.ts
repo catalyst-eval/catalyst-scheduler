@@ -3,7 +3,8 @@ import express, { Request, Response, NextFunction } from 'express';
 import { validateIntakeQWebhook, IntakeQWebhookRequest } from '../middleware/verify-signature';
 import { WebhookHandler } from '../lib/intakeq/webhook-handler';
 import { AppointmentSyncHandler } from '../lib/intakeq/appointment-sync';
-import GoogleSheetsService from '../lib/google/sheets';
+import { GoogleSheetsService } from '../lib/google/sheets';
+import { AuditLogEntry } from '../types/sheets';
 
 // Create router
 const router = express.Router();
@@ -138,7 +139,7 @@ const getRecentWebhooks = async (req: Request, res: Response): Promise<void> => 
     const limit = req.query.limit ? parseInt(req.query.limit as string) : 10;
     const logs = await sheetsService.getRecentAuditLogs(limit);
     
-    const webhookLogs = logs.filter(log => 
+    const webhookLogs = logs.filter((log: AuditLogEntry) => 
       log.eventType === 'WEBHOOK_RECEIVED' || 
       log.eventType.includes('APPOINTMENT_')
     );

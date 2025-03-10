@@ -1,6 +1,6 @@
 // src/types/offices.ts
 
-import { StandardOfficeId } from './scheduling';
+import { standardizeOfficeId } from './scheduling';
 
 export interface OfficeLocation {
   floor: string;
@@ -8,7 +8,7 @@ export interface OfficeLocation {
 }
 
 export interface OfficeDetails {
-  id: StandardOfficeId;
+  id: string; // Use string type instead of StandardOfficeId which doesn't exist
   name: string;
   isAccessible: boolean;
   features: string[];

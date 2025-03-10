@@ -5,7 +5,7 @@ import crypto from 'crypto';
 import { WebhookHandler } from '../lib/intakeq/webhook-handler';
 import { AppointmentSyncHandler } from '../lib/intakeq/appointment-sync';
 import { IntakeQService } from '../lib/intakeq/service';
-import GoogleSheetsService from '../lib/google/sheets';
+import { GoogleSheetsService } from '../lib/google/sheets';
 
 const router = express.Router();
 

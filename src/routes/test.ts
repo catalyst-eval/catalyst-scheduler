@@ -1,172 +1,66 @@
-// src/routes/test.ts
-import { Router, Request, Response } from 'express';
-import GoogleSheetsService, { IGoogleSheetsService } from '../lib/google/sheets';
-import { DailyScheduleService } from '../lib/scheduling/daily-schedule-service';
-import { getTodayEST, getESTDayRange } from '../lib/util/date-helpers';
+// src/routes/test-intakeq.ts
+import express, { Request, Response } from 'express';
+import axios from 'axios';
+import crypto from 'crypto';
+import { WebhookHandler } from '../lib/intakeq/webhook-handler';
+import { AppointmentSyncHandler } from '../lib/intakeq/appointment-sync';
+import { IntakeQService } from '../lib/intakeq/service';
+import { GoogleSheetsService } from '../lib/google/sheets';
 
-const router = Router();
+const router = express.Router();
 
-// Cast to the interface to ensure TypeScript recognizes the methods
-const sheetsService: IGoogleSheetsService = new GoogleSheetsService();
+// Create service instances
+const sheetsService = new GoogleSheetsService();
+const intakeQService = new IntakeQService(sheetsService);
+const appointmentSyncHandler = new AppointmentSyncHandler(sheetsService, intakeQService);
+const webhookHandler = new WebhookHandler(sheetsService, appointmentSyncHandler, intakeQService);
 
-router.get('/test-sheets', async (req, res) => {
+router.get('/fetch-intakes', async (req: Request, res: Response) => {
   try {
-    // Now TypeScript knows this method exists
-    const data = await sheetsService.getOffices();
-    res.json({
-      success: true,
-      data
-    });
-  } catch (error) {
-    console.error('Test sheets error:', error);
-    res.status(500).json({
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error'
-    });
-  }
-});
-
-router.get('/test-sheets-meta', async (req, res) => {
-  try {
-    // Access the private sheets instance directly for this test
-    const sheetsService: any = new GoogleSheetsService();
-    const spreadsheetId = process.env.GOOGLE_SHEETS_SPREADSHEET_ID;
-    const response = await sheetsService.sheets.spreadsheets.get({
-      spreadsheetId
-    });
+    const startDate = req.query.startDate || '2025-02-20';
+    const endDate = req.query.endDate || '2025-02-28';
     
-    res.json({
-      success: true,
-      sheets: response.data.sheets.map((sheet: any) => sheet.properties.title)
-    });
-  } catch (error) {
-    console.error('Test sheets error:', error);
-    res.status(500).json({
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error'
-    });
-  }
-});
-
-router.get('/sheet-metadata', async (req, res) => {
-  try {
-    // Access the sheets API directly to get all sheet names
-    const sheetsService = new GoogleSheetsService();
-    const spreadsheetId = process.env.GOOGLE_SHEETS_SPREADSHEET_ID;
+    console.log(`Fetching IntakeQ forms from ${startDate} to ${endDate}`);
     
-    // Cast to any to access private property for diagnostics
-    const sheetsClient = (sheetsService as any).sheets;
-    
-    const response = await sheetsClient.spreadsheets.get({
-      spreadsheetId
-    });
-    
-    // Extract sheet names
-    const sheetNames = response.data.sheets.map((sheet: { properties: { title: string } }) => sheet.properties.title);
-    
-    res.json({
-      success: true,
-      sheets: sheetNames
-    });
-  } catch (error) {
-    console.error('Failed to get sheet metadata:', error);
-    res.status(500).json({
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error'
-    });
-  }
-});
-
-/**
- * Test endpoint for webhook-only appointment processing
- * This demonstrates fetching appointments without IntakeQ API calls
- */
-router.get('/webhook-only-appointments', async (req: Request, res: Response) => {
-  try {
-    // Get the target date from query param or use today
-    const targetDate = req.query.date as string || getTodayEST();
-    
-    console.log(`Testing webhook-only appointment fetching for ${targetDate}`);
-    
-    // Calculate date range for the day
-    const { start, end } = getESTDayRange(targetDate);
-    
-    // Initialize the services
-    const sheetsService = new GoogleSheetsService();
-    const dailyScheduleService = new DailyScheduleService(sheetsService);
-    
-    // Log the test being performed
-    await sheetsService.addAuditLog({
-      timestamp: new Date().toISOString(),
-      eventType: 'TEST' as any,
-      description: `Testing webhook-only appointment processing for ${targetDate}`,
-      user: 'SYSTEM',
-      systemNotes: JSON.stringify({ targetDate, start, end })
-    });
-    
-    // STEP 1: Get appointments directly from Google Sheets without API calls
-    console.log(`Fetching appointments from Sheets for ${start} to ${end}`);
-    const appointments = await sheetsService.getAppointments(start, end);
-    
-    // Add diagnostic information to check what we're getting from Sheets
-    let diagnostics = {
-      appointmentDetails: appointments.map(appt => ({
-        id: appt.appointmentId,
-        client: appt.clientName,
-        clinician: appt.clinicianName,
-        time: appt.startTime,
-        officeId: appt.officeId,
-        status: appt.status,
-        source: appt.source,
-        lastUpdated: appt.lastUpdated
-      }))
-    };
-    
-    // STEP 2: Check webhook audit logs to see what webhooks we've received
-    const recentLogs = await sheetsService.getRecentAuditLogs(100);
-    const webhookLogs = recentLogs.filter(log => 
-      (log.eventType === 'WEBHOOK_RECEIVED' || 
-       log.eventType.includes('APPOINTMENT_')) &&
-      new Date(log.timestamp) > new Date(new Date().getTime() - 7 * 24 * 60 * 60 * 1000) // Last 7 days
+    // Fetch intake forms summary
+    const intakeResponse = await axios.get(
+      `https://intakeq.com/api/v1/intakes/summary?startDate=${startDate}&endDate=${endDate}`,
+      {
+        headers: {
+          'X-Auth-Key': process.env.INTAKEQ_API_KEY,
+          'Accept': 'application/json'
+        }
+      }
     );
     
-    // STEP 3: Process any appointment assignments/conflicts
-    let resolvedCount = 0;
-    try {
-      resolvedCount = await dailyScheduleService.resolveSchedulingConflicts(targetDate);
-      console.log(`Resolved ${resolvedCount} scheduling conflicts using webhook data`);
-    } catch (error) {
-      console.warn('Error resolving conflicts:', error);
+    // Extract form IDs
+    const formIds = intakeResponse.data.map((intake: any) => intake.Id);
+    console.log(`Found ${formIds.length} forms`);
+    
+    // If we have forms, get detailed data for the first one
+    let sampleFormData = null;
+    if (formIds.length > 0) {
+      const formDetailResponse = await axios.get(
+        `https://intakeq.com/api/v1/intakes/${formIds[0]}`,
+        {
+          headers: {
+            'X-Auth-Key': process.env.INTAKEQ_API_KEY,
+            'Accept': 'application/json'
+          }
+        }
+      );
+      sampleFormData = formDetailResponse.data;
     }
     
-    // STEP 4: Generate a summary of what would go in the email
-    const scheduleData = await dailyScheduleService.generateDailySchedule(targetDate);
-    
-    // Return the results with comprehensive diagnostics
+    // Return the data
     res.json({
       success: true,
-      message: 'Webhook-only appointment processing test successful',
-      data: {
-        date: targetDate,
-        dateRange: { start, end },
-        appointmentsFound: appointments.length,
-        inEmailData: scheduleData.appointments.length,
-        conflicts: scheduleData.conflicts.length,
-        officeCounts: scheduleData.stats.officeUtilization
-      },
-      diagnostics: {
-        appointmentDetails: diagnostics.appointmentDetails,
-        recentWebhooks: webhookLogs.length,
-        webhookSample: webhookLogs.slice(0, 5).map(log => ({
-          timestamp: log.timestamp,
-          type: log.eventType,
-          description: log.description
-        }))
-      },
-      timestamp: new Date().toISOString()
+      formCount: formIds.length,
+      formSummaries: intakeResponse.data,
+      sampleFormData: sampleFormData
     });
   } catch (error) {
-    console.error('Error in webhook-only test:', error);
+    console.error('Error fetching IntakeQ forms:', error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -175,92 +69,94 @@ router.get('/webhook-only-appointments', async (req: Request, res: Response) => 
   }
 });
 
-/**
- * Check appointment history for multiple days
- * This helps diagnose whether webhooks have been received consistently
- */
-router.get('/appointment-history', async (req: Request, res: Response) => {
-  try {
-    // Get the number of days to check
-    const daysToCheck = parseInt(req.query.days as string || '7');
-    
-    console.log(`Checking appointment history for the last ${daysToCheck} days`);
-    
-    // Initialize services
-    const sheetsService = new GoogleSheetsService();
-    
-    // Get all appointments (which will let us check across multiple days)
-    const allAppointments = await sheetsService.getAllAppointments();
-    
-    // Create a map to store appointments by date
-    const appointmentsByDate: Record<string, any[]> = {};
-    
-    // Get dates to check
-    const today = new Date();
-    const dates = [];
-    for (let i = 0; i < daysToCheck; i++) {
-      const date = new Date(today);
-      date.setDate(date.getDate() - i);
-      dates.push(date.toISOString().split('T')[0]);
-    }
-    
-    // Initialize results for each date
-    dates.forEach(date => {
-      appointmentsByDate[date] = [];
-    });
-    
-    // Filter appointments by date
-    allAppointments.forEach(appt => {
-      const apptDate = new Date(appt.startTime).toISOString().split('T')[0];
-      if (appointmentsByDate[apptDate]) {
-        appointmentsByDate[apptDate].push({
-          id: appt.appointmentId,
-          client: appt.clientName,
-          clinician: appt.clinicianName,
-          time: appt.startTime,
-          officeId: appt.officeId,
-          status: appt.status,
-          source: appt.source,
-          lastUpdated: appt.lastUpdated
+router.get('/fetch-form', async (req: Request, res: Response) => {
+    try {
+      const formId = req.query.id as string;
+      
+      if (!formId) {
+        return res.status(400).json({
+          success: false,
+          error: 'Form ID is required',
+          timestamp: new Date().toISOString()
         });
       }
-    });
+      
+      console.log(`Fetching IntakeQ form details: ${formId}`);
+      
+      const formDetailResponse = await axios.get(
+        `https://intakeq.com/api/v1/intakes/${formId}`,
+        {
+          headers: {
+            'X-Auth-Key': process.env.INTAKEQ_API_KEY,
+            'Accept': 'application/json'
+          }
+        }
+      );
+      
+      res.json({
+        success: true,
+        formData: formDetailResponse.data
+      });
+    } catch (error) {
+      console.error('Error fetching IntakeQ form details:', error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        timestamp: new Date().toISOString()
+      });
+    }
+});
+
+// API diagnostic endpoint
+router.get('/api-test', async (req: Request, res: Response) => {
+  try {
+    // Test connection
+    const testConnection = await intakeQService.testConnection();
     
-    // Get webhook logs for the same period
-    const recentLogs = await sheetsService.getRecentAuditLogs(200);
-    const webhookLogs = recentLogs.filter(log => 
-      (log.eventType === 'WEBHOOK_RECEIVED' || 
-       log.eventType.includes('APPOINTMENT_'))
-    );
+    // Try to fetch a small date range
+    const today = new Date().toISOString().split('T')[0];
+    let appointmentsResult: { success: boolean; error: string | null; data: any } = { 
+      success: false, 
+      error: 'Not attempted', 
+      data: null 
+    };
     
-    // Count webhooks by date
-    const webhooksByDate: Record<string, number> = {};
-    webhookLogs.forEach(log => {
-      const logDate = new Date(log.timestamp).toISOString().split('T')[0];
-      webhooksByDate[logDate] = (webhooksByDate[logDate] || 0) + 1;
-    });
+    if (testConnection) {
+      try {
+        const appointments = await intakeQService.getAppointments(today, today);
+        appointmentsResult = { 
+          success: true, 
+          error: null, 
+          data: {
+            count: appointments.length,
+            sample: appointments.length > 0 ? appointments[0] : null
+          }
+        };
+      } catch (error) {
+        appointmentsResult = { 
+          success: false, 
+          error: error instanceof Error ? error.message : 'Unknown error',
+          data: null
+        };
+      }
+    }
     
-    // Return the results
     res.json({
-      success: true,
-      message: `Appointment history for the last ${daysToCheck} days`,
-      data: {
-        dates,
-        appointmentCounts: dates.map(date => ({
-          date,
-          count: appointmentsByDate[date].length,
-          dayOfWeek: new Date(date).toLocaleDateString('en-US', { weekday: 'long' })
-        })),
-        appointmentsByDate,
-        webhookCounts: dates.map(date => ({
-          date,
-          webhooks: webhooksByDate[date] || 0
-        }))
+      timestamp: new Date().toISOString(),
+      apiKey: {
+        present: !!process.env.INTAKEQ_API_KEY,
+        length: process.env.INTAKEQ_API_KEY?.length || 0
       },
-      timestamp: new Date().toISOString()
+      webhookSecret: {
+        present: !!process.env.INTAKEQ_WEBHOOK_SECRET,
+        length: process.env.INTAKEQ_WEBHOOK_SECRET?.length || 0
+      },
+      connectionTest: testConnection,
+      appointmentsTest: appointmentsResult,
+      environment: process.env.NODE_ENV,
+      renderUrl: 'https://catalyst-scheduler.onrender.com'
     });
   } catch (error) {
-    console.error('Error in appointment history test:', error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -269,4 +165,84 @@ router.get('/appointment-history', async (req: Request, res: Response) => {
   }
 });
 
-export default router;
+// Webhook test route
+router.post('/test-webhook', async (req: Request, res: Response) => {
+  try {
+    const payload = req.body;
+    
+    console.log('Received test webhook:', {
+      payloadType: payload.Type || payload.EventType,
+      clientId: payload.ClientId,
+      hasAppointment: !!payload.Appointment
+    });
+    
+    if (!payload || !payload.ClientId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid payload format. Must include ClientId field.'
+      });
+    }
+    
+     // Generate a test signature for testing purposes
+     let signatureInfo = {};
+     if (process.env.INTAKEQ_WEBHOOK_SECRET) {
+       const payloadStr = JSON.stringify(payload);
+       const secret = process.env.INTAKEQ_WEBHOOK_SECRET;
+       // Clean the secret
+       const cleanSecret = secret.trim().replace(/^["']|["']$/g, '');
+       
+       const hmac = crypto.createHmac('sha256', cleanSecret);
+       hmac.update(payloadStr);
+       const signature = hmac.digest('hex');
+       
+       signatureInfo = {
+         signature: signature.substring(0, 10) + '...',
+         webhookUrl: 'https://catalyst-scheduler.onrender.com/api/webhooks/intakeq'
+       };
+     }
+     
+     // Process webhook with bypassing signature verification
+     const eventType = payload.Type || payload.EventType;
+     const isAppointmentEvent = eventType && (
+       eventType.includes('Appointment') || eventType.includes('appointment')
+     );
+     
+     let result;
+     try {
+       if (isAppointmentEvent && payload.Appointment) {
+         result = await appointmentSyncHandler.processAppointmentEvent(payload);
+       } else {
+         result = await webhookHandler.processWebhook(payload);
+       }
+       
+       res.json({
+         success: result.success,
+         data: result.details,
+         error: result.error,
+         signatureInfo,
+         testMode: true,
+         renderUrl: 'https://catalyst-scheduler.onrender.com',
+         timestamp: new Date().toISOString()
+       });
+     } catch (error) {
+       console.error('Error processing test webhook:', error);
+       res.status(500).json({
+         success: false,
+         error: error instanceof Error ? error.message : 'Unknown error',
+         signatureInfo,
+         testMode: true,
+         renderUrl: 'https://catalyst-scheduler.onrender.com',
+         timestamp: new Date().toISOString()
+       });
+     }
+   } catch (error) {
+     console.error('Error in test webhook endpoint:', error);
+     res.status(500).json({
+       success: false,
+       error: error instanceof Error ? error.message : 'Unknown error',
+       timestamp: new Date().toISOString()
+     });
+   }
+ });
+ 
+ export default router;
