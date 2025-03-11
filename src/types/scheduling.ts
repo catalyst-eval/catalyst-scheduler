@@ -146,6 +146,28 @@ export function normalizeAppointmentRecord(record: any): AppointmentRecord {
 }
 
 /**
+ * Client accessibility information
+ */
+export interface ClientAccessibilityInfo {
+  clientId: string;
+  clientName: string;
+  lastUpdated: string;
+  hasMobilityNeeds: boolean;
+  mobilityDetails: string;
+  hasSensoryNeeds: boolean;
+  sensoryDetails: string;
+  hasPhysicalNeeds: boolean;
+  physicalDetails: string;
+  roomConsistency: number;
+  hasSupportNeeds: boolean;
+  supportDetails: string;
+  additionalNotes: string;
+  requiredOffice?: string;  // New field for permanent office assignment
+  formType: string;
+  formId: string;
+}
+
+/**
  * Office assignment interface
  */
 export interface OfficeAssignment {
@@ -212,10 +234,10 @@ export enum RulePriority {
   ACCESSIBILITY_REQUIREMENT = 90,
   YOUNG_CHILDREN = 80,
   OLDER_CHILDREN_TEENS = 75,
-  CLINICIAN_PRIMARY_OFFICE = 65,   // Moved up in priority
-  CLINICIAN_PREFERRED_OFFICE = 62, // Moved up in priority
-  ADULTS = 55,                     // Lowered from 70 to 55
-  IN_PERSON_PRIORITY = 50,         // Lowered from 55 to 50
+  CLINICIAN_PRIMARY_OFFICE = 65,
+  CLINICIAN_PREFERRED_OFFICE = 62,
+  ADULTS = 55,
+  IN_PERSON_PRIORITY = 50,
   TELEHEALTH_PREFERRED = 40,
   SPECIAL_FEATURES_MATCH = 35,
   ALTERNATIVE_CLINICIAN = 30,

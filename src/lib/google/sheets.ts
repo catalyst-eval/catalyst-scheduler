@@ -52,6 +52,7 @@ export interface IGoogleSheetsService {
     additionalNotes: string;
     formType: string;
     formId: string;
+    requiredOffice?: string; // Added requiredOffice field
   }): Promise<void>;
   getClientRequiredOffices(): Promise<any[]>;
   processAccessibilityForm(formData: {
@@ -143,10 +144,12 @@ export class GoogleSheetsService implements IGoogleSheetsService {
 
   /**
    * Get all client accessibility records
+   * UPDATED: Now includes the requiredOffice field (column P)
    */
   async getClientAccessibilityRecords(): Promise<any[]> {
     try {
-      const values = await this.readSheet(`${SHEET_NAMES.CLIENT_ACCESSIBILITY}!A2:O`);
+      // Updated range to include column P (requiredOffice)
+      const values = await this.readSheet(`${SHEET_NAMES.CLIENT_ACCESSIBILITY}!A2:P`);
       
       if (!values || values.length === 0) {
         return [];
@@ -167,7 +170,8 @@ export class GoogleSheetsService implements IGoogleSheetsService {
         supportDetails: row[11] || '',
         additionalNotes: row[12] || '',
         formType: row[13] || '',
-        formId: row[14] || ''
+        formId: row[14] || '',
+        requiredOffice: row[15] || '' // Added requiredOffice field
       }));
     } catch (error) {
       console.error('Error getting client accessibility records:', error);
@@ -445,8 +449,8 @@ export class GoogleSheetsService implements IGoogleSheetsService {
         additionalNotes: record.additionalNotes || '',
         lastUpdated: record.lastUpdated,
         preferredClinician: '', // Not available in accessibility info
-        // Extract assigned office from additionalNotes if present
-        assignedOffice: this.extractAssignedOfficeFromNotes(record.additionalNotes)
+        // Extract assigned office from additionalNotes or requiredOffice if present
+        assignedOffice: this.extractAssignedOfficeFromNotes(record.additionalNotes, record.requiredOffice)
       }));
     } catch (error) {
       console.error('Error getting client preferences from accessibility info:', error);
@@ -461,8 +465,17 @@ export class GoogleSheetsService implements IGoogleSheetsService {
     }
   }
   
-  // Add this helper method:
-  private extractAssignedOfficeFromNotes(notes: string): string {
+  /**
+   * Extract assigned office from notes and/or requiredOffice field
+   * UPDATED: Now first checks requiredOffice before parsing notes
+   */
+  private extractAssignedOfficeFromNotes(notes: string, requiredOffice?: string): string {
+    // First check for explicit requiredOffice field
+    if (requiredOffice && requiredOffice.trim() !== '') {
+      return requiredOffice.trim();
+    }
+    
+    // Fall back to parsing from notes if field is not set
     if (!notes) return '';
     
     // Check for patterns like "Assigned Office: B-4" in notes
@@ -885,12 +898,14 @@ export class GoogleSheetsService implements IGoogleSheetsService {
 
   /**
    * Get client accessibility information
+   * UPDATED: Now includes the requiredOffice field
    */
   async getClientAccessibilityInfo(clientId: string): Promise<any | null> {
     try {
       console.log(`Getting accessibility info for client ${clientId}`);
       
-      const values = await this.readSheet(`${SHEET_NAMES.CLIENT_ACCESSIBILITY}!A2:O`);
+      // Updated range to include column P (requiredOffice)
+      const values = await this.readSheet(`${SHEET_NAMES.CLIENT_ACCESSIBILITY}!A2:P`);
       if (!values || values.length === 0) {
         console.log(`No accessibility info found for any clients`);
         return null;
@@ -917,7 +932,8 @@ export class GoogleSheetsService implements IGoogleSheetsService {
         supportDetails: clientRow[11] || '',
         additionalNotes: clientRow[12] || '',
         formType: clientRow[13] || '',
-        formId: clientRow[14] || ''
+        formId: clientRow[14] || '',
+        requiredOffice: clientRow[15] || '' // Added requiredOffice field
       };
     } catch (error) {
       console.error(`Error getting client accessibility info for ${clientId}:`, error);
@@ -937,6 +953,7 @@ export class GoogleSheetsService implements IGoogleSheetsService {
 
   /**
    * Update client accessibility information
+   * UPDATED: Now supports the requiredOffice field
    */
   async updateClientAccessibilityInfo(accessibilityInfo: {
     clientId: string;
@@ -953,6 +970,7 @@ export class GoogleSheetsService implements IGoogleSheetsService {
     additionalNotes: string;
     formType: string;
     formId: string;
+    requiredOffice?: string; // New field
   }): Promise<void> {
     try {
       console.log(`Updating accessibility info for client ${accessibilityInfo.clientId}`);
@@ -977,7 +995,8 @@ export class GoogleSheetsService implements IGoogleSheetsService {
         accessibilityInfo.supportDetails,
         accessibilityInfo.additionalNotes,
         accessibilityInfo.formType,
-        accessibilityInfo.formId
+        accessibilityInfo.formId,
+        accessibilityInfo.requiredOffice || '' // Added requiredOffice field
       ];
       
       if (clientRowIndex !== undefined && clientRowIndex >= 0) {
@@ -985,7 +1004,7 @@ export class GoogleSheetsService implements IGoogleSheetsService {
         console.log(`Updating existing row for client ${accessibilityInfo.clientId}`);
         await this.sheets.spreadsheets.values.update({
           spreadsheetId: this.spreadsheetId,
-          range: `${SHEET_NAMES.CLIENT_ACCESSIBILITY}!A${clientRowIndex + 2}:O${clientRowIndex + 2}`,
+          range: `${SHEET_NAMES.CLIENT_ACCESSIBILITY}!A${clientRowIndex + 2}:P${clientRowIndex + 2}`,
           valueInputOption: 'RAW',
           requestBody: {
             values: [rowData]
@@ -994,7 +1013,7 @@ export class GoogleSheetsService implements IGoogleSheetsService {
       } else {
         // Add new row
         console.log(`Adding new row for client ${accessibilityInfo.clientId}`);
-        await this.appendRows(`${SHEET_NAMES.CLIENT_ACCESSIBILITY}!A:O`, [rowData]);
+        await this.appendRows(`${SHEET_NAMES.CLIENT_ACCESSIBILITY}!A:P`, [rowData]);
       }
       
       // Log the update
@@ -1008,7 +1027,8 @@ export class GoogleSheetsService implements IGoogleSheetsService {
           hasMobilityNeeds: accessibilityInfo.hasMobilityNeeds,
           hasSensoryNeeds: accessibilityInfo.hasSensoryNeeds,
           hasPhysicalNeeds: accessibilityInfo.hasPhysicalNeeds,
-          roomConsistency: accessibilityInfo.roomConsistency
+          roomConsistency: accessibilityInfo.roomConsistency,
+          requiredOffice: accessibilityInfo.requiredOffice // Added requiredOffice
         })
       });
       
@@ -1031,6 +1051,7 @@ export class GoogleSheetsService implements IGoogleSheetsService {
 
   /**
    * Get client required offices
+   * UPDATED: Now checks both additionalNotes and requiredOffice fields
    */
   async getClientRequiredOffices(): Promise<any[]> {
     try {
@@ -1039,10 +1060,14 @@ export class GoogleSheetsService implements IGoogleSheetsService {
       // Get client accessibility info
       const accessibilityRecords = await this.getClientAccessibilityRecords();
       
-      // Filter for clients with assigned offices in their notes
+      // Filter for clients with assigned offices in their notes or requiredOffice field
       return accessibilityRecords
         .filter(record => {
-          const assignedOffice = this.extractAssignedOfficeFromNotes(record.additionalNotes);
+          // Check both requiredOffice field and notes
+          const assignedOffice = this.extractAssignedOfficeFromNotes(
+            record.additionalNotes,
+            record.requiredOffice
+          );
           return !!assignedOffice;
         })
         .map(record => {
@@ -1050,9 +1075,15 @@ export class GoogleSheetsService implements IGoogleSheetsService {
           const firstName = nameParts[0] || '';
           const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '';
           
+          // Extract office from requiredOffice field or notes
+          const requiredOfficeId = this.extractAssignedOfficeFromNotes(
+            record.additionalNotes,
+            record.requiredOffice
+          );
+          
           return {
             inactive: false,
-            requiredOfficeId: this.extractAssignedOfficeFromNotes(record.additionalNotes),
+            requiredOfficeId,
             lastName,
             firstName,
             middleName: '',
@@ -1256,20 +1287,21 @@ export class GoogleSheetsService implements IGoogleSheetsService {
         (preference.additionalNotes || '') + 
         (preference.assignedOffice ? `\nAssigned Office: ${preference.assignedOffice}` : ''), // additionalNotes
         'migrated', // formType
-        '' // formId
+        '', // formId
+        preference.assignedOffice || '' // Added requiredOffice field
       ];
   
       if (clientRow !== undefined && clientRow >= 0) {
         await this.sheets.spreadsheets.values.update({
           spreadsheetId: this.spreadsheetId,
-          range: `${SHEET_NAMES.CLIENT_ACCESSIBILITY}!A${clientRow + 1}:O${clientRow + 1}`,
+          range: `${SHEET_NAMES.CLIENT_ACCESSIBILITY}!A${clientRow + 1}:P${clientRow + 1}`,
           valueInputOption: 'RAW',
           requestBody: {
             values: [rowData]
           }
         });
       } else {
-        await this.appendRows(`${SHEET_NAMES.CLIENT_ACCESSIBILITY}!A:O`, [rowData]);
+        await this.appendRows(`${SHEET_NAMES.CLIENT_ACCESSIBILITY}!A:P`, [rowData]);
       }
   
       await this.addAuditLog({
@@ -1280,7 +1312,7 @@ export class GoogleSheetsService implements IGoogleSheetsService {
         systemNotes: JSON.stringify(preference)
       });
   
-      await this.refreshCache(`${SHEET_NAMES.CLIENT_ACCESSIBILITY}!A2:O`);
+      await this.refreshCache(`${SHEET_NAMES.CLIENT_ACCESSIBILITY}!A2:P`);
     } catch (error) {
       console.error('Error updating client preference:', error);
       throw error;

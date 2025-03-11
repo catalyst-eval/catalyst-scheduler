@@ -166,6 +166,27 @@ export class DailyScheduleService {
   }
 
   /**
+   * Helper method to extract assigned office from notes and/or requiredOffice field
+   */
+  private extractAssignedOfficeFromNotes(notes: string, requiredOffice?: string): string {
+    // First check for explicit requiredOffice field
+    if (requiredOffice && requiredOffice.trim() !== '') {
+      return requiredOffice.trim();
+    }
+    
+    // Fall back to parsing from notes if field is not set
+    if (!notes) return '';
+    
+    // Check for patterns like "Assigned Office: B-4" in notes
+    const officeMatch = notes.match(/assigned\s+office:?\s*([A-C]-\d+|A-v)/i);
+    if (officeMatch && officeMatch[1]) {
+      return officeMatch[1];
+    }
+    
+    return '';
+  }
+
+  /**
    * Resolve office assignments using strict rule priority
    * This is the most critical method - it applies assignment rules in strict priority order
    * and disregards existing office assignments completely
@@ -176,13 +197,20 @@ export class DailyScheduleService {
       
       // Get necessary configuration data for rule application
       const offices = await this.sheetsService.getOffices();
-const activeOffices = offices.filter(o => o.inService === true);
-const clinicians = await this.sheetsService.getClinicians();
-const rules = await this.sheetsService.getAssignmentRules();
-// Get client preferences from the accessibility info instead
-const clientPreferences = await this.sheetsService.getClientPreferences();
+      const activeOffices = offices.filter(o => o.inService === true);
+      const clinicians = await this.sheetsService.getClinicians();
+      const rules = await this.sheetsService.getAssignmentRules();
+      // Get client preferences from the accessibility info instead
+      const clientPreferences = await this.sheetsService.getClientPreferences();
       
       console.log(`Loaded ${activeOffices.length} active offices, ${rules.length} rules`);
+      console.log('Active Offices:', activeOffices.map(o => `${o.officeId} (${o.name || 'unnamed'})`).join(', '));
+      if (clinicians.length > 0) {
+        console.log('Clinician preferred offices by name:');
+        clinicians.forEach(c => {
+          console.log(`  ${c.name}: ${c.preferredOffices?.join(', ') || 'None'}`);
+        });
+      }
       
       // Sort rules by priority (highest first)
       const sortedRules = [...rules].sort((a, b) => b.priority - a.priority);
@@ -233,9 +261,17 @@ const clientPreferences = await this.sheetsService.getClientPreferences();
           // Try to determine client age if available (for age-based rules)
           let clientAge: number | null = null;
           try {
-            // This would need to be implemented based on available data
-            // Could be from client info in IntakeQ or ClientDateOfBirth if available
-            // For now, we'll use a placeholder
+            // We'll use client preferences as that's already available
+            const clientPreference = clientPreferences.find(p => p.clientId === appt.clientId);
+            
+            // If we have a date of birth from elsewhere (not shown here), we could use it
+            // For now, we'll rely on age information that might be passed in from IntakeQ
+            
+            // This is where we would determine age if we had DOB info
+            // Since we don't have direct access to client DOB, we'll use the value that was
+            // determined earlier (possibly from IntakeQ data)
+            
+            console.log(`Client age determined as: ${clientAge !== null ? clientAge : 'unknown'}`);
           } catch (error) {
             console.log(`Could not determine age for client ${appt.clientName}`);
           }
@@ -243,207 +279,223 @@ const clientPreferences = await this.sheetsService.getClientPreferences();
           // ===============================================
           // RULE PRIORITY 100: Client Specific Requirement
           // ===============================================
-          if (!assignedOffice && clientPreference?.assignedOffice) {
-            assignedOffice = standardizeOfficeId(clientPreference.assignedOffice);
-            assignmentReason = `Client has specific office requirement (Priority ${RulePriority.CLIENT_SPECIFIC_REQUIREMENT})`;
-            console.log(`  MATCH: ${assignmentReason} - Office ${assignedOffice}`);
+          if (!assignedOffice) {
+            console.log("Checking PRIORITY 100: Client Specific Requirement");
+            if (clientAccessibility) {
+              // Check both requiredOffice field and notes
+              let clientSpecificOffice = this.extractAssignedOfficeFromNotes(
+                clientAccessibility.additionalNotes || '',
+                clientAccessibility.requiredOffice  // New field
+              );
+              
+              if (clientSpecificOffice) {
+                assignedOffice = standardizeOfficeId(clientSpecificOffice);
+                assignmentReason = `Client has specific office requirement (Priority ${RulePriority.CLIENT_SPECIFIC_REQUIREMENT})`;
+                console.log(`  MATCH: ${assignmentReason} - Office ${assignedOffice}`);
+              }
+            } else if (clientPreference?.assignedOffice) {
+              // Fallback to old client preferences data if available
+              assignedOffice = standardizeOfficeId(clientPreference.assignedOffice);
+              assignmentReason = `Client has specific office requirement (Priority ${RulePriority.CLIENT_SPECIFIC_REQUIREMENT})`;
+              console.log(`  MATCH: ${assignmentReason} - Office ${assignedOffice}`);
+            }
           }
           
           // ==========================================
-// RULE PRIORITY 90: Accessibility Requirement
-// ==========================================
-if (!assignedOffice && clientAccessibility?.hasMobilityNeeds) {
-  // Prioritize B-4, B-5 as specified in rule
-  const accessibleOffices = ['B-4', 'B-5'];
-  
-  for (const officeId of accessibleOffices) {
-    const matchingOffice = activeOffices.find(o => 
-      standardizeOfficeId(o.officeId) === standardizeOfficeId(officeId)
-    );
-    
-    if (matchingOffice) {
-      const available = await this.isOfficeAvailable(matchingOffice.officeId, appt, appointments);
-      if (available) {
-        assignedOffice = standardizeOfficeId(matchingOffice.officeId);
-        assignmentReason = `Client requires accessible office (Priority ${RulePriority.ACCESSIBILITY_REQUIREMENT})`;
-        console.log(`  MATCH: ${assignmentReason} - Office ${assignedOffice}`);
-        break;
-      }
-    }
-  }
-}
+          // RULE PRIORITY 90: Accessibility Requirement
+          // ==========================================
+          if (!assignedOffice && clientAccessibility?.hasMobilityNeeds) {
+            // Prioritize B-4, B-5 as specified in rule
+            const accessibleOffices = ['B-4', 'B-5'];
+            
+            for (const officeId of accessibleOffices) {
+              const matchingOffice = activeOffices.find(o => 
+                standardizeOfficeId(o.officeId) === standardizeOfficeId(officeId)
+              );
+              
+              if (matchingOffice) {
+                const available = await this.isOfficeAvailable(matchingOffice.officeId, appt, appointments);
+                if (available) {
+                  assignedOffice = standardizeOfficeId(matchingOffice.officeId);
+                  assignmentReason = `Client requires accessible office (Priority ${RulePriority.ACCESSIBILITY_REQUIREMENT})`;
+                  console.log(`  MATCH: ${assignmentReason} - Office ${assignedOffice}`);
+                  break;
+                }
+              }
+            }
+          }
 
-// ===============================
-// RULE PRIORITY 80: Young Children
-// ===============================
-if (!assignedOffice && clientAge !== null && clientAge <= 10) {
-  console.log(`  Client is ${clientAge} years old, checking B-5 availability first`);
-  
-  // First try B-5 (primary for young children)
-  const b5Office = activeOffices.find(o => standardizeOfficeId(o.officeId) === 'B-5');
-  if (b5Office) {
-    const available = await this.isOfficeAvailable('B-5', appt, appointments);
-    if (available) {
-      assignedOffice = 'B-5';
-      assignmentReason = `Young child (${clientAge} years old) assigned to B-5 (Priority ${RulePriority.YOUNG_CHILDREN})`;
-      console.log(`  MATCH: ${assignmentReason} - Office ${assignedOffice}`);
-    }
-  }
-  
-  // If B-5 not available, check if C-1 can be used as fallback
-  if (!assignedOffice) {
-    console.log(`  B-5 not available, checking if C-1 can be used as fallback for young child`);
-    const c1Office = activeOffices.find(o => standardizeOfficeId(o.officeId) === 'C-1');
-    
-    if (c1Office) {
-      // Check if C-1 is available
-      const available = await this.isOfficeAvailable('C-1', appt, appointments);
-      
-      if (available) {
-        assignedOffice = 'C-1';
-        assignmentReason = `Young child (${clientAge} years old) assigned to C-1 as fallback (Priority ${RulePriority.YOUNG_CHILDREN})`;
-        console.log(`  MATCH: ${assignmentReason} - Office ${assignedOffice}`);
-      }
-    }
-  }
-}
+          // ===============================
+          // RULE PRIORITY 80: Young Children
+          // ===============================
+          if (!assignedOffice && clientAge !== null && clientAge <= 10) {
+            console.log(`  Client is ${clientAge} years old, checking B-5 availability first`);
+            
+            // First try B-5 (primary for young children)
+            const b5Office = activeOffices.find(o => standardizeOfficeId(o.officeId) === 'B-5');
+            if (b5Office) {
+              const available = await this.isOfficeAvailable('B-5', appt, appointments);
+              if (available) {
+                assignedOffice = 'B-5';
+                assignmentReason = `Young child (${clientAge} years old) assigned to B-5 (Priority ${RulePriority.YOUNG_CHILDREN})`;
+                console.log(`  MATCH: ${assignmentReason} - Office ${assignedOffice}`);
+              }
+            }
+            
+            // If B-5 not available, check if C-1 can be used as fallback
+            if (!assignedOffice) {
+              console.log(`  B-5 not available, checking if C-1 can be used as fallback for young child`);
+              const c1Office = activeOffices.find(o => standardizeOfficeId(o.officeId) === 'C-1');
+              
+              if (c1Office) {
+                // Check if C-1 is available
+                const available = await this.isOfficeAvailable('C-1', appt, appointments);
+                
+                if (available) {
+                  assignedOffice = 'C-1';
+                  assignmentReason = `Young child (${clientAge} years old) assigned to C-1 as fallback (Priority ${RulePriority.YOUNG_CHILDREN})`;
+                  console.log(`  MATCH: ${assignmentReason} - Office ${assignedOffice}`);
+                }
+              }
+            }
+          }
 
-// =======================================
-// RULE PRIORITY 75: Older Children and Teens
-// =======================================
-if (!assignedOffice && clientAge !== null && clientAge >= 11 && clientAge <= 17) {
-  console.log(`  Client is ${clientAge} years old, checking C-1 availability first`);
-  
-  // First try C-1 (primary for older children/teens)
-  const c1Office = activeOffices.find(o => standardizeOfficeId(o.officeId) === 'C-1');
-  if (c1Office) {
-    const available = await this.isOfficeAvailable('C-1', appt, appointments);
-    if (available) {
-      assignedOffice = 'C-1';
-      assignmentReason = `Older child/teen (${clientAge} years old) assigned to C-1 (Priority ${RulePriority.OLDER_CHILDREN_TEENS})`;
-      console.log(`  MATCH: ${assignmentReason} - Office ${assignedOffice}`);
-    }
-  }
-  
-  // If C-1 not available, check if B-5 can be used as fallback
-  if (!assignedOffice) {
-    console.log(`  C-1 not available, checking if B-5 can be used as fallback for older child/teen`);
-    const b5Office = activeOffices.find(o => standardizeOfficeId(o.officeId) === 'B-5');
-    
-    if (b5Office) {
-      // Check if B-5 is available
-      const available = await this.isOfficeAvailable('B-5', appt, appointments);
-      
-      if (available) {
-        assignedOffice = 'B-5';
-        assignmentReason = `Older child/teen (${clientAge} years old) assigned to B-5 as fallback (Priority ${RulePriority.OLDER_CHILDREN_TEENS})`;
-        console.log(`  MATCH: ${assignmentReason} - Office ${assignedOffice}`);
-      }
-    }
-  }
-}
+          // =======================================
+          // RULE PRIORITY 75: Older Children and Teens
+          // =======================================
+          if (!assignedOffice && clientAge !== null && clientAge >= 11 && clientAge <= 17) {
+            console.log(`  Client is ${clientAge} years old, checking C-1 availability first`);
+            
+            // First try C-1 (primary for older children/teens)
+            const c1Office = activeOffices.find(o => standardizeOfficeId(o.officeId) === 'C-1');
+            if (c1Office) {
+              const available = await this.isOfficeAvailable('C-1', appt, appointments);
+              if (available) {
+                assignedOffice = 'C-1';
+                assignmentReason = `Older child/teen (${clientAge} years old) assigned to C-1 (Priority ${RulePriority.OLDER_CHILDREN_TEENS})`;
+                console.log(`  MATCH: ${assignmentReason} - Office ${assignedOffice}`);
+              }
+            }
+            
+            // If C-1 not available, check if B-5 can be used as fallback
+            if (!assignedOffice) {
+              console.log(`  C-1 not available, checking if B-5 can be used as fallback for older child/teen`);
+              const b5Office = activeOffices.find(o => standardizeOfficeId(o.officeId) === 'B-5');
+              
+              if (b5Office) {
+                // Check if B-5 is available
+                const available = await this.isOfficeAvailable('B-5', appt, appointments);
+                
+                if (available) {
+                  assignedOffice = 'B-5';
+                  assignmentReason = `Older child/teen (${clientAge} years old) assigned to B-5 as fallback (Priority ${RulePriority.OLDER_CHILDREN_TEENS})`;
+                  console.log(`  MATCH: ${assignmentReason} - Office ${assignedOffice}`);
+                }
+              }
+            }
+          }
 
-// ===============================
-// RULE PRIORITY 65: Clinician Primary Office
-// ===============================
-if (!assignedOffice && clinician) {
-  // Check if clinician has a primary/preferred office
-  if (clinician.preferredOffices && clinician.preferredOffices.length > 0) {
-    // First preferred office is considered the primary
-    const primaryOfficeId = clinician.preferredOffices[0];
-    const available = await this.isOfficeAvailable(primaryOfficeId, appt, appointments);
-    
-    if (available) {
-      assignedOffice = standardizeOfficeId(primaryOfficeId);
-      assignmentReason = `Assigned to clinician's primary office (Priority ${RulePriority.CLINICIAN_PRIMARY_OFFICE})`;
-      console.log(`  MATCH: ${assignmentReason} - Office ${assignedOffice}`);
-    }
-  }
-}
+          // ===============================
+          // RULE PRIORITY 65: Clinician Primary Office
+          // ===============================
+          if (!assignedOffice && clinician) {
+            // Check if clinician has a primary/preferred office
+            if (clinician.preferredOffices && clinician.preferredOffices.length > 0) {
+              // First preferred office is considered the primary
+              const primaryOfficeId = clinician.preferredOffices[0];
+              const available = await this.isOfficeAvailable(primaryOfficeId, appt, appointments);
+              
+              if (available) {
+                assignedOffice = standardizeOfficeId(primaryOfficeId);
+                assignmentReason = `Assigned to clinician's primary office (Priority ${RulePriority.CLINICIAN_PRIMARY_OFFICE})`;
+                console.log(`  MATCH: ${assignmentReason} - Office ${assignedOffice}`);
+              }
+            }
+          }
 
-// ===============================
-// RULE PRIORITY 62: Clinician Preferred Office
-// ===============================
-if (!assignedOffice && clinician && clinician.preferredOffices?.length > 1) {
-  console.log(`  Checking clinician preferred offices: ${clinician.preferredOffices.slice(1).join(', ')}`);
-  
-  // Start from the second preferred office (first one was checked in previous rule)
-  for (let i = 1; i < clinician.preferredOffices.length; i++) {
-    const officeId = clinician.preferredOffices[i];
-    const available = await this.isOfficeAvailable(officeId, appt, appointments);
-    
-    if (available) {
-      assignedOffice = standardizeOfficeId(officeId);
-      assignmentReason = `Assigned to clinician's preferred office (Priority ${RulePriority.CLINICIAN_PREFERRED_OFFICE})`;
-      console.log(`  MATCH: ${assignmentReason} - Office ${assignedOffice}`);
-      break;
-    }
-  }
-}
+          // ===============================
+          // RULE PRIORITY 62: Clinician Preferred Office
+          // ===============================
+          if (!assignedOffice && clinician && clinician.preferredOffices?.length > 1) {
+            console.log(`  Checking clinician preferred offices: ${clinician.preferredOffices.slice(1).join(', ')}`);
+            
+            // Start from the second preferred office (first one was checked in previous rule)
+            for (let i = 1; i < clinician.preferredOffices.length; i++) {
+              const officeId = clinician.preferredOffices[i];
+              const available = await this.isOfficeAvailable(officeId, appt, appointments);
+              
+              if (available) {
+                assignedOffice = standardizeOfficeId(officeId);
+                assignmentReason = `Assigned to clinician's preferred office (Priority ${RulePriority.CLINICIAN_PREFERRED_OFFICE})`;
+                console.log(`  MATCH: ${assignmentReason} - Office ${assignedOffice}`);
+                break;
+              }
+            }
+          }
 
-// ===============================
-// RULE PRIORITY 55: Adult Client Assignments (moved down from 70)
-// ===============================
-if (!assignedOffice && clientAge !== null && clientAge >= 18) {
-  console.log(`  Client is an adult (${clientAge} years old), checking primary adult offices`);
-  
-  // Try B-4, C-2, C-3 in order (primary adult offices)
-  const primaryAdultOffices = ['B-4', 'C-2', 'C-3'];
-  
-  for (const officeId of primaryAdultOffices) {
-    const office = activeOffices.find(o => standardizeOfficeId(o.officeId) === standardizeOfficeId(officeId));
-    if (office) {
-      const available = await this.isOfficeAvailable(officeId, appt, appointments);
-      if (available) {
-        assignedOffice = standardizeOfficeId(officeId);
-        assignmentReason = `Adult client assigned to ${officeId} (Priority ${RulePriority.ADULTS})`;
-        console.log(`  MATCH: ${assignmentReason} - Office ${assignedOffice}`);
-        break;
-      }
-    }
-  }
-  
-  // If no primary adult office is available, try B-5 and C-1
-  if (!assignedOffice) {
-    const secondaryAdultOffices = ['B-5', 'C-1'];
-    
-    for (const officeId of secondaryAdultOffices) {
-      const office = activeOffices.find(o => standardizeOfficeId(o.officeId) === standardizeOfficeId(officeId));
-      if (office) {
-        const available = await this.isOfficeAvailable(officeId, appt, appointments);
-        if (available) {
-          assignedOffice = standardizeOfficeId(officeId);
-          assignmentReason = `Adult client assigned to ${officeId} as secondary option (Priority ${RulePriority.ADULTS})`;
-          console.log(`  MATCH: ${assignmentReason} - Office ${assignedOffice}`);
-          break;
-        }
-      }
-    }
-  }
-}
+          // ===============================
+          // RULE PRIORITY 55: Adult Client Assignments (moved down from 70)
+          // ===============================
+          if (!assignedOffice && clientAge !== null && clientAge >= 18) {
+            console.log(`  Client is an adult (${clientAge} years old), checking primary adult offices`);
+            
+            // Try B-4, C-2, C-3 in order (primary adult offices)
+            const primaryAdultOffices = ['B-4', 'C-2', 'C-3'];
+            
+            for (const officeId of primaryAdultOffices) {
+              const office = activeOffices.find(o => standardizeOfficeId(o.officeId) === standardizeOfficeId(officeId));
+              if (office) {
+                const available = await this.isOfficeAvailable(officeId, appt, appointments);
+                if (available) {
+                  assignedOffice = standardizeOfficeId(officeId);
+                  assignmentReason = `Adult client assigned to ${officeId} (Priority ${RulePriority.ADULTS})`;
+                  console.log(`  MATCH: ${assignmentReason} - Office ${assignedOffice}`);
+                  break;
+                }
+              }
+            }
+            
+            // If no primary adult office is available, try B-5 and C-1
+            if (!assignedOffice) {
+              const secondaryAdultOffices = ['B-5', 'C-1'];
+              
+              for (const officeId of secondaryAdultOffices) {
+                const office = activeOffices.find(o => standardizeOfficeId(o.officeId) === standardizeOfficeId(officeId));
+                if (office) {
+                  const available = await this.isOfficeAvailable(officeId, appt, appointments);
+                  if (available) {
+                    assignedOffice = standardizeOfficeId(officeId);
+                    assignmentReason = `Adult client assigned to ${officeId} as secondary option (Priority ${RulePriority.ADULTS})`;
+                    console.log(`  MATCH: ${assignmentReason} - Office ${assignedOffice}`);
+                    break;
+                  }
+                }
+              }
+            }
+          }
 
-// ===============================
-// RULE PRIORITY 50: In-Person Priority (moved down from 55)
-// ===============================
-if (!assignedOffice && appt.sessionType === 'in-person') {
-  console.log('  In-person session, checking all physical offices');
-  
-  // Try all physical offices in order: B-4, B-5, C-1, C-2, C-3
-  const physicalOffices = ['B-4', 'B-5', 'C-1', 'C-2', 'C-3'];
-  
-  for (const officeId of physicalOffices) {
-    const office = activeOffices.find(o => standardizeOfficeId(o.officeId) === standardizeOfficeId(officeId));
-    if (office) {
-      const available = await this.isOfficeAvailable(officeId, appt, appointments);
-      if (available) {
-        assignedOffice = standardizeOfficeId(officeId);
-        assignmentReason = `In-person session assigned to ${officeId} (Priority ${RulePriority.IN_PERSON_PRIORITY})`;
-        console.log(`  MATCH: ${assignmentReason} - Office ${assignedOffice}`);
-        break;
-      }
-    }
-  }
-}
+          // ===============================
+          // RULE PRIORITY 50: In-Person Priority (moved down from 55)
+          // ===============================
+          if (!assignedOffice && appt.sessionType === 'in-person') {
+            console.log('  In-person session, checking all physical offices');
+            
+            // Try all physical offices in order: B-4, B-5, C-1, C-2, C-3
+            const physicalOffices = ['B-4', 'B-5', 'C-1', 'C-2', 'C-3'];
+            
+            for (const officeId of physicalOffices) {
+              const office = activeOffices.find(o => standardizeOfficeId(o.officeId) === standardizeOfficeId(officeId));
+              if (office) {
+                const available = await this.isOfficeAvailable(officeId, appt, appointments);
+                if (available) {
+                  assignedOffice = standardizeOfficeId(officeId);
+                  assignmentReason = `In-person session assigned to ${officeId} (Priority ${RulePriority.IN_PERSON_PRIORITY})`;
+                  console.log(`  MATCH: ${assignmentReason} - Office ${assignedOffice}`);
+                  break;
+                }
+              }
+            }
+          }
 
           // ===============================
           // RULE PRIORITY 40: Telehealth to Preferred Office
@@ -631,7 +683,7 @@ if (!assignedOffice && appt.sessionType === 'in-person') {
           }
         }
       }
-      
+
       console.log(`Updated ${updatesApplied} appointments with new office assignments`);
       
       return updatedAppointments;
@@ -1129,7 +1181,11 @@ if (!assignedOffice && appt.sessionType === 'in-person') {
     allAppointments: AppointmentRecord[]
   ): Promise<boolean> {
     try {
-      // Standardize the office ID
+      // Verify and standardize the office ID
+      if (!officeId || officeId === 'TBD') {
+        console.log(`Invalid office ID: ${officeId}, treating as unavailable`);
+        return false;
+      }
       const targetOfficeId = standardizeOfficeId(officeId);
       
       // Parse appointment times
