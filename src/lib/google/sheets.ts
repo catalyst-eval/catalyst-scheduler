@@ -599,13 +599,14 @@ export class GoogleSheetsService implements IGoogleSheetsService {
               appointmentId: row[0] || '',
               clientId: row[1] || '',
               clientName: row[2] || row[1] || '',
-              clinicianId: row[3] || '',
-              clinicianName: row[4] || row[3] || '',
-              sessionType: (row[7] || 'in-person') as 'in-person' | 'telehealth' | 'group' | 'family',
-              startTime: row[8] || '',
-              endTime: row[9] || '',
-              status: (row[10] || 'scheduled') as 'scheduled' | 'completed' | 'cancelled' | 'rescheduled',
-              lastUpdated: row[11] || new Date().toISOString(),
+              clientDateOfBirth: row[3] || '', // Add this line to capture DOB from column D
+  clinicianId: row[4] || '',       // Update index: was 3, now 4
+  clinicianName: row[5] || row[4] || '', // Update index: was 4, now 5
+              sessionType: (row[8] || 'in-person') as 'in-person' | 'telehealth' | 'group' | 'family',
+              startTime: row[9] || '',
+              endTime: row[10] || '',
+              status: (row[11] || 'scheduled') as 'scheduled' | 'completed' | 'cancelled' | 'rescheduled',
+              lastUpdated: row[13] || new Date().toISOString(),
               source: (row[12] || 'manual') as 'intakeq' | 'manual',
               notes: row[14] || ''
             };
@@ -718,6 +719,7 @@ export class GoogleSheetsService implements IGoogleSheetsService {
         normalizedAppointment.appointmentId,
         normalizedAppointment.clientId,
         normalizedAppointment.clientName,
+        normalizedAppointment.clientDateOfBirth || '', 
         normalizedAppointment.clinicianId,
         normalizedAppointment.clinicianName,
         currentOfficeId,                                        // Column F: currentOfficeId (was officeId)
@@ -784,15 +786,16 @@ export class GoogleSheetsService implements IGoogleSheetsService {
               appointmentId: row[0] || '',
               clientId: row[1] || '',
               clientName: row[2] || row[1] || '',
-              clinicianId: row[3] || '',
-              clinicianName: row[4] || row[3] || '',
-              sessionType: (row[6] || 'in-person') as 'in-person' | 'telehealth' | 'group' | 'family',
-              startTime: row[7] || '',
-              endTime: row[8] || '',
-              status: (row[9] || 'scheduled') as 'scheduled' | 'completed' | 'cancelled' | 'rescheduled',
-              lastUpdated: row[10] || new Date().toISOString(),
-              source: (row[11] || 'manual') as 'intakeq' | 'manual',
-              notes: row[13] || ''
+              clientDateOfBirth: row[3] || '', // Add this line to capture DOB from column D
+  clinicianId: row[4] || '',       // Update index: was 3, now 4
+  clinicianName: row[5] || row[4] || '', // Update index: was 4, now 5
+              sessionType: (row[8] || 'in-person') as 'in-person' | 'telehealth' | 'group' | 'family',
+              startTime: row[9] || '',
+              endTime: row[10] || '',
+              status: (row[11] || 'scheduled') as 'scheduled' | 'completed' | 'cancelled' | 'rescheduled',
+              lastUpdated: row[13] || new Date().toISOString(),
+              source: (row[12] || 'manual') as 'intakeq' | 'manual',
+              notes: row[14] || ''
             };
             
             // Handle requirements parsing
@@ -1139,6 +1142,7 @@ export class GoogleSheetsService implements IGoogleSheetsService {
         normalizedAppointment.appointmentId,
         normalizedAppointment.clientId,
         normalizedAppointment.clientName,
+        normalizedAppointment.clientDateOfBirth || '', 
         normalizedAppointment.clinicianId,
         normalizedAppointment.clinicianName,
         currentOfficeId,                                        // Column F: currentOfficeId (was officeId)

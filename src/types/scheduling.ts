@@ -73,6 +73,7 @@ export interface AppointmentRecord {
   appointmentId: string;
   clientId: string;
   clientName: string;
+  clientDateOfBirth: string;
   clinicianId: string;
   clinicianName: string;
   
@@ -108,6 +109,7 @@ export function normalizeAppointmentRecord(record: any): AppointmentRecord {
     appointmentId: record.appointmentId,
     clientId: record.clientId,
     clientName: record.clientName,
+    clientDateOfBirth: record.clientDateOfBirth || '', // Add this line
     clinicianId: record.clinicianId,
     clinicianName: record.clinicianName,
     sessionType: record.sessionType || 'in-person',

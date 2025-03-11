@@ -121,13 +121,12 @@ export class AppointmentSyncHandler {
       // 1. Convert IntakeQ appointment to our AppointmentRecord format
       const appointmentRecord = await this.convertToAppointmentRecord(appointment);
       
-      // 2. Find optimal office assignment
-      const assignedOffice = await this.determineOfficeAssignment(appointment);
-      appointmentRecord.assignedOfficeId = assignedOffice.officeId;
-      appointmentRecord.assignmentReason = assignedOffice.reasons[0];
+      // 2. Set assignedOfficeId to TBD instead of determining office now
+      appointmentRecord.assignedOfficeId = 'TBD';
+      appointmentRecord.assignmentReason = 'To be determined during daily schedule generation';
       
       // Also set currentOfficeId to the same value for new appointments
-      appointmentRecord.currentOfficeId = assignedOffice.officeId;
+      appointmentRecord.currentOfficeId = 'TBD';
       
       // 3. Save appointment to Google Sheets
       await this.sheetsService.addAppointment(appointmentRecord);
@@ -140,16 +139,16 @@ export class AppointmentSyncHandler {
         user: 'SYSTEM',
         systemNotes: JSON.stringify({
           appointmentId: appointment.Id,
-          officeId: assignedOffice.officeId,
+          officeId: 'TBD',
           clientId: appointment.ClientId
         })
       });
-
+  
       return {
         success: true,
         details: {
           appointmentId: appointment.Id,
-          officeId: assignedOffice.officeId,
+          officeId: 'TBD',
           action: 'created'
         }
       };
@@ -159,78 +158,73 @@ export class AppointmentSyncHandler {
     }
   }
 
-  private async handleAppointmentUpdate(
-    appointment: IntakeQAppointment
-  ): Promise<WebhookResponse> {
-    try {
-      console.log('Processing appointment update:', appointment.Id);
-      
-      // 1. Check if appointment exists
-      const existingAppointment = await this.sheetsService.getAppointment(appointment.Id);
-      
-      if (!existingAppointment) {
-        // If appointment doesn't exist, treat it as a new appointment
-        return this.handleNewAppointment(appointment);
-      }
-      
-      // 2. Convert IntakeQ appointment to our AppointmentRecord format
-      const appointmentRecord = await this.convertToAppointmentRecord(appointment);
-      
-      // 3. Determine if office reassignment is needed
-      const currentOfficeId = existingAppointment.currentOfficeId || existingAppointment.officeId || 'TBD';
-      
-      // Keep track of the current office ID (for tracking changes)
-      appointmentRecord.currentOfficeId = currentOfficeId;
-      
-      // Check if time or clinician changed, which would require reassignment
-      const timeChanged = 
-        appointmentRecord.startTime !== existingAppointment.startTime ||
-        appointmentRecord.endTime !== existingAppointment.endTime;
-      
-      const clinicianChanged = 
-        appointmentRecord.clinicianId !== existingAppointment.clinicianId;
-      
-      if (timeChanged || clinicianChanged) {
-        // Determine new office assignment
-        const assignedOffice = await this.determineOfficeAssignment(appointment);
-        
-        // Set new assignedOfficeId and reason
-        appointmentRecord.assignedOfficeId = assignedOffice.officeId;
-        appointmentRecord.assignmentReason = assignedOffice.reasons[0];
-      } else {
-        // Keep the existing assignedOfficeId and reason if no changes
-        appointmentRecord.assignedOfficeId = existingAppointment.assignedOfficeId || existingAppointment.currentOfficeId || existingAppointment.officeId;
-        appointmentRecord.assignmentReason = existingAppointment.assignmentReason || '';
-      }
-      
-      // 4. Update appointment in Google Sheets
-      await this.sheetsService.updateAppointment(appointmentRecord);
-      
-      // 5. Log success
-      await this.sheetsService.addAuditLog({
-        timestamp: new Date().toISOString(),
-        eventType: 'APPOINTMENT_UPDATED' as AuditEventType,
-        description: `Updated appointment ${appointment.Id}`,
-        user: 'SYSTEM',
-        previousValue: JSON.stringify(existingAppointment),
-        newValue: JSON.stringify(appointmentRecord)
-      });
-
-      return {
-        success: true,
-        details: {
-          appointmentId: appointment.Id,
-          currentOfficeId: appointmentRecord.currentOfficeId,
-          assignedOfficeId: appointmentRecord.assignedOfficeId,
-          action: 'updated',
-          officeReassigned: appointmentRecord.assignedOfficeId !== currentOfficeId
-        }
-      };
-    } catch (error) {
-      console.error('Error handling appointment update:', error);
-      throw error;
+  // In appointment-sync.ts, around line 122
+private async handleAppointmentUpdate(
+  appointment: IntakeQAppointment
+): Promise<WebhookResponse> {
+  try {
+    console.log('Processing appointment update:', appointment.Id);
+    
+    // 1. Check if appointment exists
+    const existingAppointment = await this.sheetsService.getAppointment(appointment.Id);
+    
+    if (!existingAppointment) {
+      // If appointment doesn't exist, treat it as a new appointment
+      return this.handleNewAppointment(appointment);
     }
+    
+    // 2. Convert IntakeQ appointment to our AppointmentRecord format
+    const appointmentRecord = await this.convertToAppointmentRecord(appointment);
+    
+    // 3. Preserve the current office ID (for tracking changes)
+    appointmentRecord.currentOfficeId = existingAppointment.currentOfficeId || existingAppointment.officeId || 'TBD';
+    
+    // 4. For updated appointments, mark assignedOfficeId as TBD again to trigger reassignment
+    // during daily schedule generation, but only if time or clinician changed
+    const timeChanged = 
+      appointmentRecord.startTime !== existingAppointment.startTime ||
+      appointmentRecord.endTime !== existingAppointment.endTime;
+    
+    const clinicianChanged = 
+      appointmentRecord.clinicianId !== existingAppointment.clinicianId;
+    
+    if (timeChanged || clinicianChanged) {
+      appointmentRecord.assignedOfficeId = 'TBD';
+      appointmentRecord.assignmentReason = 'To be determined during daily schedule generation (appointment updated)';
+    } else {
+      // If no critical fields changed, keep the existing assignment
+      appointmentRecord.assignedOfficeId = existingAppointment.assignedOfficeId || existingAppointment.currentOfficeId || existingAppointment.officeId || 'TBD';
+      appointmentRecord.assignmentReason = existingAppointment.assignmentReason || '';
+    }
+    
+    // 5. Update appointment in Google Sheets
+    await this.sheetsService.updateAppointment(appointmentRecord);
+    
+    // 6. Log success
+    await this.sheetsService.addAuditLog({
+      timestamp: new Date().toISOString(),
+      eventType: 'APPOINTMENT_UPDATED' as AuditEventType,
+      description: `Updated appointment ${appointment.Id}`,
+      user: 'SYSTEM',
+      previousValue: JSON.stringify(existingAppointment),
+      newValue: JSON.stringify(appointmentRecord)
+    });
+
+    return {
+      success: true,
+      details: {
+        appointmentId: appointment.Id,
+        currentOfficeId: appointmentRecord.currentOfficeId,
+        assignedOfficeId: appointmentRecord.assignedOfficeId,
+        action: 'updated',
+        officeReassigned: timeChanged || clinicianChanged
+      }
+    };
+  } catch (error) {
+    console.error('Error handling appointment update:', error);
+    throw error;
   }
+}
 
   private async handleAppointmentCancellation(
     appointment: IntakeQAppointment
@@ -372,50 +366,52 @@ export class AppointmentSyncHandler {
   /**
    * Convert IntakeQ appointment to our AppointmentRecord format
    */
-  private async convertToAppointmentRecord(
-    appointment: IntakeQAppointment
-  ): Promise<AppointmentRecord> {
-    try {
-      // Sanitize client name and other text fields
-      const safeClientName = this.sanitizeText(appointment.ClientName || '');
-      const safePractitionerName = this.sanitizeText(appointment.PractitionerName || '');
-      const safeServiceName = this.sanitizeText(appointment.ServiceName || '');
-      
-      // Get all clinicians to find the matching one
-      const clinicians = await this.sheetsService.getClinicians();
-      
-      // Find clinician by IntakeQ practitioner ID
-      const clinician = clinicians.find(
-        c => c.intakeQPractitionerId === appointment.PractitionerId
-      );
-      
-      // Convert the appointment to our format with updated field names
-      const appointmentRecord: AppointmentRecord = normalizeAppointmentRecord({
-        appointmentId: appointment.Id,
-        clientId: appointment.ClientId.toString(),
-        clientName: safeClientName,
-        clinicianId: clinician?.clinicianId || appointment.PractitionerId,
-        clinicianName: clinician?.name || safePractitionerName,
-        currentOfficeId: 'TBD', // Will be set by office assignment
-        assignedOfficeId: 'TBD', // Will be set by office assignment
-        assignmentReason: '',    // Will be set by office assignment
-        sessionType: this.determineSessionType(appointment),
-        startTime: appointment.StartDateIso,
-        endTime: appointment.EndDateIso,
-        status: this.mapIntakeQStatus(appointment.Status || ''),
-        lastUpdated: new Date().toISOString(),
-        source: 'intakeq',
-        requirements: await this.determineRequirements(appointment),
-        notes: `Service: ${safeServiceName}`
-      });
-      
-      return appointmentRecord;
-    } catch (error: unknown) {
-      console.error('Error converting appointment:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      throw new Error(`Failed to convert appointment: ${errorMessage}`);
-    }
+  // In appointment-sync.ts, around line 247, in the convertToAppointmentRecord method:
+private async convertToAppointmentRecord(
+  appointment: IntakeQAppointment
+): Promise<AppointmentRecord> {
+  try {
+    // Sanitize client name and other text fields
+    const safeClientName = this.sanitizeText(appointment.ClientName || '');
+    const safePractitionerName = this.sanitizeText(appointment.PractitionerName || '');
+    const safeServiceName = this.sanitizeText(appointment.ServiceName || '');
+    
+    // Get all clinicians to find the matching one
+    const clinicians = await this.sheetsService.getClinicians();
+    
+    // Find clinician by IntakeQ practitioner ID
+    const clinician = clinicians.find(
+      c => c.intakeQPractitionerId === appointment.PractitionerId
+    );
+    
+    // Determine requirements
+    const requirements = await this.determineRequirements(appointment);
+    
+    // Convert the appointment to our format with updated field names
+    const appointmentRecord: AppointmentRecord = normalizeAppointmentRecord({
+      appointmentId: appointment.Id,
+      clientId: appointment.ClientId.toString(),
+      clientName: safeClientName,
+      clientDateOfBirth: appointment.ClientDateOfBirth || '',
+      clinicianId: clinician?.clinicianId || appointment.PractitionerId,
+      clinicianName: clinician?.name || safePractitionerName,
+      sessionType: this.determineSessionType(appointment),
+      startTime: appointment.StartDateIso,
+      endTime: appointment.EndDateIso,
+      status: this.mapIntakeQStatus(appointment.Status || ''),
+      lastUpdated: new Date().toISOString(),
+      source: 'intakeq',
+      requirements: requirements,
+      notes: `Service: ${safeServiceName}`
+    });
+    
+    return appointmentRecord;
+  } catch (error: unknown) {
+    console.error('Error converting appointment:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    throw new Error(`Failed to convert appointment: ${errorMessage}`);
   }
+}
   
   // Add this helper method after the convertToAppointmentRecord method
   private sanitizeText(text: string): string {
@@ -596,6 +592,29 @@ export class AppointmentSyncHandler {
       // Convert to AppointmentRecord for office availability checks
       const appointmentRecord = await this.convertToAppointmentRecord(appointment);
       
+      // Enhanced age determination logic - use the ClientDateOfBirth directly from the appointment
+      let clientAge = null;
+      try {
+        if (appointment.ClientDateOfBirth) {
+          const birthDate = new Date(appointment.ClientDateOfBirth);
+          const today = new Date();
+          clientAge = today.getFullYear() - birthDate.getFullYear();
+          
+          // Adjust for birth date not yet occurred this year
+          const monthDiff = today.getMonth() - birthDate.getMonth();
+          if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+            clientAge--;
+          }
+          
+          console.log(`Client age determined from birth date (${appointment.ClientDateOfBirth}): ${clientAge} years old`);
+        } else {
+          console.log('No client birth date available, age-based rules will be skipped');
+        }
+      } catch (error) {
+        console.error('Error calculating client age:', error);
+        console.log('Age-based rules will be skipped due to calculation error');
+      }
+      
       // RULE PRIORITY 100: Client Specific Requirement
       // From Client_Accessibility_Info tab accessibilityNotes field or requiredOffice
       console.log("Checking PRIORITY 100: Client Specific Requirement");
@@ -657,19 +676,7 @@ export class AppointmentSyncHandler {
       // RULE PRIORITY 80: Young Children
       console.log("Checking PRIORITY 80: Young Children");
       try {
-        // Try to determine age from client date of birth
-        let clientAge = null;
-        if (appointment.ClientDateOfBirth) {
-          const birthDate = new Date(appointment.ClientDateOfBirth);
-          const today = new Date();
-          clientAge = today.getFullYear() - birthDate.getFullYear();
-          
-          // Adjust for birth date not yet occurred this year
-          const monthDiff = today.getMonth() - birthDate.getMonth();
-          if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-            clientAge--;
-          }
-        }
+        console.log(`Checking young children rule with client age: ${clientAge}`);
         
         console.log(`Client age determined as: ${clientAge}`);
         
@@ -714,18 +721,7 @@ export class AppointmentSyncHandler {
       console.log("Checking PRIORITY 75: Older Children and Teens");
       try {
         // Try to determine age from client date of birth
-        let clientAge = null;
-        if (appointment.ClientDateOfBirth) {
-          const birthDate = new Date(appointment.ClientDateOfBirth);
-          const today = new Date();
-          clientAge = today.getFullYear() - birthDate.getFullYear();
-          
-          // Adjust for birth date not yet occurred this year
-          const monthDiff = today.getMonth() - birthDate.getMonth();
-          if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-            clientAge--;
-          }
-        }
+        console.log(`Checking young children rule with client age: ${clientAge}`);
         
         if (clientAge !== null && clientAge >= 11 && clientAge <= 17) {
           console.log(`Client is 11-17, checking C-1 availability first`);
@@ -803,18 +799,7 @@ export class AppointmentSyncHandler {
       console.log("Checking PRIORITY 55: Adult Client Assignments");
       try {
         // Try to determine age from client date of birth
-        let clientAge = null;
-        if (appointment.ClientDateOfBirth) {
-          const birthDate = new Date(appointment.ClientDateOfBirth);
-          const today = new Date();
-          clientAge = today.getFullYear() - birthDate.getFullYear();
-          
-          // Adjust for birth date not yet occurred this year
-          const monthDiff = today.getMonth() - birthDate.getMonth();
-          if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-            clientAge--;
-          }
-        }
+        console.log(`Checking young children rule with client age: ${clientAge}`);
         
         if (clientAge !== null && clientAge >= 18) {
           console.log(`Client is adult (${clientAge} years old), checking primary adult offices`);
