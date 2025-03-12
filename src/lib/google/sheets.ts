@@ -612,36 +612,37 @@ export class GoogleSheetsService implements IGoogleSheetsService {
             };
             
             // Handle requirements parsing
-            try {
-              const requirementsStr = row[12]?.toString().trim();
-              if (requirementsStr) {
-                // Check if the string starts with "Service:" - if so, it's not JSON
-                if (requirementsStr.startsWith('Service:')) {
-                  appointment.requirements = { accessibility: false, specialFeatures: [] };
-                  // Move the service info to notes if it's in the wrong column
-                  appointment.notes = requirementsStr;
-                } else {
-                  // Try to parse as JSON with error handling
-                  try {
-                    const cleanJson = requirementsStr
-                      .replace(/[\u0000-\u0019]+/g, '')
-                      .replace(/\s+/g, ' ')
-                      .trim();
-                    appointment.requirements = JSON.parse(cleanJson);
-                  } catch (error) {
-                    // Properly handle unknown error type
-                    const jsonError = error instanceof Error ? error.message : 'Unknown JSON parsing error';
-                    console.warn(`Error parsing requirements JSON, defaulting to empty: ${jsonError}`);
-                    appointment.requirements = { accessibility: false, specialFeatures: [] };
-                  }
-                }
-              } else {
-                appointment.requirements = { accessibility: false, specialFeatures: [] };
-              }
-            } catch (err) {
-              console.error('Error parsing requirements JSON:', err, {value: row[12]});
-              appointment.requirements = { accessibility: false, specialFeatures: [] };
-            }
+            // Handle requirements parsing
+try {
+  const requirementsStr = row[12]?.toString().trim();
+  if (requirementsStr) {
+    // Check if the string starts with "Service:" - if so, it's not JSON
+    if (requirementsStr.startsWith('Service:')) {
+      appointment.requirements = { accessibility: false, specialFeatures: [] };
+      // Move the service info to notes if it's in the wrong column
+      appointment.notes = requirementsStr;
+    } else {
+      // Try to parse as JSON with error handling
+      try {
+        const cleanJson = requirementsStr
+          .replace(/[\u0000-\u0019]+/g, '')
+          .replace(/\s+/g, ' ')
+          .trim();
+        appointment.requirements = JSON.parse(cleanJson);
+      } catch (error) {
+        // Properly handle unknown error type
+        const jsonError = error instanceof Error ? error.message : 'Unknown JSON parsing error';
+        console.warn(`Error parsing requirements JSON, defaulting to empty: ${jsonError}`);
+        appointment.requirements = { accessibility: false, specialFeatures: [] };
+      }
+    }
+  } else {
+    appointment.requirements = { accessibility: false, specialFeatures: [] };
+  }
+} catch (err) {
+  console.error('Error parsing requirements JSON:', err, {value: row[12]});
+  appointment.requirements = { accessibility: false, specialFeatures: [] };
+}
             
             // Handle office IDs - NEW FIELD NAMES
             // Column 5 (index 5) = currentOfficeId (previously officeId)
@@ -814,36 +815,37 @@ export class GoogleSheetsService implements IGoogleSheetsService {
             };
             
             // Handle requirements parsing
-            try {
-              const requirementsStr = row[12]?.toString().trim();
-              if (requirementsStr) {
-                // Check if the string starts with "Service:" - if so, it's not JSON
-                if (requirementsStr.startsWith('Service:')) {
-                  appointment.requirements = { accessibility: false, specialFeatures: [] };
-                  // Move the service info to notes if it's in the wrong column
-                  appointment.notes = requirementsStr;
-                } else {
-                  // Try to parse as JSON with error handling
-                  try {
-                    const cleanJson = requirementsStr
-                      .replace(/[\u0000-\u0019]+/g, '')
-                      .replace(/\s+/g, ' ')
-                      .trim();
-                    appointment.requirements = JSON.parse(cleanJson);
-                  } catch (error) {
-                    // Properly handle unknown error type
-                    const jsonError = error instanceof Error ? error.message : 'Unknown JSON parsing error';
-                    console.warn(`Error parsing requirements JSON, defaulting to empty: ${jsonError}`);
-                    appointment.requirements = { accessibility: false, specialFeatures: [] };
-                  }
-                }
-              } else {
-                appointment.requirements = { accessibility: false, specialFeatures: [] };
-              }
-            } catch (err) {
-              console.error('Error parsing requirements JSON:', err, {value: row[12]});
-              appointment.requirements = { accessibility: false, specialFeatures: [] };
-            }
+            // Handle requirements parsing
+try {
+  const requirementsStr = row[12]?.toString().trim();
+  if (requirementsStr) {
+    // Check if the string starts with "Service:" - if so, it's not JSON
+    if (requirementsStr.startsWith('Service:')) {
+      appointment.requirements = { accessibility: false, specialFeatures: [] };
+      // Move the service info to notes if it's in the wrong column
+      appointment.notes = requirementsStr;
+    } else {
+      // Try to parse as JSON with error handling
+      try {
+        const cleanJson = requirementsStr
+          .replace(/[\u0000-\u0019]+/g, '')
+          .replace(/\s+/g, ' ')
+          .trim();
+        appointment.requirements = JSON.parse(cleanJson);
+      } catch (error) {
+        // Properly handle unknown error type
+        const jsonError = error instanceof Error ? error.message : 'Unknown JSON parsing error';
+        console.warn(`Error parsing requirements JSON, defaulting to empty: ${jsonError}`);
+        appointment.requirements = { accessibility: false, specialFeatures: [] };
+      }
+    }
+  } else {
+    appointment.requirements = { accessibility: false, specialFeatures: [] };
+  }
+} catch (err) {
+  console.error('Error parsing requirements JSON:', err, {value: row[12]});
+  appointment.requirements = { accessibility: false, specialFeatures: [] };
+}
             
             // Handle both old and new office ID fields
             // Column 5 (index 5) = currentOfficeId (previously officeId)
@@ -1190,7 +1192,7 @@ export class GoogleSheetsService implements IGoogleSheetsService {
   
       await this.sheets.spreadsheets.values.update({
         spreadsheetId: this.spreadsheetId,
-        range: `${SHEET_NAMES.APPOINTMENTS}!A${appointmentRow + 1}:P${appointmentRow + 1}`,
+        range: `${SHEET_NAMES.APPOINTMENTS}!A${appointmentRow + 1}:Q${appointmentRow + 1}`,
         valueInputOption: 'RAW',
         requestBody: {
           values: [rowData]
@@ -1206,7 +1208,7 @@ export class GoogleSheetsService implements IGoogleSheetsService {
         newValue: JSON.stringify(rowData)
       });
   
-      await this.refreshCache(`${SHEET_NAMES.APPOINTMENTS}!A2:P`);
+      await this.refreshCache(`${SHEET_NAMES.APPOINTMENTS}!A2:Q`);
     } catch (error) {
       console.error('Error updating appointment:', error);
       throw new Error('Failed to update appointment');
@@ -1218,7 +1220,7 @@ export class GoogleSheetsService implements IGoogleSheetsService {
    */
   async getAppointment(appointmentId: string): Promise<AppointmentRecord | null> {
     try {
-      const values = await this.readSheet(`${SHEET_NAMES.APPOINTMENTS}!A2:P`);
+      const values = await this.readSheet(`${SHEET_NAMES.APPOINTMENTS}!A2:Q`);
       if (!values) return null;
   
       const appointmentRow = values.find((row: SheetRow) => row[0] === appointmentId);
@@ -1279,10 +1281,10 @@ export class GoogleSheetsService implements IGoogleSheetsService {
 
       await this.sheets.spreadsheets.values.clear({
         spreadsheetId: this.spreadsheetId,
-        range: `${SHEET_NAMES.APPOINTMENTS}!A${appointmentRow + 1}:P${appointmentRow + 1}`
+        range: `${SHEET_NAMES.APPOINTMENTS}!A${appointmentRow + 1}:Q${appointmentRow + 1}`
       });
 
-      await this.refreshCache(`${SHEET_NAMES.APPOINTMENTS}!A2:P`);
+      await this.refreshCache(`${SHEET_NAMES.APPOINTMENTS}!A2:Q`);
       
       await this.addAuditLog({
         timestamp: new Date().toISOString(),

@@ -94,9 +94,17 @@ export class DailyScheduleService {
       const { start, end } = getESTDayRange(date);
       console.log(`Date range in EST: ${start} to ${end}`);
       
-      // 2. Get all appointments for the date
+      // For debugging, explicitly log how we're querying for appointments
+      console.log(`Searching for appointments between ${new Date(start).toISOString()} and ${new Date(end).toISOString()}`);
+      
+      // 2. Get all appointments for the date with extra debug logging
       let appointments = await this.sheetsService.getAppointments(start, end);
       console.log(`Found ${appointments.length} appointments for ${date}`);
+      
+      // Log each appointment found to help debug
+      appointments.forEach(appt => {
+        console.log(`Found appointment: ${appt.appointmentId}, time: ${appt.startTime}, client: ${appt.clientName}`);
+      });
       
       // 3. Get all offices for reference
       const offices = await this.sheetsService.getOffices();

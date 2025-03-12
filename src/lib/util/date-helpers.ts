@@ -48,23 +48,33 @@ export function toEST(date: string | Date): Date {
 /**
  * Format a date for display in Eastern Time
  */
-export function formatESTTime(isoTime: string): string {
+export function formatESTTime(isoDateString: string): string {
   try {
-    // Parse the input date
-    const date = new Date(isoTime);
+    // Ensure we're working with a valid date string
+    if (!isoDateString || typeof isoDateString !== 'string') {
+      console.error('Invalid date string provided to formatESTTime:', isoDateString);
+      return 'Invalid Date';
+    }
     
-    // Format in eastern time
-    const options = { 
+    // Parse the ISO date string and convert to EST
+    const date = new Date(isoDateString);
+    
+    // Check if date is valid
+    if (isNaN(date.getTime())) {
+      console.error('Invalid date created from string:', isoDateString);
+      return 'Invalid Date';
+    }
+    
+    // Convert to EST time
+    return date.toLocaleTimeString('en-US', { 
       timeZone: 'America/New_York',
-      hour: 'numeric' as const, 
-      minute: '2-digit' as const,
+      hour: 'numeric', 
+      minute: '2-digit', 
       hour12: true 
-    };
-    
-    return date.toLocaleTimeString('en-US', options);
+    });
   } catch (error) {
-    console.error('Error formatting EST time:', error);
-    return 'Invalid Time';
+    console.error('Error formatting EST time:', error, { input: isoDateString });
+    return 'Invalid Date';
   }
 }
 

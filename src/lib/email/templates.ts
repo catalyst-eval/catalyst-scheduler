@@ -1,6 +1,7 @@
 // src/lib/email/templates.ts
 
 import { DailyScheduleData, ScheduleConflict, ProcessedAppointment } from '../scheduling/daily-schedule-service';
+import { formatESTTime } from '../util/date-helpers'; // Import the date formatter
 
 export interface EmailTemplate {
   subject: string;
@@ -15,8 +16,11 @@ export class EmailTemplates {
   static dailySchedule(data: DailyScheduleData): EmailTemplate {
     const { displayDate, appointments, conflicts, stats } = data;
     
+    // Process appointments to ensure formatted dates
+    const processedAppointments = this.ensureFormattedDates(appointments);
+    
     // Sort clinicians by last name
-    const clinicianGroups = this.groupAppointmentsByClinicianLastName(appointments);
+    const clinicianGroups = this.groupAppointmentsByClinicianLastName(processedAppointments);
     
     // Generate the HTML email
     const htmlBody = `
@@ -186,6 +190,54 @@ export class EmailTemplates {
   }
   
   /**
+   * Ensure all appointments have properly formatted date strings
+   */
+  private static ensureFormattedDates(appointments: ProcessedAppointment[]): ProcessedAppointment[] {
+    return appointments.map(appt => {
+      // If formattedTime is not already set, create it from start and end times
+      if (!appt.formattedTime || appt.formattedTime.includes('Invalid Date') || appt.formattedTime.includes('undefined')) {
+        const startFormatted = this.formatTimeString(appt.startTime);
+        const endFormatted = this.formatTimeString(appt.endTime);
+        return {
+          ...appt,
+          formattedTime: `${startFormatted} - ${endFormatted}`
+        };
+      }
+      return appt;
+    });
+  }
+  
+  /**
+   * Format time string with proper error handling
+   */
+  private static formatTimeString(dateString: string): string {
+    try {
+      if (!dateString) return 'TBD';
+      
+      // Try to format using the formatESTTime utility
+      const formatted = formatESTTime(dateString);
+      if (formatted === 'Invalid Date') {
+        // Fallback to basic formatting
+        const date = new Date(dateString);
+        if (isNaN(date.getTime())) {
+          console.warn(`Unable to parse date: ${dateString}`);
+          return 'TBD';
+        }
+        
+        return date.toLocaleTimeString('en-US', { 
+          hour: 'numeric', 
+          minute: '2-digit', 
+          hour12: true 
+        });
+      }
+      return formatted;
+    } catch (error) {
+      console.error('Error formatting time string:', error, { input: dateString });
+      return 'TBD';
+    }
+  }
+  
+  /**
    * Group appointments by clinician's last name
    */
   private static groupAppointmentsByClinicianLastName(
@@ -210,9 +262,18 @@ export class EmailTemplates {
         
         return {
           clinicianName,
-          appointments: appointments.sort((a, b) => 
-            new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
-          ),
+          appointments: appointments.sort((a, b) => {
+            // Safely sort by time, handling potential invalid dates
+            try {
+              const timeA = new Date(a.startTime).getTime();
+              const timeB = new Date(b.startTime).getTime();
+              if (isNaN(timeA) || isNaN(timeB)) return 0;
+              return timeA - timeB;
+            } catch (error) {
+              console.error('Error sorting appointments by time:', error);
+              return 0;
+            }
+          }),
           lastName
         };
       });
@@ -283,6 +344,11 @@ export class EmailTemplates {
    * Generate HTML for an appointment row with enhanced office information
    */
   private static renderAppointmentRow(appt: ProcessedAppointment): string {
+    // Ensure formatted time is valid
+    const formattedTime = appt.formattedTime && !appt.formattedTime.includes('Invalid Date') ? 
+      appt.formattedTime : 
+      this.formatTimeString(appt.startTime) + ' - ' + this.formatTimeString(appt.endTime);
+    
     // Display special requirements if any
     const requirementsHtml = appt.hasSpecialRequirements 
       ? `<div class="special-requirements">
@@ -316,7 +382,7 @@ export class EmailTemplates {
     
     return `
       <tr>
-        <td>${appt.formattedTime}</td>
+        <td>${formattedTime}</td>
         <td>${appt.clientName}${requirementsHtml}</td>
         <td${officeClass}>${appt.officeDisplay}${officeChangeHtml}${assignmentReasonHtml}</td>
         <td${sessionTypeClass}>${this.formatSessionType(appt.sessionType)}</td>
@@ -356,76 +422,76 @@ export class EmailTemplates {
     // Appointments section
     text += `APPOINTMENTS\n\n`;
     
-    clinicianGroups.forEach(group => {
-      text += `${group.clinicianName}\n`;
-      text += `${'-'.repeat(group.clinicianName.length)}\n`;
-      
-      // Add clinician-specific conflicts
-      const clinicianConflicts = data.conflictsByClinicianMap?.[group.clinicianName] || [];
-      if (clinicianConflicts.length > 0) {
-        text += `\nScheduling Notes:\n`;
-        clinicianConflicts.forEach(conflict => {
-          text += `* ${conflict.description}\n`;
-          if (conflict.resolutionSuggestion) {
-            text += `  - ${conflict.resolutionSuggestion}\n`;
+    if (clinicianGroups.length === 0) {
+      text += `No appointments scheduled for today.\n\n`;
+    } else {
+      clinicianGroups.forEach(group => {
+        text += `**${group.clinicianName}**\n`;
+        
+        // Add clinician-specific conflicts
+        const clinicianConflicts = data.conflictsByClinicianMap?.[group.clinicianName] || [];
+        if (clinicianConflicts.length > 0) {
+          text += `\nScheduling Notes:\n`;
+          clinicianConflicts.forEach(conflict => {
+            text += `* ${conflict.description}\n`;
+            if (conflict.resolutionSuggestion) {
+              text += `  - ${conflict.resolutionSuggestion}\n`;
+            }
+          });
+          text += `\n`;
+        }
+        
+        group.appointments.forEach(appt => {
+          // Ensure formatted time is valid
+          const formattedTime = appt.formattedTime && !appt.formattedTime.includes('Invalid Date') ? 
+            appt.formattedTime : 
+            this.formatTimeString(appt.startTime) + ' - ' + this.formatTimeString(appt.endTime);
+            
+          text += `${formattedTime} | ${appt.clientName} | ${appt.officeDisplay}`;
+          
+          if (appt.requiresOfficeChange) {
+            text += ` (OFFICE CHANGE from ${appt.previousOffice})`;
           }
+          
+          text += ` | ${this.formatSessionType(appt.sessionType)}\n`;
+          
+          if (appt.assignmentReason) {
+            text += `ℹ️ ${appt.assignmentReason}\n`;
+          }
+          
+          if (appt.hasSpecialRequirements) {
+            if (appt.requirements?.accessibility) {
+              text += `  * Accessibility needed\n`;
+            }
+            if (appt.requirements?.specialFeatures?.length) {
+              text += `  * Special features: ${appt.requirements.specialFeatures.join(', ')}\n`;
+            }
+            if (appt.notes) {
+              text += `  * Notes: ${appt.notes}\n`;
+            }
+          }
+          
+          text += `\n`;
         });
+        
         text += `\n`;
-      }
-      
-      text += `Time | Client | Office | Type\n`;
-      text += `${'-'.repeat(60)}\n`;
-      
-      group.appointments.forEach(appt => {
-        let appText = `${appt.formattedTime} | ${appt.clientName} | ${appt.officeDisplay}`;
-        
-        if (appt.requiresOfficeChange) {
-          appText += ` (OFFICE CHANGE from ${appt.previousOffice})`;
-        }
-        
-        appText += ` | ${this.formatSessionType(appt.sessionType)}\n`;
-        
-        if (appt.assignmentReason) {
-          appText += `  * Office assignment: ${appt.assignmentReason}\n`;
-        }
-        
-        if (appt.hasSpecialRequirements) {
-          if (appt.requirements?.accessibility) {
-            appText += `  * Accessibility needed\n`;
-          }
-          if (appt.requirements?.specialFeatures?.length) {
-            appText += `  * Special features: ${appt.requirements.specialFeatures.join(', ')}\n`;
-          }
-          if (appt.notes) {
-            appText += `  * Notes: ${appt.notes}\n`;
-          }
-        }
-        
-        text += appText;
       });
-      
-      text += `\n`;
-    });
+    }
     
     // Summary section
     text += `SCHEDULE OVERVIEW\n\n`;
     text += `Summary\n`;
-    text += `Total appointments: ${stats.totalAppointments}\n`;
-    text += `In-person sessions: ${stats.inPersonCount}\n`;
-    text += `Telehealth sessions: ${stats.telehealthCount}\n`;
-    text += `Group sessions: ${stats.groupCount}\n`;
-    text += `Family sessions: ${stats.familyCount}\n\n`;
+    text += `Total appointments: **${stats.totalAppointments}**\n`;
+    text += `* In-person sessions: ${stats.inPersonCount}\n`;
+    text += `* Telehealth sessions: ${stats.telehealthCount}\n`;
+    text += `* Group sessions: ${stats.groupCount}\n`;
+    text += `* Family sessions: ${stats.familyCount}\n\n`;
     
     // Office utilization
     text += `Office Utilization\n`;
     Object.entries(stats.officeUtilization).forEach(([officeId, count]) => {
-      text += `Office ${officeId}: ${count} appointment(s)\n`;
+      text += `* Office ${officeId}: ${count} appointment(s)\n`;
     });
-    text += `\n`;
-    
-    // Footer
-    text += `\nThis report was automatically generated by Catalyst Scheduler on ${new Date().toLocaleString()}\n`;
-    text += `For questions or issues, please contact your administrator.\n`;
     
     return text;
   }

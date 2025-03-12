@@ -121,14 +121,17 @@ export class AppointmentSyncHandler {
       // 1. Convert IntakeQ appointment to our AppointmentRecord format
       const appointmentRecord = await this.convertToAppointmentRecord(appointment);
       
-      // 2. Set assignedOfficeId to TBD instead of determining office now
+      // 2. IMPORTANT: Set assignedOfficeId to TBD, do NOT call determineOfficeAssignment
       appointmentRecord.assignedOfficeId = 'TBD';
       appointmentRecord.assignmentReason = 'To be determined during daily schedule generation';
-      
-      // Also set currentOfficeId to the same value for new appointments
       appointmentRecord.currentOfficeId = 'TBD';
       
-      // 3. Save appointment to Google Sheets
+      // Make sure requirements is a proper JSON object, not a string
+      if (!appointmentRecord.requirements) {
+        appointmentRecord.requirements = { accessibility: false, specialFeatures: [] };
+      }
+      
+      // 3. Save appointment to Google Sheets with properly formatted data
       await this.sheetsService.addAppointment(appointmentRecord);
       
       // 4. Log success
@@ -367,51 +370,55 @@ private async handleAppointmentUpdate(
    * Convert IntakeQ appointment to our AppointmentRecord format
    */
   // In appointment-sync.ts, around line 247, in the convertToAppointmentRecord method:
-private async convertToAppointmentRecord(
-  appointment: IntakeQAppointment
-): Promise<AppointmentRecord> {
-  try {
-    // Sanitize client name and other text fields
-    const safeClientName = this.sanitizeText(appointment.ClientName || '');
-    const safePractitionerName = this.sanitizeText(appointment.PractitionerName || '');
-    const safeServiceName = this.sanitizeText(appointment.ServiceName || '');
-    
-    // Get all clinicians to find the matching one
-    const clinicians = await this.sheetsService.getClinicians();
-    
-    // Find clinician by IntakeQ practitioner ID
-    const clinician = clinicians.find(
-      c => c.intakeQPractitionerId === appointment.PractitionerId
-    );
-    
-    // Determine requirements
-    const requirements = await this.determineRequirements(appointment);
-    
-    // Convert the appointment to our format with updated field names
-    const appointmentRecord: AppointmentRecord = normalizeAppointmentRecord({
-      appointmentId: appointment.Id,
-      clientId: appointment.ClientId.toString(),
-      clientName: safeClientName,
-      clientDateOfBirth: appointment.ClientDateOfBirth || '',
-      clinicianId: clinician?.clinicianId || appointment.PractitionerId,
-      clinicianName: clinician?.name || safePractitionerName,
-      sessionType: this.determineSessionType(appointment),
-      startTime: appointment.StartDateIso,
-      endTime: appointment.EndDateIso,
-      status: this.mapIntakeQStatus(appointment.Status || ''),
-      lastUpdated: new Date().toISOString(),
-      source: 'intakeq',
-      requirements: requirements,
-      notes: `Service: ${safeServiceName}`
-    });
-    
-    return appointmentRecord;
-  } catch (error: unknown) {
-    console.error('Error converting appointment:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    throw new Error(`Failed to convert appointment: ${errorMessage}`);
+  private async convertToAppointmentRecord(
+    appointment: IntakeQAppointment
+  ): Promise<AppointmentRecord> {
+    try {
+      // Sanitize client name and other text fields
+      const safeClientName = this.sanitizeText(appointment.ClientName || '');
+      const safePractitionerName = this.sanitizeText(appointment.PractitionerName || '');
+      const safeServiceName = this.sanitizeText(appointment.ServiceName || '');
+      
+      // Get all clinicians to find the matching one
+      const clinicians = await this.sheetsService.getClinicians();
+      
+      // Find clinician by IntakeQ practitioner ID
+      const clinician = clinicians.find(
+        c => c.intakeQPractitionerId === appointment.PractitionerId
+      );
+      
+      // Determine session type
+      const sessionType = this.determineSessionType(appointment);
+      
+      // Get requirements - ensure it's a proper object with defined fields
+      const requirements = await this.determineRequirements(appointment) || 
+                            { accessibility: false, specialFeatures: [] };
+      
+      // Convert the appointment to our format
+      const appointmentRecord: AppointmentRecord = normalizeAppointmentRecord({
+        appointmentId: appointment.Id,
+        clientId: appointment.ClientId.toString(),
+        clientName: safeClientName,
+        clientDateOfBirth: appointment.ClientDateOfBirth || '',
+        clinicianId: clinician?.clinicianId || appointment.PractitionerId,
+        clinicianName: clinician?.name || safePractitionerName,
+        sessionType: sessionType,
+        startTime: appointment.StartDateIso,
+        endTime: appointment.EndDateIso,
+        status: this.mapIntakeQStatus(appointment.Status || ''),
+        lastUpdated: new Date().toISOString(),
+        source: 'intakeq',
+        requirements: requirements,
+        notes: `Service: ${safeServiceName}`
+      });
+      
+      return appointmentRecord;
+    } catch (error: unknown) {
+      console.error('Error converting appointment:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      throw new Error(`Failed to convert appointment: ${errorMessage}`);
+    }
   }
-}
   
   // Add this helper method after the convertToAppointmentRecord method
   private sanitizeText(text: string): string {
