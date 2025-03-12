@@ -36,132 +36,135 @@ export class AppointmentSyncHandler {
   ) {}
 
   /**
-   * Process appointment webhook events
-   */
-  async processAppointmentEvent(
-    payload: IntakeQWebhookPayload
-  ): Promise<WebhookResponse> {
-    if (!payload.Appointment) {
-      return { 
-        success: false, 
-        error: 'Missing appointment data',
-        retryable: false 
-      };
-    }
-  
-    try {
-      // Log webhook receipt
-      await this.sheetsService.addAuditLog({
-        timestamp: new Date().toISOString(),
-        eventType: 'WEBHOOK_RECEIVED', // Use string directly instead of AuditEventType
-        description: `Received ${payload.Type || payload.EventType} webhook`,
-        user: 'INTAKEQ_WEBHOOK',
-        systemNotes: JSON.stringify({
-          appointmentId: payload.Appointment.Id,
-          type: payload.Type || payload.EventType,
-          clientId: payload.ClientId
-        })
-      });
-  
-      const eventType = payload.Type || payload.EventType;
-        
-      // Handle appointment events based on type
-      if (eventType?.includes('Created')) {
-        // For created events
-        return await this.handleNewAppointment(payload.Appointment);
-      } 
-      else if (eventType?.includes('Updated') || 
-               eventType?.includes('Rescheduled') || 
-               eventType?.includes('Confirmed')) {
-        // For update, reschedule, and confirm events
-        return await this.handleAppointmentUpdate(payload.Appointment);
-      }
-      else if (eventType?.includes('Cancelled') || eventType?.includes('Canceled')) {
-        // For cancellation events
-        return await this.handleAppointmentCancellation(payload.Appointment);
-      }
-      else if (eventType?.includes('Deleted')) {
-        // Handle deletion events
-        return await this.handleAppointmentDeletion(payload.Appointment);
-      }
-      else {
-        // Unsupported event type
-        return {
-          success: false,
-          error: `Unsupported event type: ${eventType}`,
-          retryable: false
-        };
-      }
-    } catch (error) {
-      console.error('Appointment processing error:', error);
+ * Process appointment webhook events
+ * UPDATED: Now defers office assignment for new appointments
+ */
+async processAppointmentEvent(
+  payload: IntakeQWebhookPayload
+): Promise<WebhookResponse> {
+  if (!payload.Appointment) {
+    return { 
+      success: false, 
+      error: 'Missing appointment data',
+      retryable: false 
+    };
+  }
+
+  try {
+    // Log webhook receipt
+    await this.sheetsService.addAuditLog({
+      timestamp: new Date().toISOString(),
+      eventType: 'WEBHOOK_RECEIVED', // Use string directly instead of AuditEventType
+      description: `Received ${payload.Type || payload.EventType} webhook`,
+      user: 'INTAKEQ_WEBHOOK',
+      systemNotes: JSON.stringify({
+        appointmentId: payload.Appointment.Id,
+        type: payload.Type || payload.EventType,
+        clientId: payload.ClientId
+      })
+    });
+
+    const eventType = payload.Type || payload.EventType;
       
-      // Log the error
-      await this.sheetsService.addAuditLog({
-        timestamp: new Date().toISOString(),
-        eventType: 'SYSTEM_ERROR', // Use string directly
-        description: `Error processing appointment ${payload.Appointment.Id}`,
-        user: 'SYSTEM',
-        systemNotes: error instanceof Error ? error.message : 'Unknown error'
-      });
-  
+    // Handle appointment events based on type
+    if (eventType?.includes('Created')) {
+      // For created events
+      return await this.handleNewAppointment(payload.Appointment);
+    } 
+    else if (eventType?.includes('Updated') || 
+             eventType?.includes('Rescheduled') || 
+             eventType?.includes('Confirmed')) {
+      // For update, reschedule, and confirm events
+      return await this.handleAppointmentUpdate(payload.Appointment);
+    }
+    else if (eventType?.includes('Cancelled') || eventType?.includes('Canceled')) {
+      // For cancellation events
+      return await this.handleAppointmentCancellation(payload.Appointment);
+    }
+    else if (eventType?.includes('Deleted')) {
+      // Handle deletion events
+      return await this.handleAppointmentDeletion(payload.Appointment);
+    }
+    else {
+      // Unsupported event type
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
-        retryable: true
+        error: `Unsupported event type: ${eventType}`,
+        retryable: false
       };
     }
-  }
+  } catch (error) {
+    console.error('Appointment processing error:', error);
+    
+    // Log the error
+    await this.sheetsService.addAuditLog({
+      timestamp: new Date().toISOString(),
+      eventType: 'SYSTEM_ERROR', // Use string directly
+      description: `Error processing appointment ${payload.Appointment.Id}`,
+      user: 'SYSTEM',
+      systemNotes: error instanceof Error ? error.message : 'Unknown error'
+    });
 
-  private async handleNewAppointment(
-    appointment: IntakeQAppointment
-  ): Promise<WebhookResponse> {
-    try {
-      console.log('Processing new appointment:', appointment.Id);
-      
-      // 1. Convert IntakeQ appointment to our AppointmentRecord format
-      const appointmentRecord = await this.convertToAppointmentRecord(appointment);
-      
-      // 2. IMPORTANT: Set assignedOfficeId to TBD, do NOT call determineOfficeAssignment
-      appointmentRecord.assignedOfficeId = 'TBD';
-      appointmentRecord.assignmentReason = 'To be determined during daily schedule generation';
-      appointmentRecord.currentOfficeId = 'TBD';
-      
-      // Make sure requirements is a proper JSON object, not a string
-      if (!appointmentRecord.requirements) {
-        appointmentRecord.requirements = { accessibility: false, specialFeatures: [] };
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+      retryable: true
+    };
+  }
+}
+
+/**
+ * Handle new appointment - UPDATED to defer office assignment
+ */
+private async handleNewAppointment(
+  appointment: IntakeQAppointment
+): Promise<WebhookResponse> {
+  try {
+    console.log('Processing new appointment:', appointment.Id);
+    
+    // 1. Convert IntakeQ appointment to our AppointmentRecord format
+    const appointmentRecord = await this.convertToAppointmentRecord(appointment);
+    
+    // 2. Set office to TBD - DEFERRED ASSIGNMENT
+    // This is the key change - we no longer assign offices during webhook processing
+    appointmentRecord.assignedOfficeId = 'TBD';
+    appointmentRecord.currentOfficeId = 'TBD';
+    appointmentRecord.assignmentReason = 'To be determined during daily schedule generation';
+    
+    // 3. Save appointment to Google Sheets
+    await this.sheetsService.addAppointment(appointmentRecord);
+    
+    // 4. Log success
+    await this.sheetsService.addAuditLog({
+      timestamp: new Date().toISOString(),
+      eventType: 'APPOINTMENT_CREATED' as AuditEventType,
+      description: `Added appointment ${appointment.Id}`,
+      user: 'SYSTEM',
+      systemNotes: JSON.stringify({
+        appointmentId: appointment.Id,
+        officeId: 'TBD',
+        clientId: appointment.ClientId,
+        deferredAssignment: true
+      })
+    });
+
+    return {
+      success: true,
+      details: {
+        appointmentId: appointment.Id,
+        officeId: 'TBD',
+        action: 'created',
+        deferredAssignment: true
       }
-      
-      // 3. Save appointment to Google Sheets with properly formatted data
-      await this.sheetsService.addAppointment(appointmentRecord);
-      
-      // 4. Log success
-      await this.sheetsService.addAuditLog({
-        timestamp: new Date().toISOString(),
-        eventType: 'APPOINTMENT_CREATED' as AuditEventType,
-        description: `Added appointment ${appointment.Id}`,
-        user: 'SYSTEM',
-        systemNotes: JSON.stringify({
-          appointmentId: appointment.Id,
-          officeId: 'TBD',
-          clientId: appointment.ClientId
-        })
-      });
-  
-      return {
-        success: true,
-        details: {
-          appointmentId: appointment.Id,
-          officeId: 'TBD',
-          action: 'created'
-        }
-      };
-    } catch (error) {
-      console.error('Error handling new appointment:', error);
-      throw error;
-    }
+    };
+  } catch (error) {
+    console.error('Error handling new appointment:', error);
+    throw error;
   }
+}
 
-  // In appointment-sync.ts, around line 122
+// Update the handleAppointmentUpdate method:
+
 private async handleAppointmentUpdate(
   appointment: IntakeQAppointment
 ): Promise<WebhookResponse> {
@@ -179,11 +182,9 @@ private async handleAppointmentUpdate(
     // 2. Convert IntakeQ appointment to our AppointmentRecord format
     const appointmentRecord = await this.convertToAppointmentRecord(appointment);
     
-    // 3. Preserve the current office ID (for tracking changes)
-    appointmentRecord.currentOfficeId = existingAppointment.currentOfficeId || existingAppointment.officeId || 'TBD';
+    // 3. Handle office assignment appropriately
     
-    // 4. For updated appointments, mark assignedOfficeId as TBD again to trigger reassignment
-    // during daily schedule generation, but only if time or clinician changed
+    // Check if time or clinician changed, which would require reassignment
     const timeChanged = 
       appointmentRecord.startTime !== existingAppointment.startTime ||
       appointmentRecord.endTime !== existingAppointment.endTime;
@@ -191,19 +192,34 @@ private async handleAppointmentUpdate(
     const clinicianChanged = 
       appointmentRecord.clinicianId !== existingAppointment.clinicianId;
     
-    if (timeChanged || clinicianChanged) {
+    const sessionTypeChanged =
+      appointmentRecord.sessionType !== existingAppointment.sessionType;
+    
+    // If key appointment details changed, mark for reassignment
+    if (timeChanged || clinicianChanged || sessionTypeChanged) {
       appointmentRecord.assignedOfficeId = 'TBD';
-      appointmentRecord.assignmentReason = 'To be determined during daily schedule generation (appointment updated)';
+      appointmentRecord.assignmentReason = 'To be reassigned due to appointment changes';
+      
+      // Keep track of the current office ID (for tracking changes)
+      appointmentRecord.currentOfficeId = existingAppointment.currentOfficeId || 
+                                         existingAppointment.officeId || 
+                                         'TBD';
     } else {
-      // If no critical fields changed, keep the existing assignment
-      appointmentRecord.assignedOfficeId = existingAppointment.assignedOfficeId || existingAppointment.currentOfficeId || existingAppointment.officeId || 'TBD';
+      // No reassignment needed, keep existing assignments
+      appointmentRecord.assignedOfficeId = existingAppointment.assignedOfficeId || 
+                                          existingAppointment.currentOfficeId || 
+                                          existingAppointment.officeId || 
+                                          'TBD';
+      appointmentRecord.currentOfficeId = existingAppointment.currentOfficeId || 
+                                         existingAppointment.officeId || 
+                                         'TBD';
       appointmentRecord.assignmentReason = existingAppointment.assignmentReason || '';
     }
     
-    // 5. Update appointment in Google Sheets
+    // 4. Update appointment in Google Sheets
     await this.sheetsService.updateAppointment(appointmentRecord);
     
-    // 6. Log success
+    // 5. Log success
     await this.sheetsService.addAuditLog({
       timestamp: new Date().toISOString(),
       eventType: 'APPOINTMENT_UPDATED' as AuditEventType,
@@ -220,7 +236,7 @@ private async handleAppointmentUpdate(
         currentOfficeId: appointmentRecord.currentOfficeId,
         assignedOfficeId: appointmentRecord.assignedOfficeId,
         action: 'updated',
-        officeReassigned: timeChanged || clinicianChanged
+        needsReassignment: timeChanged || clinicianChanged || sessionTypeChanged
       }
     };
   } catch (error) {

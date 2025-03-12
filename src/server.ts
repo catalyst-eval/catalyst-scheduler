@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import apiRoutes from './routes/index';
 import { validateIntakeQWebhook } from './middleware/verify-signature';
 import { SchedulerService } from './lib/scheduling/scheduler-service';
+import schedulingRoutes from './routes/scheduling';
 
 // Load environment variables
 dotenv.config();
@@ -23,6 +24,7 @@ const schedulerService = new SchedulerService();
 
 // Basic JSON parser for all routes
 app.use(express.json());
+app.use('/api/scheduling', schedulingRoutes);
 
 // Simple health check endpoint
 app.get('/health', (req: Request, res: Response) => {

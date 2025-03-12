@@ -1,164 +1,160 @@
 // src/routes/scheduling.ts
 import { Router, Request, Response } from 'express';
-import { DailyScheduleService } from '../lib/scheduling/daily-schedule-service';
 import { SchedulerService } from '../lib/scheduling/scheduler-service';
-import { GoogleSheetsService } from '../lib/google/sheets';
+import { getTodayEST, isValidISODate } from '../lib/util/date-helpers';
 
 const router = Router();
-const schedulerService = new SchedulerService();
-const dailyScheduleService = new DailyScheduleService();
-const sheetsService = new GoogleSheetsService();
 
 /**
- * Get daily schedule data (doesn't send email)
+ * Generate and send daily schedule on demand
+ * 
+ * GET /api/scheduling/generate-daily-schedule/:date?
+ * Optional date parameter in YYYY-MM-DD format
  */
-router.get('/daily-schedule', async (req: Request, res: Response) => {
+router.get('/generate-daily-schedule/:date?', async (req: Request, res: Response) => {
   try {
-    const date = req.query.date as string || new Date().toISOString().split('T')[0];
+    // Extract and validate date parameter
+    let targetDate = req.params.date;
+    if (targetDate && !isValidISODate(targetDate)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid date format. Please use YYYY-MM-DD format.'
+      });
+    }
     
-    console.log(`API request for daily schedule: ${date}`);
-    const scheduleData = await dailyScheduleService.generateDailySchedule(date);
+    // Use today if no date provided
+    targetDate = targetDate || getTodayEST();
+    
+    // Create scheduler service
+    const schedulerService = new SchedulerService();
+    
+    // Generate and send schedule
+    console.log(`API request to generate daily schedule for ${targetDate}`);
+    const result = await schedulerService.generateDailyScheduleOnDemand(targetDate);
     
     res.json({
       success: true,
-      data: scheduleData,
-      timestamp: new Date().toISOString()
+      date: targetDate,
+      result
     });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error generating daily schedule:', error);
-    
     res.status(500).json({
       success: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
-      timestamp: new Date().toISOString()
+      error: error instanceof Error ? error.message : 'Unknown error'
     });
   }
 });
 
 /**
- * Trigger daily schedule email
+ * Refresh appointments from IntakeQ for a specific date
+ * 
+ * GET /api/scheduling/refresh-appointments/:date?
+ * Optional date parameter in YYYY-MM-DD format
  */
-router.post('/send-daily-schedule', async (req: Request, res: Response) => {
+router.get('/refresh-appointments/:date?', async (req: Request, res: Response) => {
   try {
-    const date = req.body.date as string || new Date().toISOString().split('T')[0];
-    
-    console.log(`API request to send daily schedule email: ${date}`);
-    
-    // Track processing for async response
-    res.json({
-      success: true,
-      message: `Processing daily schedule email for ${date}`,
-      timestamp: new Date().toISOString()
-    });
-    
-    // Process in background
-    schedulerService.generateAndSendDailyReport(date)
-      .then(success => {
-        console.log(`Daily schedule email for ${date} ${success ? 'sent' : 'failed'}`);
-      })
-      .catch(error => {
-        console.error(`Error sending daily schedule email: ${error.message}`);
+    // Extract and validate date parameter
+    let targetDate = req.params.date;
+    if (targetDate && !isValidISODate(targetDate)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid date format. Please use YYYY-MM-DD format.'
       });
-  } catch (error) {
-    console.error('Error triggering daily schedule email:', error);
+    }
     
+    // Use today if no date provided
+    targetDate = targetDate || getTodayEST();
+    
+    // Create scheduler service
+    const schedulerService = new SchedulerService();
+    
+    // Refresh appointments
+    console.log(`API request to refresh appointments for ${targetDate}`);
+    const count = await schedulerService.refreshAppointmentsFromIntakeQ(targetDate);
+    
+    res.json({
+      success: true,
+      date: targetDate,
+      appointmentsRefreshed: count
+    });
+  } catch (error: unknown) {
+    console.error('Error refreshing appointments:', error);
     res.status(500).json({
       success: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
-      timestamp: new Date().toISOString()
+      error: error instanceof Error ? error.message : 'Unknown error'
     });
   }
 });
 
 /**
- * Trigger IntakeQ refresh
+ * Process unassigned appointments
+ * 
+ * GET /api/scheduling/process-unassigned
  */
-router.post('/refresh-intakeq', async (req: Request, res: Response) => {
+router.get('/process-unassigned', async (req: Request, res: Response) => {
   try {
-    const date = req.body.date as string || new Date().toISOString().split('T')[0];
+    // Create scheduler service
+    const schedulerService = new SchedulerService();
     
-    console.log(`API request to refresh IntakeQ appointments: ${date}`);
+    // Process unassigned appointments
+    console.log('API request to process unassigned appointments');
+    const count = await schedulerService.processUnassignedAppointments();
     
-    // Track processing for async response
     res.json({
       success: true,
-      message: `Processing IntakeQ appointment refresh for ${date}`,
-      timestamp: new Date().toISOString()
+      appointmentsProcessed: count
     });
-    
-    // Process in background
-    schedulerService.refreshAppointmentsFromIntakeQ(date)
-      .then(success => {
-        console.log(`IntakeQ refresh for ${date} ${success ? 'completed' : 'failed'}`);
-      })
-      .catch(error => {
-        console.error(`Error refreshing IntakeQ appointments: ${error.message}`);
+  } catch (error: unknown) {
+    console.error('Error processing unassigned appointments:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+/**
+ * Generate daily report without sending email
+ * 
+ * GET /api/scheduling/preview-daily-schedule/:date?
+ * Optional date parameter in YYYY-MM-DD format
+ */
+router.get('/preview-daily-schedule/:date?', async (req: Request, res: Response) => {
+  try {
+    // Extract and validate date parameter
+    let targetDate = req.params.date;
+    if (targetDate && !isValidISODate(targetDate)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid date format. Please use YYYY-MM-DD format.'
       });
-  } catch (error) {
-    console.error('Error triggering IntakeQ refresh:', error);
+    }
     
-    res.status(500).json({
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
-      timestamp: new Date().toISOString()
-    });
-  }
-});
-
-/**
- * Get recent audit logs
- */
-router.get('/logs', async (req: Request, res: Response) => {
-  try {
-    const limit = req.query.limit ? parseInt(req.query.limit as string) : 20;
+    // Use today if no date provided
+    targetDate = targetDate || getTodayEST();
     
-    const logs = await sheetsService.getRecentAuditLogs(limit);
+    // Create services
+    const schedulerService = new SchedulerService();
+    const dailyScheduleService = schedulerService['dailyScheduleService'];
+    
+    // Generate the daily schedule (without sending email)
+    const scheduleData = await dailyScheduleService.generateDailySchedule(targetDate);
     
     res.json({
       success: true,
-      data: logs,
-      timestamp: new Date().toISOString()
+      date: targetDate,
+      displayDate: scheduleData.displayDate,
+      data: scheduleData
     });
-  } catch (error) {
-    console.error('Error retrieving audit logs:', error);
-    
+  } catch (error: unknown) {
+    console.error('Error generating daily schedule preview:', error);
     res.status(500).json({
       success: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
-      timestamp: new Date().toISOString()
+      error: error instanceof Error ? error.message : 'Unknown error'
     });
   }
 });
 
-/**
- * Resolve scheduling conflicts for a specific date
- */
-router.post('/resolve-conflicts', async (req: Request, res: Response) => {
-  try {
-    const date = req.body.date as string || new Date().toISOString().split('T')[0];
-    
-    console.log(`API request to resolve conflicts for ${date}`);
-    
-    const dailyScheduleService = new DailyScheduleService();
-    const resolvedCount = await dailyScheduleService.resolveSchedulingConflicts(date);
-    
-    res.json({
-      success: true,
-      data: {
-        date,
-        conflictsResolved: resolvedCount
-      },
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    console.error('Error resolving conflicts:', error);
-    
-    res.status(500).json({
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
-      timestamp: new Date().toISOString()
-    });
-  }
-});
-
+// Export the router
 export default router;
