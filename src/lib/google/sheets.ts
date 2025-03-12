@@ -613,18 +613,33 @@ export class GoogleSheetsService implements IGoogleSheetsService {
             
             // Handle requirements parsing
             try {
-              const requirementsStr = row[13]?.toString().trim();
+              const requirementsStr = row[12]?.toString().trim();
               if (requirementsStr) {
-                const cleanJson = requirementsStr
-                  .replace(/[\u0000-\u0019]+/g, '')
-                  .replace(/\s+/g, ' ')
-                  .trim();
-                appointment.requirements = JSON.parse(cleanJson);
+                // Check if the string starts with "Service:" - if so, it's not JSON
+                if (requirementsStr.startsWith('Service:')) {
+                  appointment.requirements = { accessibility: false, specialFeatures: [] };
+                  // Move the service info to notes if it's in the wrong column
+                  appointment.notes = requirementsStr;
+                } else {
+                  // Try to parse as JSON with error handling
+                  try {
+                    const cleanJson = requirementsStr
+                      .replace(/[\u0000-\u0019]+/g, '')
+                      .replace(/\s+/g, ' ')
+                      .trim();
+                    appointment.requirements = JSON.parse(cleanJson);
+                  } catch (error) {
+                    // Properly handle unknown error type
+                    const jsonError = error instanceof Error ? error.message : 'Unknown JSON parsing error';
+                    console.warn(`Error parsing requirements JSON, defaulting to empty: ${jsonError}`);
+                    appointment.requirements = { accessibility: false, specialFeatures: [] };
+                  }
+                }
               } else {
                 appointment.requirements = { accessibility: false, specialFeatures: [] };
               }
             } catch (err) {
-              console.error('Error parsing requirements JSON:', err, {value: row[13]});
+              console.error('Error parsing requirements JSON:', err, {value: row[12]});
               appointment.requirements = { accessibility: false, specialFeatures: [] };
             }
             
@@ -802,11 +817,26 @@ export class GoogleSheetsService implements IGoogleSheetsService {
             try {
               const requirementsStr = row[12]?.toString().trim();
               if (requirementsStr) {
-                const cleanJson = requirementsStr
-                  .replace(/[\u0000-\u0019]+/g, '')
-                  .replace(/\s+/g, ' ')
-                  .trim();
-                appointment.requirements = JSON.parse(cleanJson);
+                // Check if the string starts with "Service:" - if so, it's not JSON
+                if (requirementsStr.startsWith('Service:')) {
+                  appointment.requirements = { accessibility: false, specialFeatures: [] };
+                  // Move the service info to notes if it's in the wrong column
+                  appointment.notes = requirementsStr;
+                } else {
+                  // Try to parse as JSON with error handling
+                  try {
+                    const cleanJson = requirementsStr
+                      .replace(/[\u0000-\u0019]+/g, '')
+                      .replace(/\s+/g, ' ')
+                      .trim();
+                    appointment.requirements = JSON.parse(cleanJson);
+                  } catch (error) {
+                    // Properly handle unknown error type
+                    const jsonError = error instanceof Error ? error.message : 'Unknown JSON parsing error';
+                    console.warn(`Error parsing requirements JSON, defaulting to empty: ${jsonError}`);
+                    appointment.requirements = { accessibility: false, specialFeatures: [] };
+                  }
+                }
               } else {
                 appointment.requirements = { accessibility: false, specialFeatures: [] };
               }
