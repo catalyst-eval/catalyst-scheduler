@@ -3,7 +3,7 @@
 import cron from 'node-cron';
 import { DailyScheduleService } from './daily-schedule-service';
 import { EmailService } from '../email/service';
-import { EmailTemplates } from '../email/templates';
+import { EmailTemplates } from '../email/templates';  // Added this import
 import { GoogleSheetsService, AuditEventType } from '../google/sheets';
 import { AppointmentSyncHandler } from '../intakeq/appointment-sync';
 import { IntakeQService } from '../intakeq/service';
@@ -813,7 +813,6 @@ export class SchedulerService {
         errors: errorCount
       };
     } catch (error) {
-      // Continue from where your file was cut off:
       console.error('Error refreshing two-week appointment window:', error);
       
       // Log error (with retry)

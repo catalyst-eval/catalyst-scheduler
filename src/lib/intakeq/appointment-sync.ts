@@ -163,8 +163,9 @@ private async handleNewAppointment(
   }
 }
 
-// Update the handleAppointmentUpdate method:
-
+/**
+ * Handle appointment update - UPDATED to only trigger reassignment when details change
+ */
 private async handleAppointmentUpdate(
   appointment: IntakeQAppointment
 ): Promise<WebhookResponse> {
