@@ -686,7 +686,155 @@ try {
     }
   }
 
-  async getOfficeAppointments(officeId: string, date: string): Promise<AppointmentRecord[]> {
+/**
+ * Get appointments for a specific date range - Updated with robust error handling
+ * and corrected column indexing
+ */
+async getAppointments(startDate: string, endDate: string): Promise<AppointmentRecord[]> {
+  try {
+    const values = await this.readSheet(`${SHEET_NAMES.APPOINTMENTS}!A2:Q`);
+    
+    if (!values || !Array.isArray(values)) {
+      console.log('No appointments found in sheet');
+      return [];
+    }
+
+    // Parse the target date for better comparison
+    const startDateObj = new Date(startDate);
+    const targetDateStr = startDateObj.toISOString().split('T')[0];
+    
+    console.log('Processing appointments from sheet:', {
+      rowCount: values.length,
+      targetDate: targetDateStr,
+      dateRange: { startDate, endDate }
+    });
+
+    const initialAppointments = values
+      .map((row: SheetRow) => {
+        try {
+          // Map all base fields - CORRECTED column indexing
+          const appointment: Partial<AppointmentRecord> = {
+            appointmentId: row[0] || '',                                   // Column A: appointmentId
+            clientId: row[1] || '',                                        // Column B: clientId
+            clientName: row[2] || row[1] || '',                            // Column C: clientName
+            clientDateOfBirth: row[3] || '',                               // Column D: clientDateOfBirth
+            clinicianId: row[4] || '',                                     // Column E: clinicianId
+            clinicianName: row[5] || row[4] || '',                         // Column F: clinicianName
+            sessionType: (row[7] || 'in-person') as 'in-person' | 'telehealth' | 'group' | 'family', // Column H: sessionType
+            startTime: row[8] || '',                                       // Column I: startTime
+            endTime: row[9] || '',                                         // Column J: endTime
+            status: (row[10] || 'scheduled') as 'scheduled' | 'completed' | 'cancelled' | 'rescheduled', // Column K: status
+            source: (row[11] || 'manual') as 'intakeq' | 'manual',         // Column L: source (CORRECTED)
+            lastUpdated: row[12] || new Date().toISOString(),              // Column M: lastUpdated (CORRECTED)
+            notes: row[14] || ''                                           // Column O: notes
+          };
+          
+          // Handle requirements parsing with robust error handling
+          try {
+            const requirementsStr = row[13]?.toString().trim();
+            if (requirementsStr) {
+              // Check if the string starts with "Service:" - if so, it's not JSON
+              if (requirementsStr.startsWith('Service:')) {
+                appointment.requirements = { accessibility: false, specialFeatures: [] };
+                // Move the service info to notes if it's in the wrong column
+                appointment.notes = (appointment.notes ? appointment.notes + ' ' : '') + requirementsStr;
+              } else {
+                // Try to parse as JSON with error handling
+                try {
+                  const cleanJson = requirementsStr
+                    .replace(/[\u0000-\u0019]+/g, '')
+                    .replace(/\s+/g, ' ')
+                    .trim();
+                  appointment.requirements = JSON.parse(cleanJson);
+                } catch (parseError) {
+                  console.warn(`Error parsing requirements JSON, defaulting to empty:`, parseError);
+                  appointment.requirements = { accessibility: false, specialFeatures: [] };
+                }
+              }
+            } else {
+              appointment.requirements = { accessibility: false, specialFeatures: [] };
+            }
+          } catch (requirementsError) {
+            console.error('Error processing requirements JSON:', requirementsError, {value: row[13]});
+            appointment.requirements = { accessibility: false, specialFeatures: [] };
+          }
+          
+          // Handle office IDs with CORRECTED indexing
+          // Column 6 (index 6) = currentOfficeId
+          // Column 15 (index 15) = assignedOfficeId
+          // Column 16 (index 16) = assignmentReason
+
+          // Set currentOfficeId (formerly officeId)
+          if (row[6]) {
+            appointment.currentOfficeId = standardizeOfficeId(row[6]);
+            appointment.officeId = appointment.currentOfficeId; // For backward compatibility
+          }
+          
+          // Set assignedOfficeId (formerly suggestedOfficeId)
+          if (row[15]) {
+            appointment.assignedOfficeId = standardizeOfficeId(row[15]);
+            appointment.suggestedOfficeId = appointment.assignedOfficeId; // For backward compatibility
+          }
+          
+          // Set assignmentReason if available
+          if (row[16]) {
+            appointment.assignmentReason = row[16];
+          }
+          
+          // Normalize the record to ensure consistent fields
+          return normalizeAppointmentRecord(appointment);
+        } catch (error) {
+          console.error('Error mapping appointment row:', error, { row });
+          return null;
+        }
+      })
+      .filter((appt): appt is AppointmentRecord => appt !== null);
+
+    // Filter by the target date
+    const mappedAppointments = initialAppointments.filter(appt => {
+      try {
+        if (!appt.startTime) {
+          console.warn(`Appointment ${appt.appointmentId} has no start time, skipping`);
+          return false;
+        }
+        
+        // Extract just the date part (YYYY-MM-DD) for comparison
+        const apptDate = new Date(appt.startTime);
+        const apptDateStr = apptDate.toISOString().split('T')[0];
+        const matches = apptDateStr === targetDateStr;
+        
+        return matches;
+      } catch (error) {
+        console.error(`Error filtering appointment ${appt.appointmentId}:`, error);
+        return false;
+      }
+    });
+
+    console.log('Appointment processing complete:', {
+      totalFound: mappedAppointments.length,
+      targetDate: targetDateStr
+    });
+
+    return mappedAppointments;
+  } catch (error) {
+    console.error('Error reading appointments:', error);
+    await this.addAuditLog({
+      timestamp: new Date().toISOString(),
+      eventType: AuditEventType.SYSTEM_ERROR,
+      description: 'Failed to read appointments',
+      user: 'SYSTEM',
+      systemNotes: error instanceof Error ? error.message : 'Unknown error'
+    });
+    
+    throw new Error('Failed to read appointments');
+  }
+}
+
+/**
+ * Get appointments for a specific office and date
+ */
+async getOfficeAppointments(officeId: string, date: string): Promise<AppointmentRecord[]> {
+  try {
     const startOfDay = new Date(date);
     startOfDay.setHours(0, 0, 0, 0);
     
@@ -711,771 +859,700 @@ try {
       );
       return appointmentOfficeId === standardizedTargetId;
     });
+  } catch (error) {
+    console.error(`Error getting office appointments for ${officeId} on ${date}:`, error);
+    await this.addAuditLog({
+      timestamp: new Date().toISOString(),
+      eventType: AuditEventType.SYSTEM_ERROR,
+      description: `Failed to get appointments for office ${officeId} on ${date}`,
+      user: 'SYSTEM',
+      systemNotes: error instanceof Error ? error.message : 'Unknown error'
+    });
+    return [];
   }
+}
 
-  /**
-   * Add a new appointment - Updated for new field names
-   */
-  async addAppointment(appt: AppointmentRecord): Promise<void> {
-    try {
-      // Normalize to ensure we have all required fields
-      const normalizedAppointment = normalizeAppointmentRecord(appt);
-      
-      // Ensure both old and new field values are set
-      const currentOfficeId = standardizeOfficeId(
-        normalizedAppointment.currentOfficeId || normalizedAppointment.officeId || 'TBD'
-      );
-      
-      const assignedOfficeId = standardizeOfficeId(
-        normalizedAppointment.assignedOfficeId || normalizedAppointment.suggestedOfficeId || currentOfficeId || 'TBD'
-      );
-  
-      // Prepare row data - notice the column ordering must match the sheet structure
-      const rowData = [
-        normalizedAppointment.appointmentId,
-        normalizedAppointment.clientId,
-        normalizedAppointment.clientName,
-        normalizedAppointment.clientDateOfBirth || '', 
-        normalizedAppointment.clinicianId,
-        normalizedAppointment.clinicianName,
-        currentOfficeId,                                        // Column F: currentOfficeId (was officeId)
-        normalizedAppointment.sessionType,
-        normalizedAppointment.startTime,
-        normalizedAppointment.endTime,
-        normalizedAppointment.status,
-        normalizedAppointment.lastUpdated,
-        normalizedAppointment.source,
-        JSON.stringify(normalizedAppointment.requirements || {}),
-        normalizedAppointment.notes || '',
-        assignedOfficeId,                                       // Column O: assignedOfficeId (was suggestedOfficeId)
-        normalizedAppointment.assignmentReason || ''            // Column P: assignmentReason (new column)
-      ];
-  
-      await this.appendRows(`${SHEET_NAMES.APPOINTMENTS}!A:Q`, [rowData]);
-  
-      await this.addAuditLog({
-        timestamp: new Date().toISOString(),
-        eventType: AuditEventType.APPOINTMENT_CREATED,
-        description: `Added appointment ${appt.appointmentId}`,
-        user: 'SYSTEM',
-        systemNotes: JSON.stringify({
-          ...normalizedAppointment,
-          currentOfficeId,
-          assignedOfficeId
-        })
-      });
-  
-      await this.refreshCache(`${SHEET_NAMES.APPOINTMENTS}!A2:Q`);
-    } catch (error) {
-      console.error('Error adding appointment:', error);
-      throw new Error('Failed to add appointment');
-    }
-  }
+/**
+ * Add a new appointment - Updated with correct column ordering
+ */
+async addAppointment(appt: AppointmentRecord): Promise<void> {
+  try {
+    // Normalize to ensure we have all required fields
+    const normalizedAppointment = normalizeAppointmentRecord(appt);
+    
+    // Ensure both old and new field values are set
+    const currentOfficeId = standardizeOfficeId(
+      normalizedAppointment.currentOfficeId || normalizedAppointment.officeId || 'TBD'
+    );
+    
+    const assignedOfficeId = standardizeOfficeId(
+      normalizedAppointment.assignedOfficeId || normalizedAppointment.suggestedOfficeId || currentOfficeId || 'TBD'
+    );
 
-  /**
-   * Get appointments for a specific date range - Updated for new field names
-   */
-  async getAppointments(startDate: string, endDate: string): Promise<AppointmentRecord[]> {
+    // Prepare requirements JSON with error handling
+    let requirementsJson = '{"accessibility":false,"specialFeatures":[]}';
     try {
-      const values = await this.readSheet(`${SHEET_NAMES.APPOINTMENTS}!A2:Q`);
-      
-      if (!values || !Array.isArray(values)) {
-        console.log('No appointments found in sheet');
-        return [];
+      if (normalizedAppointment.requirements) {
+        requirementsJson = JSON.stringify(normalizedAppointment.requirements);
       }
-  
-      // Parse the target date for better comparison
-      const startDateObj = new Date(startDate);
-      const targetDateStr = startDateObj.toISOString().split('T')[0];
-      
-      console.log('Processing appointments from sheet:', {
-        rowCount: values.length,
-        targetDate: targetDateStr,
-        dateRange: { startDate, endDate }
-      });
-  
-      const initialAppointments = values
-        .map((row: SheetRow) => {
+    } catch (jsonError) {
+      console.error('Error stringifying requirements, using default:', jsonError);
+    }
+
+    // Prepare row data - CORRECTED column ordering matching sheet structure
+    const rowData = [
+      normalizedAppointment.appointmentId,                     // Column A: appointmentId
+      normalizedAppointment.clientId,                          // Column B: clientId
+      normalizedAppointment.clientName,                        // Column C: clientName
+      normalizedAppointment.clientDateOfBirth || '',           // Column D: clientDateOfBirth
+      normalizedAppointment.clinicianId,                       // Column E: clinicianId
+      normalizedAppointment.clinicianName,                     // Column F: clinicianName
+      currentOfficeId,                                         // Column G: currentOfficeId
+      normalizedAppointment.sessionType,                       // Column H: sessionType
+      normalizedAppointment.startTime,                         // Column I: startTime
+      normalizedAppointment.endTime,                           // Column J: endTime
+      normalizedAppointment.status,                            // Column K: status
+      normalizedAppointment.source,                            // Column L: source (CORRECTED)
+      normalizedAppointment.lastUpdated || new Date().toISOString(), // Column M: lastUpdated (CORRECTED)
+      requirementsJson,                                        // Column N: requirements
+      normalizedAppointment.notes || '',                       // Column O: notes
+      assignedOfficeId,                                        // Column P: assignedOfficeId
+      normalizedAppointment.assignmentReason || ''             // Column Q: assignmentReason
+    ];
+
+    await this.appendRows(`${SHEET_NAMES.APPOINTMENTS}!A:Q`, [rowData]);
+
+    await this.addAuditLog({
+      timestamp: new Date().toISOString(),
+      eventType: AuditEventType.APPOINTMENT_CREATED,
+      description: `Added appointment ${appt.appointmentId}`,
+      user: 'SYSTEM',
+      systemNotes: JSON.stringify({
+        ...normalizedAppointment,
+        currentOfficeId,
+        assignedOfficeId
+      })
+    });
+
+    await this.refreshCache(`${SHEET_NAMES.APPOINTMENTS}!A2:Q`);
+  } catch (error) {
+    console.error('Error adding appointment:', error);
+    await this.addAuditLog({
+      timestamp: new Date().toISOString(),
+      eventType: AuditEventType.SYSTEM_ERROR,
+      description: `Failed to add appointment ${appt.appointmentId}`,
+      user: 'SYSTEM',
+      systemNotes: error instanceof Error ? error.message : 'Unknown error'
+    });
+    throw new Error(`Failed to add appointment: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
+
+/**
+ * Update an appointment - Updated with correct column ordering and robust JSON handling
+ */
+async updateAppointment(appointment: AppointmentRecord): Promise<void> {
+  try {
+    // Normalize to ensure we have all required fields
+    const normalizedAppointment = normalizeAppointmentRecord(appointment);
+    
+    // Find the appointment row
+    const values = await this.readSheet(`${SHEET_NAMES.APPOINTMENTS}!A:A`);
+    const appointmentRow = values?.findIndex((row: SheetRow) => row[0] === normalizedAppointment.appointmentId);
+
+    if (!values || appointmentRow === undefined || appointmentRow < 0) {
+      throw new Error(`Appointment ${normalizedAppointment.appointmentId} not found`);
+    }
+
+    // Ensure both old and new field values are set
+    const currentOfficeId = standardizeOfficeId(
+      normalizedAppointment.currentOfficeId || normalizedAppointment.officeId || 'TBD'
+    );
+    
+    const assignedOfficeId = standardizeOfficeId(
+      normalizedAppointment.assignedOfficeId || normalizedAppointment.suggestedOfficeId || currentOfficeId || 'TBD'
+    );
+
+    // Prepare requirements JSON with error handling
+    let requirementsJson = '{"accessibility":false,"specialFeatures":[]}';
+    try {
+      if (normalizedAppointment.requirements) {
+        requirementsJson = JSON.stringify(normalizedAppointment.requirements);
+      }
+    } catch (jsonError) {
+      console.error('Error stringifying requirements, using default:', jsonError);
+    }
+
+    // Prepare row data - CORRECTED column ordering matching sheet structure
+    const rowData = [
+      normalizedAppointment.appointmentId,                     // Column A: appointmentId
+      normalizedAppointment.clientId,                          // Column B: clientId
+      normalizedAppointment.clientName,                        // Column C: clientName
+      normalizedAppointment.clientDateOfBirth || '',           // Column D: clientDateOfBirth
+      normalizedAppointment.clinicianId,                       // Column E: clinicianId
+      normalizedAppointment.clinicianName,                     // Column F: clinicianName
+      currentOfficeId,                                         // Column G: currentOfficeId
+      normalizedAppointment.sessionType,                       // Column H: sessionType
+      normalizedAppointment.startTime,                         // Column I: startTime
+      normalizedAppointment.endTime,                           // Column J: endTime
+      normalizedAppointment.status,                            // Column K: status
+      normalizedAppointment.source,                            // Column L: source (CORRECTED)
+      normalizedAppointment.lastUpdated || new Date().toISOString(), // Column M: lastUpdated (CORRECTED)
+      requirementsJson,                                        // Column N: requirements
+      normalizedAppointment.notes || '',                       // Column O: notes
+      assignedOfficeId,                                        // Column P: assignedOfficeId
+      normalizedAppointment.assignmentReason || ''             // Column Q: assignmentReason
+    ];
+
+    await this.sheets.spreadsheets.values.update({
+      spreadsheetId: this.spreadsheetId,
+      range: `${SHEET_NAMES.APPOINTMENTS}!A${appointmentRow + 2}:Q${appointmentRow + 2}`,
+      valueInputOption: 'RAW',
+      requestBody: {
+        values: [rowData]
+      }
+    });
+
+    await this.addAuditLog({
+      timestamp: new Date().toISOString(),
+      eventType: AuditEventType.APPOINTMENT_UPDATED,
+      description: `Updated appointment ${appointment.appointmentId}`,
+      user: 'SYSTEM',
+      previousValue: JSON.stringify(values[appointmentRow]),
+      newValue: JSON.stringify(rowData)
+    });
+
+    await this.refreshCache(`${SHEET_NAMES.APPOINTMENTS}!A2:Q`);
+  } catch (error) {
+    console.error(`Error updating appointment ${appointment.appointmentId}:`, error);
+    await this.addAuditLog({
+      timestamp: new Date().toISOString(),
+      eventType: AuditEventType.SYSTEM_ERROR,
+      description: `Failed to update appointment ${appointment.appointmentId}`,
+      user: 'SYSTEM',
+      systemNotes: error instanceof Error ? error.message : 'Unknown error'
+    });
+    throw new Error(`Failed to update appointment: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
+
+/**
+ * Get a specific appointment by ID - Updated with robust error handling 
+ */
+async getAppointment(appointmentId: string): Promise<AppointmentRecord | null> {
+  try {
+    const values = await this.readSheet(`${SHEET_NAMES.APPOINTMENTS}!A2:Q`);
+    if (!values) return null;
+
+    const appointmentRow = values.find((row: SheetRow) => row[0] === appointmentId);
+    if (!appointmentRow) return null;
+
+    // Create appointment object with both old and new field names
+    const appointment: Partial<AppointmentRecord> = {
+      appointmentId: appointmentRow[0] || '',
+      clientId: appointmentRow[1] || '',
+      clientName: appointmentRow[2] || '',
+      clientDateOfBirth: appointmentRow[3] || '',
+      clinicianId: appointmentRow[4] || '',
+      clinicianName: appointmentRow[5] || '',
+      sessionType: appointmentRow[7] as 'in-person' | 'telehealth' | 'group' | 'family',
+      startTime: appointmentRow[8] || '',
+      endTime: appointmentRow[9] || '',
+      status: appointmentRow[10] as 'scheduled' | 'completed' | 'cancelled' | 'rescheduled',
+      source: appointmentRow[11] as 'intakeq' | 'manual',
+      lastUpdated: appointmentRow[12] || '',
+      notes: appointmentRow[14] || ''
+    };
+    
+    // Handle requirements parsing with robust error handling
+    try {
+      const requirementsStr = appointmentRow[13]?.toString().trim();
+      if (requirementsStr) {
+        // Check if the string starts with "Service:" - if so, it's not JSON
+        if (requirementsStr.startsWith('Service:')) {
+          appointment.requirements = { accessibility: false, specialFeatures: [] };
+          // Move the service info to notes if it's in the wrong column
+          appointment.notes = (appointment.notes ? appointment.notes + ' ' : '') + requirementsStr;
+        } else {
+          // Try to parse as JSON with error handling
           try {
-            // Map all base fields
-            const appointment: Partial<AppointmentRecord> = {
-              appointmentId: row[0] || '',
-              clientId: row[1] || '',
-              clientName: row[2] || row[1] || '',
-              clientDateOfBirth: row[3] || '', // Add this line to capture DOB from column D
-  clinicianId: row[4] || '',       // Update index: was 3, now 4
-  clinicianName: row[5] || row[4] || '', // Update index: was 4, now 5
-              sessionType: (row[8] || 'in-person') as 'in-person' | 'telehealth' | 'group' | 'family',
-              startTime: row[9] || '',
-              endTime: row[10] || '',
-              status: (row[11] || 'scheduled') as 'scheduled' | 'completed' | 'cancelled' | 'rescheduled',
-              lastUpdated: row[13] || new Date().toISOString(),
-              source: (row[12] || 'manual') as 'intakeq' | 'manual',
-              notes: row[14] || ''
-            };
-            
-            // Handle requirements parsing
-            // Handle requirements parsing
-try {
-  const requirementsStr = row[12]?.toString().trim();
-  if (requirementsStr) {
-    // Check if the string starts with "Service:" - if so, it's not JSON
-    if (requirementsStr.startsWith('Service:')) {
-      appointment.requirements = { accessibility: false, specialFeatures: [] };
-      // Move the service info to notes if it's in the wrong column
-      appointment.notes = requirementsStr;
-    } else {
-      // Try to parse as JSON with error handling
-      try {
-        const cleanJson = requirementsStr
-          .replace(/[\u0000-\u0019]+/g, '')
-          .replace(/\s+/g, ' ')
-          .trim();
-        appointment.requirements = JSON.parse(cleanJson);
-      } catch (error) {
-        // Properly handle unknown error type
-        const jsonError = error instanceof Error ? error.message : 'Unknown JSON parsing error';
-        console.warn(`Error parsing requirements JSON, defaulting to empty: ${jsonError}`);
+            const cleanJson = requirementsStr
+              .replace(/[\u0000-\u0019]+/g, '')
+              .replace(/\s+/g, ' ')
+              .trim();
+            appointment.requirements = JSON.parse(cleanJson);
+          } catch (parseError) {
+            console.warn(`Error parsing requirements JSON for appointment ${appointmentId}, defaulting to empty:`, parseError);
+            appointment.requirements = { accessibility: false, specialFeatures: [] };
+          }
+        }
+      } else {
         appointment.requirements = { accessibility: false, specialFeatures: [] };
       }
+    } catch (requirementsError) {
+      console.error(`Error handling requirements for appointment ${appointmentId}:`, requirementsError);
+      appointment.requirements = { accessibility: false, specialFeatures: [] };
     }
-  } else {
-    appointment.requirements = { accessibility: false, specialFeatures: [] };
-  }
-} catch (err) {
-  console.error('Error parsing requirements JSON:', err, {value: row[12]});
-  appointment.requirements = { accessibility: false, specialFeatures: [] };
-}
-            
-            // Handle both old and new office ID fields
-            // Column 5 (index 5) = currentOfficeId (previously officeId)
-            // Column 14 (index 14) = assignedOfficeId (previously suggestedOfficeId)
-            // Column 15 (index 15) = assignmentReason
-
-            // Set currentOfficeId (formerly officeId)
-            if (row[5]) {
-              appointment.currentOfficeId = standardizeOfficeId(row[5]);
-              // Set officeId too for backward compatibility
-              appointment.officeId = appointment.currentOfficeId;
-            }
-            
-            // Set assignedOfficeId (formerly suggestedOfficeId)
-            if (row[14]) {
-              appointment.assignedOfficeId = standardizeOfficeId(row[14]);
-              // Set suggestedOfficeId too for backward compatibility
-              appointment.suggestedOfficeId = appointment.assignedOfficeId;
-            }
-            
-            // Set assignmentReason if available
-            if (row[15]) {
-              appointment.assignmentReason = row[15];
-            }
-            
-            console.log(`Processed appointment ${appointment.appointmentId} with office info:`, {
-              currentOfficeId: appointment.currentOfficeId,
-              assignedOfficeId: appointment.assignedOfficeId,
-              officeId: appointment.officeId,
-              suggestedOfficeId: appointment.suggestedOfficeId
-            });
-            
-            // Normalize the record to ensure consistent fields
-            return normalizeAppointmentRecord(appointment);
-          } catch (error) {
-            console.error('Error mapping appointment row:', error, { row });
-            return null;
-          }
-        })
-        .filter((appt): appt is AppointmentRecord => appt !== null);
-  
-      // Improved filtering logic:
-      // 1. Extract date in a consistent format (YYYY-MM-DD) 
-      // 2. Compare directly with the target date
-      const mappedAppointments = initialAppointments.filter(appt => {
-        try {
-          if (!appt.startTime) {
-            console.warn(`Appointment ${appt.appointmentId} has no start time, skipping`);
-            return false;
-          }
-          
-          // Extract just the date part (YYYY-MM-DD) for comparison
-          const apptDate = new Date(appt.startTime);
-          const apptDateStr = apptDate.toISOString().split('T')[0];
-          const matches = apptDateStr === targetDateStr;
-          
-          console.log(`Appointment ${appt.appointmentId} date comparison:`, {
-            appointmentDate: apptDateStr,
-            targetDate: targetDateStr,
-            matches: matches,
-            officeIds: {
-              currentOfficeId: appt.currentOfficeId,
-              assignedOfficeId: appt.assignedOfficeId
-            }
-          });
-          
-          return matches;
-        } catch (error) {
-          console.error(`Error filtering appointment ${appt.appointmentId}:`, error);
-          return false;
-        }
-      });
-  
-      console.log('Appointment processing complete:', {
-        totalFound: mappedAppointments.length,
-        targetDate: targetDateStr
-      });
-  
-      return mappedAppointments;
-    } catch (error) {
-      console.error('Error reading appointments:', error);
-      throw new Error('Failed to read appointments');
-    }
-  }
-
-  /**
-   * Get client accessibility information
-   * UPDATED: Now includes the requiredOffice field
-   */
-  async getClientAccessibilityInfo(clientId: string): Promise<any | null> {
-    try {
-      console.log(`Getting accessibility info for client ${clientId}`);
-      
-      // Updated range to include column P (requiredOffice)
-      const values = await this.readSheet(`${SHEET_NAMES.CLIENT_ACCESSIBILITY}!A2:P`);
-      if (!values || values.length === 0) {
-        console.log(`No accessibility info found for any clients`);
-        return null;
-      }
     
-      const clientRow = values.find(row => row[0] === clientId);
-      if (!clientRow) {
-        console.log(`No accessibility info found for client ${clientId}`);
-        return null;
-      }
-      
-      return {
-        clientId: clientRow[0],
-        clientName: clientRow[1] || '',
-        lastUpdated: clientRow[2] || '',
-        hasMobilityNeeds: clientRow[3] === 'TRUE',
-        mobilityDetails: clientRow[4] || '',
-        hasSensoryNeeds: clientRow[5] === 'TRUE',
-        sensoryDetails: clientRow[6] || '',
-        hasPhysicalNeeds: clientRow[7] === 'TRUE',
-        physicalDetails: clientRow[8] || '',
-        roomConsistency: parseInt(clientRow[9] || '3'),
-        hasSupport: clientRow[10] === 'TRUE',
-        supportDetails: clientRow[11] || '',
-        additionalNotes: clientRow[12] || '',
-        formType: clientRow[13] || '',
-        formId: clientRow[14] || '',
-        requiredOffice: clientRow[15] || '' // Added requiredOffice field
-      };
-    } catch (error) {
-      console.error(`Error getting client accessibility info for ${clientId}:`, error);
-      
-      // Log error but don't throw - just return null
-      await this.addAuditLog({
-        timestamp: new Date().toISOString(),
-        eventType: AuditEventType.SYSTEM_ERROR,
-        description: `Failed to get accessibility info for client ${clientId}`,
-        user: 'SYSTEM',
-        systemNotes: error instanceof Error ? error.message : 'Unknown error'
-      });
-      
-      return null;
-    }
-  }
+    // Handle office IDs - NEW FIELD NAMES
+    // Column 6 (index 6) = currentOfficeId (previously officeId)
+    // Column 15 (index 15) = assignedOfficeId (previously suggestedOfficeId)
+    // Column 16 (index 16) = assignmentReason
 
-  /**
-   * Update client accessibility information
-   * UPDATED: Now supports the requiredOffice field
-   */
-  async updateClientAccessibilityInfo(accessibilityInfo: {
-    clientId: string;
-    clientName: string;
-    hasMobilityNeeds: boolean;
-    mobilityDetails: string;
-    hasSensoryNeeds: boolean;
-    sensoryDetails: string;
-    hasPhysicalNeeds: boolean;
-    physicalDetails: string;
-    roomConsistency: number;
-    hasSupport: boolean;
-    supportDetails: string;
-    additionalNotes: string;
-    formType: string;
-    formId: string;
-    requiredOffice?: string; // New field
-  }): Promise<void> {
-    try {
-      console.log(`Updating accessibility info for client ${accessibilityInfo.clientId}`);
-      
-      // Check if client already exists in the sheet
-      const values = await this.readSheet(`${SHEET_NAMES.CLIENT_ACCESSIBILITY}!A:A`);
-      const clientRowIndex = values?.findIndex(row => row[0] === accessibilityInfo.clientId);
-      
-      // Format data for sheet
-      const rowData = [
-        accessibilityInfo.clientId,
-        accessibilityInfo.clientName,
-        new Date().toISOString(), // Last updated timestamp
-        accessibilityInfo.hasMobilityNeeds ? 'TRUE' : 'FALSE',
-        accessibilityInfo.mobilityDetails,
-        accessibilityInfo.hasSensoryNeeds ? 'TRUE' : 'FALSE',
-        accessibilityInfo.sensoryDetails,
-        accessibilityInfo.hasPhysicalNeeds ? 'TRUE' : 'FALSE',
-        accessibilityInfo.physicalDetails,
-        accessibilityInfo.roomConsistency.toString(),
-        accessibilityInfo.hasSupport ? 'TRUE' : 'FALSE',
-        accessibilityInfo.supportDetails,
-        accessibilityInfo.additionalNotes,
-        accessibilityInfo.formType,
-        accessibilityInfo.formId,
-        accessibilityInfo.requiredOffice || '' // Added requiredOffice field
-      ];
-      
-      if (clientRowIndex !== undefined && clientRowIndex >= 0) {
-        // Update existing row
-        console.log(`Updating existing row for client ${accessibilityInfo.clientId}`);
-        await this.sheets.spreadsheets.values.update({
-          spreadsheetId: this.spreadsheetId,
-          range: `${SHEET_NAMES.CLIENT_ACCESSIBILITY}!A${clientRowIndex + 2}:P${clientRowIndex + 2}`,
-          valueInputOption: 'RAW',
-          requestBody: {
-            values: [rowData]
-          }
-        });
-      } else {
-        // Add new row
-        console.log(`Adding new row for client ${accessibilityInfo.clientId}`);
-        await this.appendRows(`${SHEET_NAMES.CLIENT_ACCESSIBILITY}!A:P`, [rowData]);
-      }
-      
-      // Log the update
-      await this.addAuditLog({
-        timestamp: new Date().toISOString(),
-        eventType: AuditEventType.CLIENT_PREFERENCES_UPDATED,
-        description: `Updated accessibility info for client ${accessibilityInfo.clientId}`,
-        user: 'SYSTEM',
-        systemNotes: JSON.stringify({
-          clientId: accessibilityInfo.clientId,
-          hasMobilityNeeds: accessibilityInfo.hasMobilityNeeds,
-          hasSensoryNeeds: accessibilityInfo.hasSensoryNeeds,
-          hasPhysicalNeeds: accessibilityInfo.hasPhysicalNeeds,
-          roomConsistency: accessibilityInfo.roomConsistency,
-          requiredOffice: accessibilityInfo.requiredOffice // Added requiredOffice
-        })
-      });
-      
-      console.log(`Successfully updated accessibility info for client ${accessibilityInfo.clientId}`);
-    } catch (error) {
-      console.error(`Error updating client accessibility info for ${accessibilityInfo.clientId}:`, error);
-      
-      // Log error and throw
-      await this.addAuditLog({
-        timestamp: new Date().toISOString(),
-        eventType: AuditEventType.SYSTEM_ERROR,
-        description: `Failed to update accessibility info for client ${accessibilityInfo.clientId}`,
-        user: 'SYSTEM',
-        systemNotes: error instanceof Error ? error.message : 'Unknown error'
-      });
-      
-      throw error;
+    // Set currentOfficeId (formerly officeId)
+    if (appointmentRow[6]) { 
+      appointment.currentOfficeId = standardizeOfficeId(appointmentRow[6]);
+      appointment.officeId = appointment.currentOfficeId; // For backward compatibility
     }
-  }
-
-  /**
-   * Get client required offices
-   * UPDATED: Now checks both additionalNotes and requiredOffice fields
-   */
-  async getClientRequiredOffices(): Promise<any[]> {
-    try {
-      console.log('Getting client required offices from Client_Accessibility_Info');
-      
-      // Get client accessibility info
-      const accessibilityRecords = await this.getClientAccessibilityRecords();
-      
-      // Filter for clients with assigned offices in their notes or requiredOffice field
-      return accessibilityRecords
-        .filter(record => {
-          // Check both requiredOffice field and notes
-          const assignedOffice = this.extractAssignedOfficeFromNotes(
-            record.additionalNotes,
-            record.requiredOffice
-          );
-          return !!assignedOffice;
-        })
-        .map(record => {
-          const nameParts = record.clientName.split(' ');
-          const firstName = nameParts[0] || '';
-          const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '';
-          
-          // Extract office from requiredOffice field or notes
-          const requiredOfficeId = this.extractAssignedOfficeFromNotes(
-            record.additionalNotes,
-            record.requiredOffice
-          );
-          
-          return {
-            inactive: false,
-            requiredOfficeId,
-            lastName,
-            firstName,
-            middleName: '',
-            dateOfBirth: '',
-            dateCreated: '',
-            lastActivity: record.lastUpdated || '',
-            practitioner: ''  // Not available in accessibility info
-          };
-        });
-    } catch (error) {
-      console.error('Error getting client required offices from accessibility info:', error);
-      
-      // Log error but don't throw - just return empty array
-      await this.addAuditLog({
-        timestamp: new Date().toISOString(),
-        eventType: AuditEventType.SYSTEM_ERROR,
-        description: 'Failed to get client required offices from accessibility info',
-        user: 'SYSTEM',
-        systemNotes: error instanceof Error ? error.message : 'Unknown error'
-      });
-      
-      return [];
+    
+    // Set assignedOfficeId (formerly suggestedOfficeId)
+    if (appointmentRow[15]) { 
+      appointment.assignedOfficeId = standardizeOfficeId(appointmentRow[15]);
+      appointment.suggestedOfficeId = appointment.assignedOfficeId; // For backward compatibility
     }
+    
+    // Handle assignment reason
+    if (appointmentRow[16]) { 
+      appointment.assignmentReason = appointmentRow[16];
+    }
+    
+    // Normalize the record to ensure consistent fields
+    return normalizeAppointmentRecord(appointment);
+  } catch (error) {
+    console.error(`Error getting appointment ${appointmentId}:`, error);
+    await this.addAuditLog({
+      timestamp: new Date().toISOString(),
+      eventType: AuditEventType.SYSTEM_ERROR,
+      description: `Failed to get appointment ${appointmentId}`,
+      user: 'SYSTEM',
+      systemNotes: error instanceof Error ? error.message : 'Unknown error'
+    });
+    return null;
   }
+}
 
-  /**
-   * Update an appointment - Updated for new field names
-   */
-  async updateAppointment(appointment: AppointmentRecord): Promise<void> {
-    try {
-      // Normalize to ensure we have all required fields
-      const normalizedAppointment = normalizeAppointmentRecord(appointment);
-      
-      // Find the appointment row
-      const values = await this.readSheet(`${SHEET_NAMES.APPOINTMENTS}!A:A`);
-      const appointmentRow = values?.findIndex((row: SheetRow) => row[0] === normalizedAppointment.appointmentId);
-  
-      if (!values || appointmentRow === undefined || appointmentRow < 0) {
-        throw new Error(`Appointment ${normalizedAppointment.appointmentId} not found`);
-      }
-  
-      // Ensure both old and new field values are set
-      const currentOfficeId = standardizeOfficeId(
-        normalizedAppointment.currentOfficeId || normalizedAppointment.officeId || 'TBD'
-      );
-      
-      const assignedOfficeId = standardizeOfficeId(
-        normalizedAppointment.assignedOfficeId || normalizedAppointment.suggestedOfficeId || currentOfficeId || 'TBD'
-      );
-  
-      // Prepare row data - notice the column ordering must match the sheet structure
-      const rowData = [
-        normalizedAppointment.appointmentId,
-        normalizedAppointment.clientId,
-        normalizedAppointment.clientName,
-        normalizedAppointment.clientDateOfBirth || '', 
-        normalizedAppointment.clinicianId,
-        normalizedAppointment.clinicianName,
-        currentOfficeId,                                        // Column F: currentOfficeId (was officeId)
-        normalizedAppointment.sessionType,
-        normalizedAppointment.startTime,
-        normalizedAppointment.endTime,
-        normalizedAppointment.status,
-        normalizedAppointment.lastUpdated,
-        normalizedAppointment.source,
-        JSON.stringify(normalizedAppointment.requirements || {}),
-        normalizedAppointment.notes || '',
-        assignedOfficeId,                                       // Column O: assignedOfficeId (was suggestedOfficeId)
-        normalizedAppointment.assignmentReason || ''            // Column P: assignmentReason (new column)
-      ];
-  
+/**
+ * Delete an appointment
+ */
+async deleteAppointment(appointmentId: string): Promise<void> {
+  try {
+    const values = await this.readSheet(`${SHEET_NAMES.APPOINTMENTS}!A:A`);
+    const appointmentRow = values?.findIndex((row: SheetRow) => row[0] === appointmentId);
+
+    if (!values || appointmentRow === undefined || appointmentRow < 0) {
+      throw new Error(`Appointment ${appointmentId} not found`);
+    }
+
+    await this.sheets.spreadsheets.values.clear({
+      spreadsheetId: this.spreadsheetId,
+      range: `${SHEET_NAMES.APPOINTMENTS}!A${appointmentRow + 2}:Q${appointmentRow + 2}`
+    });
+
+    await this.refreshCache(`${SHEET_NAMES.APPOINTMENTS}!A2:Q`);
+    
+    await this.addAuditLog({
+      timestamp: new Date().toISOString(),
+      eventType: AuditEventType.APPOINTMENT_DELETED,
+      description: `Deleted appointment ${appointmentId}`,
+      user: 'SYSTEM',
+      systemNotes: JSON.stringify({ appointmentId })
+    });
+  } catch (error) {
+    console.error('Error deleting appointment:', error);
+    throw new Error('Failed to delete appointment');
+  }
+}
+
+async updateClientPreference(preference: ClientPreference): Promise<void> {
+  try {
+    // Update to use CLIENT_ACCESSIBILITY instead of CLIENT_PREFERENCES
+    const values = await this.readSheet(`${SHEET_NAMES.CLIENT_ACCESSIBILITY}!A:A`);
+    const clientRow = values?.findIndex((row: SheetRow) => row[0] === preference.clientId);
+    
+    // Map to the format expected by Client_Accessibility_Info
+    const rowData = [
+      preference.clientId, // clientId
+      preference.name,     // clientName
+      new Date().toISOString(), // lastUpdated
+      preference.mobilityNeeds && preference.mobilityNeeds.length > 0 ? 'TRUE' : 'FALSE', // hasMobilityNeeds
+      preference.mobilityNeeds?.join(', ') || '', // mobilityDetails
+      preference.sensoryPreferences && preference.sensoryPreferences.length > 0 ? 'TRUE' : 'FALSE', // hasSensoryNeeds
+      preference.sensoryPreferences?.join(', ') || '', // sensoryDetails
+      preference.physicalNeeds && preference.physicalNeeds.length > 0 ? 'TRUE' : 'FALSE', // hasPhysicalNeeds
+      preference.physicalNeeds?.join(', ') || '', // physicalDetails
+      preference.roomConsistency.toString(), // roomConsistency
+      preference.supportNeeds && preference.supportNeeds.length > 0 ? 'TRUE' : 'FALSE', // hasSupport
+      preference.supportNeeds?.join(', ') || '', // supportDetails
+      // Include assigned office in additionalNotes if present
+      (preference.additionalNotes || '') + 
+      (preference.assignedOffice ? `\nAssigned Office: ${preference.assignedOffice}` : ''), // additionalNotes
+      'migrated', // formType
+      '', // formId
+      preference.assignedOffice || '' // Added requiredOffice field
+    ];
+
+    if (clientRow !== undefined && clientRow >= 0) {
       await this.sheets.spreadsheets.values.update({
         spreadsheetId: this.spreadsheetId,
-        range: `${SHEET_NAMES.APPOINTMENTS}!A${appointmentRow + 1}:Q${appointmentRow + 1}`,
+        range: `${SHEET_NAMES.CLIENT_ACCESSIBILITY}!A${clientRow + 2}:P${clientRow + 2}`,
         valueInputOption: 'RAW',
         requestBody: {
           values: [rowData]
         }
       });
-  
-      await this.addAuditLog({
-        timestamp: new Date().toISOString(),
-        eventType: AuditEventType.APPOINTMENT_UPDATED,
-        description: `Updated appointment ${appointment.appointmentId}`,
-        user: 'SYSTEM',
-        previousValue: JSON.stringify(values[appointmentRow]),
-        newValue: JSON.stringify(rowData)
-      });
-  
-      await this.refreshCache(`${SHEET_NAMES.APPOINTMENTS}!A2:Q`);
-    } catch (error) {
-      console.error('Error updating appointment:', error);
-      throw new Error('Failed to update appointment');
+    } else {
+      await this.appendRows(`${SHEET_NAMES.CLIENT_ACCESSIBILITY}!A:P`, [rowData]);
     }
+
+    await this.addAuditLog({
+      timestamp: new Date().toISOString(),
+      eventType: AuditEventType.CLIENT_PREFERENCES_UPDATED,
+      description: `Updated preferences for client ${preference.clientId}`,
+      user: 'SYSTEM',
+      systemNotes: JSON.stringify(preference)
+    });
+
+    await this.refreshCache(`${SHEET_NAMES.CLIENT_ACCESSIBILITY}!A2:P`);
+  } catch (error) {
+    console.error('Error updating client preference:', error);
+    throw error;
   }
+}
+
+private extractMobilityNeeds(responses: Record<string, any>): string[] {
+  const needs: string[] = [];
+  
+  const mobilityField = responses['Do you use any mobility devices?'] || [];
+  if (Array.isArray(mobilityField)) {
+    if (mobilityField.includes('Wheelchair')) needs.push('wheelchair_access');
+    if (mobilityField.includes('Crutches')) needs.push('mobility_aid_crutches');
+    if (mobilityField.includes('Walking boot')) needs.push('mobility_aid_boot');
+  }
+  
+  const otherMobility = responses['Access needs related to mobility/disability (Please specify)'];
+  if (otherMobility) needs.push(otherMobility);
+  
+  return needs;
+}
+
+private extractSensoryPreferences(responses: Record<string, any>): string[] {
+  const preferences: string[] = [];
+  
+  const sensoryField = responses['Do you experience sensory sensitivities?'] || [];
+  if (Array.isArray(sensoryField)) {
+    if (sensoryField.includes('Light sensitivity')) preferences.push('light_sensitive');
+    if (sensoryField.includes('Preference for only natural light')) preferences.push('natural_light');
+    if (sensoryField.includes('Auditory sensitivity')) preferences.push('sound_sensitive');
+  }
+  
+  const otherSensory = responses['Other (Please specify):'];
+  if (otherSensory) preferences.push(otherSensory);
+  
+  return preferences;
+}
+
+private extractPhysicalNeeds(responses: Record<string, any>): string[] {
+  const needs: string[] = [];
+  
+  const physicalField = responses['Do you experience challenges with physical environment?'] || [];
+  if (Array.isArray(physicalField)) {
+    if (physicalField.includes('Seating support')) needs.push('seating_support');
+    if (physicalField.includes('Difficulty with stairs')) needs.push('no_stairs');
+    if (physicalField.includes('Need to see the door')) needs.push('door_visible');
+  }
+  
+  return needs;
+}
+
+private extractRoomConsistency(responses: Record<string, any>): number {
+  const value = responses['Please indicate your comfort level with this possibility:'];
+  const consistencyMap: Record<string, number> = {
+    '1 - Strong preference for consistency': 5,
+    '2 - High preference for consistency': 4,
+    '3 - Neutral about room changes': 3,
+    '4 - Somewhat comfortable with room changes when needed': 2,
+    '5 - Very comfortable with room changes when needed': 1
+  };
+  
+  return consistencyMap[value] || 3;
+}
+
+private extractSupportNeeds(responses: Record<string, any>): string[] {
+  const needs: string[] = [];
+  
+  const supportField = responses['Do you have support needs that involve any of the following?'] || [];
+  if (Array.isArray(supportField)) {
+    if (supportField.includes('Space for a service animal')) needs.push('service_animal');
+    if (supportField.includes('A support person present')) needs.push('support_person');
+    if (supportField.includes('The use of communication aids')) needs.push('communication_aids');
+  }
+  
+  return needs;
+}
+
+/**
+ * Get client accessibility information
+ * UPDATED: Now includes the requiredOffice field
+ */
+async getClientAccessibilityInfo(clientId: string): Promise<any | null> {
+  try {
+    console.log(`Getting accessibility info for client ${clientId}`);
     
-  /**
-   * Get a specific appointment by ID - Updated for new field names
-   */
-  async getAppointment(appointmentId: string): Promise<AppointmentRecord | null> {
-    try {
-      const values = await this.readSheet(`${SHEET_NAMES.APPOINTMENTS}!A2:Q`);
-      if (!values) return null;
-  
-      const appointmentRow = values.find((row: SheetRow) => row[0] === appointmentId);
-      if (!appointmentRow) return null;
-  
-      // Create appointment object with both old and new field names
-      const appointment: Partial<AppointmentRecord> = {
-        appointmentId: appointmentRow[0],
-        clientId: appointmentRow[1],
-        clientName: appointmentRow[2],
-        clinicianId: appointmentRow[3],
-        clinicianName: appointmentRow[4],
-        sessionType: appointmentRow[6] as 'in-person' | 'telehealth' | 'group' | 'family',
-        startTime: appointmentRow[7],
-        endTime: appointmentRow[8],
-        status: appointmentRow[9] as 'scheduled' | 'completed' | 'cancelled' | 'rescheduled',
-        lastUpdated: appointmentRow[10],
-        source: appointmentRow[11] as 'intakeq' | 'manual',
-        requirements: JSON.parse(appointmentRow[12] || '{}'),
-        notes: appointmentRow[13]
-      };
-      
-      // Handle old and new office ID fields
-      if (appointmentRow[5]) { // Column F (index 5): currentOfficeId (formerly officeId)
-        appointment.currentOfficeId = standardizeOfficeId(appointmentRow[5]);
-        appointment.officeId = appointment.currentOfficeId; // For backward compatibility
-      }
-      
-      if (appointmentRow[14]) { // Column O (index 14): assignedOfficeId (formerly suggestedOfficeId)
-        appointment.assignedOfficeId = standardizeOfficeId(appointmentRow[14]);
-        appointment.suggestedOfficeId = appointment.assignedOfficeId; // For backward compatibility
-      }
-      
-      // Handle assignment reason
-      if (appointmentRow[15]) { // Column P (index 15): assignmentReason
-        appointment.assignmentReason = appointmentRow[15];
-      }
-      
-      // Normalize the record to ensure consistent fields
-      return normalizeAppointmentRecord(appointment);
-    } catch (error) {
-      console.error('Error getting appointment:', error);
+    // Updated range to include column P (requiredOffice)
+    const values = await this.readSheet(`${SHEET_NAMES.CLIENT_ACCESSIBILITY}!A2:P`);
+    if (!values || values.length === 0) {
+      console.log(`No accessibility info found for any clients`);
       return null;
     }
-  }
-
-  /**
-   * Delete an appointment
-   */
-  async deleteAppointment(appointmentId: string): Promise<void> {
-    try {
-      const values = await this.readSheet(`${SHEET_NAMES.APPOINTMENTS}!A:A`);
-      const appointmentRow = values?.findIndex((row: SheetRow) => row[0] === appointmentId);
-
-      if (!values || appointmentRow === undefined || appointmentRow < 0) {
-        throw new Error(`Appointment ${appointmentId} not found`);
-      }
-
-      await this.sheets.spreadsheets.values.clear({
-        spreadsheetId: this.spreadsheetId,
-        range: `${SHEET_NAMES.APPOINTMENTS}!A${appointmentRow + 1}:Q${appointmentRow + 1}`
-      });
-
-      await this.refreshCache(`${SHEET_NAMES.APPOINTMENTS}!A2:Q`);
-      
-      await this.addAuditLog({
-        timestamp: new Date().toISOString(),
-        eventType: AuditEventType.APPOINTMENT_DELETED,
-        description: `Deleted appointment ${appointmentId}`,
-        user: 'SYSTEM',
-        systemNotes: JSON.stringify({ appointmentId })
-      });
-    } catch (error) {
-      console.error('Error deleting appointment:', error);
-      throw new Error('Failed to delete appointment');
-    }
-  }
-
-  async updateClientPreference(preference: ClientPreference): Promise<void> {
-    try {
-      // Update to use CLIENT_ACCESSIBILITY instead of CLIENT_PREFERENCES
-      const values = await this.readSheet(`${SHEET_NAMES.CLIENT_ACCESSIBILITY}!A:A`);
-      const clientRow = values?.findIndex((row: SheetRow) => row[0] === preference.clientId);
-      
-      // Map to the format expected by Client_Accessibility_Info
-      const rowData = [
-        preference.clientId, // clientId
-        preference.name,     // clientName
-        new Date().toISOString(), // lastUpdated
-        preference.mobilityNeeds && preference.mobilityNeeds.length > 0 ? 'TRUE' : 'FALSE', // hasMobilityNeeds
-        preference.mobilityNeeds?.join(', ') || '', // mobilityDetails
-        preference.sensoryPreferences && preference.sensoryPreferences.length > 0 ? 'TRUE' : 'FALSE', // hasSensoryNeeds
-        preference.sensoryPreferences?.join(', ') || '', // sensoryDetails
-        preference.physicalNeeds && preference.physicalNeeds.length > 0 ? 'TRUE' : 'FALSE', // hasPhysicalNeeds
-        preference.physicalNeeds?.join(', ') || '', // physicalDetails
-        preference.roomConsistency.toString(), // roomConsistency
-        preference.supportNeeds && preference.supportNeeds.length > 0 ? 'TRUE' : 'FALSE', // hasSupport
-        preference.supportNeeds?.join(', ') || '', // supportDetails
-        // Include assigned office in additionalNotes if present
-        (preference.additionalNotes || '') + 
-        (preference.assignedOffice ? `\nAssigned Office: ${preference.assignedOffice}` : ''), // additionalNotes
-        'migrated', // formType
-        '', // formId
-        preference.assignedOffice || '' // Added requiredOffice field
-      ];
   
-      if (clientRow !== undefined && clientRow >= 0) {
-        await this.sheets.spreadsheets.values.update({
-          spreadsheetId: this.spreadsheetId,
-          range: `${SHEET_NAMES.CLIENT_ACCESSIBILITY}!A${clientRow + 1}:P${clientRow + 1}`,
-          valueInputOption: 'RAW',
-          requestBody: {
-            values: [rowData]
-          }
-        });
-      } else {
-        await this.appendRows(`${SHEET_NAMES.CLIENT_ACCESSIBILITY}!A:P`, [rowData]);
-      }
-  
-      await this.addAuditLog({
-        timestamp: new Date().toISOString(),
-        eventType: AuditEventType.CLIENT_PREFERENCES_UPDATED,
-        description: `Updated preferences for client ${preference.clientId}`,
-        user: 'SYSTEM',
-        systemNotes: JSON.stringify(preference)
-      });
-  
-      await this.refreshCache(`${SHEET_NAMES.CLIENT_ACCESSIBILITY}!A2:P`);
-    } catch (error) {
-      console.error('Error updating client preference:', error);
-      throw error;
-    }
-  }
-
-  private extractMobilityNeeds(responses: Record<string, any>): string[] {
-    const needs: string[] = [];
-    
-    const mobilityField = responses['Do you use any mobility devices?'] || [];
-    if (Array.isArray(mobilityField)) {
-      if (mobilityField.includes('Wheelchair')) needs.push('wheelchair_access');
-      if (mobilityField.includes('Crutches')) needs.push('mobility_aid_crutches');
-      if (mobilityField.includes('Walking boot')) needs.push('mobility_aid_boot');
+    const clientRow = values.find(row => row[0] === clientId);
+    if (!clientRow) {
+      console.log(`No accessibility info found for client ${clientId}`);
+      return null;
     }
     
-    const otherMobility = responses['Access needs related to mobility/disability (Please specify)'];
-    if (otherMobility) needs.push(otherMobility);
-    
-    return needs;
-  }
-
-  private extractSensoryPreferences(responses: Record<string, any>): string[] {
-    const preferences: string[] = [];
-    
-    const sensoryField = responses['Do you experience sensory sensitivities?'] || [];
-    if (Array.isArray(sensoryField)) {
-      if (sensoryField.includes('Light sensitivity')) preferences.push('light_sensitive');
-      if (sensoryField.includes('Preference for only natural light')) preferences.push('natural_light');
-      if (sensoryField.includes('Auditory sensitivity')) preferences.push('sound_sensitive');
-    }
-    
-    const otherSensory = responses['Other (Please specify):'];
-    if (otherSensory) preferences.push(otherSensory);
-    
-    return preferences;
-  }
-
-  private extractPhysicalNeeds(responses: Record<string, any>): string[] {
-    const needs: string[] = [];
-    
-    const physicalField = responses['Do you experience challenges with physical environment?'] || [];
-    if (Array.isArray(physicalField)) {
-      if (physicalField.includes('Seating support')) needs.push('seating_support');
-      if (physicalField.includes('Difficulty with stairs')) needs.push('no_stairs');
-      if (physicalField.includes('Need to see the door')) needs.push('door_visible');
-    }
-    
-    return needs;
-  }
-
-  private extractRoomConsistency(responses: Record<string, any>): number {
-    const value = responses['Please indicate your comfort level with this possibility:'];
-    const consistencyMap: Record<string, number> = {
-      '1 - Strong preference for consistency': 5,
-      '2 - High preference for consistency': 4,
-      '3 - Neutral about room changes': 3,
-      '4 - Somewhat comfortable with room changes when needed': 2,
-      '5 - Very comfortable with room changes when needed': 1
+    return {
+      clientId: clientRow[0],
+      clientName: clientRow[1] || '',
+      lastUpdated: clientRow[2] || '',
+      hasMobilityNeeds: clientRow[3] === 'TRUE',
+      mobilityDetails: clientRow[4] || '',
+      hasSensoryNeeds: clientRow[5] === 'TRUE',
+      sensoryDetails: clientRow[6] || '',
+      hasPhysicalNeeds: clientRow[7] === 'TRUE',
+      physicalDetails: clientRow[8] || '',
+      roomConsistency: parseInt(clientRow[9] || '3'),
+      hasSupport: clientRow[10] === 'TRUE',
+      supportDetails: clientRow[11] || '',
+      additionalNotes: clientRow[12] || '',
+      formType: clientRow[13] || '',
+      formId: clientRow[14] || '',
+      requiredOffice: clientRow[15] || '' // Added requiredOffice field
     };
+  } catch (error) {
+    console.error(`Error getting client accessibility info for ${clientId}:`, error);
     
-    return consistencyMap[value] || 3;
+    // Log error but don't throw - just return null
+    await this.addAuditLog({
+      timestamp: new Date().toISOString(),
+      eventType: AuditEventType.SYSTEM_ERROR,
+      description: `Failed to get accessibility info for client ${clientId}`,
+      user: 'SYSTEM',
+      systemNotes: error instanceof Error ? error.message : 'Unknown error'
+    });
+    
+    return null;
   }
+}
 
-  private extractSupportNeeds(responses: Record<string, any>): string[] {
-    const needs: string[] = [];
+/**
+ * Update client accessibility information
+ * UPDATED: Now supports the requiredOffice field
+ */
+async updateClientAccessibilityInfo(accessibilityInfo: {
+  clientId: string;
+  clientName: string;
+  hasMobilityNeeds: boolean;
+  mobilityDetails: string;
+  hasSensoryNeeds: boolean;
+  sensoryDetails: string;
+  hasPhysicalNeeds: boolean;
+  physicalDetails: string;
+  roomConsistency: number;
+  hasSupport: boolean;
+  supportDetails: string;
+  additionalNotes: string;
+  formType: string;
+  formId: string;
+  requiredOffice?: string; // New field
+}): Promise<void> {
+  try {
+    console.log(`Updating accessibility info for client ${accessibilityInfo.clientId}`);
     
-    const supportField = responses['Do you have support needs that involve any of the following?'] || [];
-    if (Array.isArray(supportField)) {
-      if (supportField.includes('Space for a service animal')) needs.push('service_animal');
-      if (supportField.includes('A support person present')) needs.push('support_person');
-      if (supportField.includes('The use of communication aids')) needs.push('communication_aids');
+    // Check if client already exists in the sheet
+    const values = await this.readSheet(`${SHEET_NAMES.CLIENT_ACCESSIBILITY}!A:A`);
+    const clientRowIndex = values?.findIndex(row => row[0] === accessibilityInfo.clientId);
+    
+    // Format data for sheet
+    const rowData = [
+      accessibilityInfo.clientId,
+      accessibilityInfo.clientName,
+      new Date().toISOString(), // Last updated timestamp
+      accessibilityInfo.hasMobilityNeeds ? 'TRUE' : 'FALSE',
+      accessibilityInfo.mobilityDetails,
+      accessibilityInfo.hasSensoryNeeds ? 'TRUE' : 'FALSE',
+      accessibilityInfo.sensoryDetails,
+      accessibilityInfo.hasPhysicalNeeds ? 'TRUE' : 'FALSE',
+      accessibilityInfo.physicalDetails,
+      accessibilityInfo.roomConsistency.toString(),
+      accessibilityInfo.hasSupport ? 'TRUE' : 'FALSE',
+      accessibilityInfo.supportDetails,
+      accessibilityInfo.additionalNotes,
+      accessibilityInfo.formType,
+      accessibilityInfo.formId,
+      accessibilityInfo.requiredOffice || '' // Added requiredOffice field
+    ];
+    
+    if (clientRowIndex !== undefined && clientRowIndex >= 0) {
+      // Update existing row
+      console.log(`Updating existing row for client ${accessibilityInfo.clientId}`);
+      await this.sheets.spreadsheets.values.update({
+        spreadsheetId: this.spreadsheetId,
+        range: `${SHEET_NAMES.CLIENT_ACCESSIBILITY}!A${clientRowIndex + 2}:P${clientRowIndex + 2}`,
+        valueInputOption: 'RAW',
+        requestBody: {
+          values: [rowData]
+        }
+      });
+    } else {
+      // Add new row
+      console.log(`Adding new row for client ${accessibilityInfo.clientId}`);
+      await this.appendRows(`${SHEET_NAMES.CLIENT_ACCESSIBILITY}!A:P`, [rowData]);
     }
     
-    return needs;
+    // Log the update
+    await this.addAuditLog({
+      timestamp: new Date().toISOString(),
+      eventType: AuditEventType.CLIENT_PREFERENCES_UPDATED,
+      description: `Updated accessibility info for client ${accessibilityInfo.clientId}`,
+      user: 'SYSTEM',
+      systemNotes: JSON.stringify({
+        clientId: accessibilityInfo.clientId,
+        hasMobilityNeeds: accessibilityInfo.hasMobilityNeeds,
+        hasSensoryNeeds: accessibilityInfo.hasSensoryNeeds,
+        hasPhysicalNeeds: accessibilityInfo.hasPhysicalNeeds,
+        roomConsistency: accessibilityInfo.roomConsistency,
+        requiredOffice: accessibilityInfo.requiredOffice // Added requiredOffice
+      })
+    });
+    
+    console.log(`Successfully updated accessibility info for client ${accessibilityInfo.clientId}`);
+  } catch (error) {
+    console.error(`Error updating client accessibility info for ${accessibilityInfo.clientId}:`, error);
+    
+    // Log error and throw
+    await this.addAuditLog({
+      timestamp: new Date().toISOString(),
+      eventType: AuditEventType.SYSTEM_ERROR,
+      description: `Failed to update accessibility info for client ${accessibilityInfo.clientId}`,
+      user: 'SYSTEM',
+      systemNotes: error instanceof Error ? error.message : 'Unknown error'
+    });
+    
+    throw error;
   }
+}
 
-  async processAccessibilityForm(formData: {
-    clientId: string;
-    clientName: string;
-    clientEmail: string;
-    formResponses: Record<string, any>;
-  }): Promise<void> {
-    try {
-      const preference: ClientPreference = {
-        clientId: formData.clientId,
-        name: formData.clientName,
-        email: formData.clientEmail,
-        mobilityNeeds: this.extractMobilityNeeds(formData.formResponses),
-        sensoryPreferences: this.extractSensoryPreferences(formData.formResponses),
-        physicalNeeds: this.extractPhysicalNeeds(formData.formResponses),
-        roomConsistency: this.extractRoomConsistency(formData.formResponses),
-        supportNeeds: this.extractSupportNeeds(formData.formResponses),
-        specialFeatures: [], // Will be derived from other preferences
-        additionalNotes: formData.formResponses['Is there anything else we should know about your space or accessibility needs?'] || '',
-        lastUpdated: new Date().toISOString(),
-        preferredClinician: '',
-        assignedOffice: ''
-      };
-
-      await this.updateClientPreference(preference);
-
-      await this.addAuditLog({
-        timestamp: new Date().toISOString(),
-        eventType: AuditEventType.CLIENT_PREFERENCES_UPDATED,
-        description: `Processed accessibility form for client ${formData.clientId}`,
-        user: 'SYSTEM',
-        systemNotes: JSON.stringify(formData.formResponses)
+/**
+ * Get client required offices
+ * UPDATED: Now checks both additionalNotes and requiredOffice fields
+ */
+async getClientRequiredOffices(): Promise<any[]> {
+  try {
+    console.log('Getting client required offices from Client_Accessibility_Info');
+    
+    // Get client accessibility info
+    const accessibilityRecords = await this.getClientAccessibilityRecords();
+    
+    // Filter for clients with assigned offices in their notes or requiredOffice field
+    return accessibilityRecords
+      .filter(record => {
+        // Check both requiredOffice field and notes
+        const assignedOffice = this.extractAssignedOfficeFromNotes(
+          record.additionalNotes,
+          record.requiredOffice
+        );
+        return !!assignedOffice;
+      })
+      .map(record => {
+        const nameParts = record.clientName.split(' ');
+        const firstName = nameParts[0] || '';
+        const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '';
+        
+        // Extract office from requiredOffice field or notes
+        const requiredOfficeId = this.extractAssignedOfficeFromNotes(
+          record.additionalNotes,
+          record.requiredOffice
+        );
+        
+        return {
+          inactive: false,
+          requiredOfficeId,
+          lastName,
+          firstName,
+          middleName: '',
+          dateOfBirth: '',
+          dateCreated: '',
+          lastActivity: record.lastUpdated || '',
+          practitioner: ''  // Not available in accessibility info
+        };
       });
-    } catch (error) {
-      console.error('Error processing accessibility form:', error);
-      await this.addAuditLog({
-        timestamp: new Date().toISOString(),
-        eventType: AuditEventType.SYSTEM_ERROR,
-        description: `Failed to process accessibility form for client ${formData.clientId}`,
-        user: 'SYSTEM',
-        systemNotes: error instanceof Error ? error.message : 'Unknown error'
-      });
-      throw error;
-    }
+  } catch (error) {
+    console.error('Error getting client required offices from accessibility info:', error);
+    
+    // Log error but don't throw - just return empty array
+    await this.addAuditLog({
+      timestamp: new Date().toISOString(),
+      eventType: AuditEventType.SYSTEM_ERROR,
+      description: 'Failed to get client required offices from accessibility info',
+      user: 'SYSTEM',
+      systemNotes: error instanceof Error ? error.message : 'Unknown error'
+    });
+    
+    return [];
   }
+}
 
-  async refreshCache(range: string): Promise<void> {
-    this.cache.invalidate(`sheet:${range}`);
-  }
+async processAccessibilityForm(formData: {
+  clientId: string;
+  clientName: string;
+  clientEmail: string;
+  formResponses: Record<string, any>;
+}): Promise<void> {
+  try {
+    const preference: ClientPreference = {
+      clientId: formData.clientId,
+      name: formData.clientName,
+      email: formData.clientEmail,
+      mobilityNeeds: this.extractMobilityNeeds(formData.formResponses),
+      sensoryPreferences: this.extractSensoryPreferences(formData.formResponses),
+      physicalNeeds: this.extractPhysicalNeeds(formData.formResponses),
+      roomConsistency: this.extractRoomConsistency(formData.formResponses),
+      supportNeeds: this.extractSupportNeeds(formData.formResponses),
+      specialFeatures: [], // Will be derived from other preferences
+      additionalNotes: formData.formResponses['Is there anything else we should know about your space or accessibility needs?'] || '',
+      lastUpdated: new Date().toISOString(),
+      preferredClinician: '',
+      assignedOffice: ''
+    };
 
-  clearCache(): void {
-    this.cache.clearAll();
+    await this.updateClientPreference(preference);
+
+    await this.addAuditLog({
+      timestamp: new Date().toISOString(),
+      eventType: AuditEventType.CLIENT_PREFERENCES_UPDATED,
+      description: `Processed accessibility form for client ${formData.clientId}`,
+      user: 'SYSTEM',
+      systemNotes: JSON.stringify(formData.formResponses)
+    });
+  } catch (error) {
+    console.error('Error processing accessibility form:', error);
+    await this.addAuditLog({
+      timestamp: new Date().toISOString(),
+      eventType: AuditEventType.SYSTEM_ERROR,
+      description: `Failed to process accessibility form for client ${formData.clientId}`,
+      user: 'SYSTEM',
+      systemNotes: error instanceof Error ? error.message : 'Unknown error'
+    });
+    throw error;
   }
+}
+
+async refreshCache(range: string): Promise<void> {
+  this.cache.invalidate(`sheet:${range}`);
+}
+
+clearCache(): void {
+  this.cache.clearAll();
+}
 }
