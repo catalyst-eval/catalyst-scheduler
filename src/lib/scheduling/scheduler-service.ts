@@ -204,6 +204,11 @@ export class SchedulerService {
       console.log('Step 2: Cleaning up empty rows');
       const { removed, errors } = await this.cleanEmptyRows();
       console.log(`Removed ${removed} empty rows with ${errors} errors`);
+
+      // 2.5. Check and clean up duplicate appointments
+console.log('Step 2.5: Checking for duplicate appointments');
+const duplicateResult = await this.cleanupDuplicateAppointments();
+console.log(`Found ${duplicateResult.detected} appointments with duplicates, removed ${duplicateResult.removed}`);
       
       // 3. Refresh the two-week window
       console.log('Step 3: Refreshing two-week window');
@@ -239,6 +244,132 @@ export class SchedulerService {
       }
     }
   }
+
+  /**
+ * Detect and remove duplicate appointment entries
+ */
+async cleanupDuplicateAppointments(): Promise<{
+  detected: number;
+  removed: number;
+}> {
+  try {
+    console.log('Checking for duplicate appointment entries');
+    
+    // Get all appointments
+    const allAppointments = await this.sheetsService.getAllAppointments();
+    
+    // Track appointment IDs and which ones are duplicates
+    const appointmentIds = new Map<string, number[]>(); // appointmentId -> array of row indices
+    const duplicates: {appointmentId: string, indices: number[]}[] = [];
+    
+    // Find duplicates
+    allAppointments.forEach((appt, index) => {
+      if (!appt.appointmentId) return; // Skip if no ID
+      
+      if (!appointmentIds.has(appt.appointmentId)) {
+        appointmentIds.set(appt.appointmentId, [index]);
+      } else {
+        const indices = appointmentIds.get(appt.appointmentId) || [];
+        indices.push(index);
+        appointmentIds.set(appt.appointmentId, indices);
+        
+        // If this is the first duplicate found for this ID, add to duplicates list
+        if (indices.length === 2) {
+          duplicates.push({
+            appointmentId: appt.appointmentId,
+            indices: [...indices]
+          });
+        } else if (indices.length > 2) {
+          // Update existing duplicate entry
+          const dupEntry = duplicates.find(d => d.appointmentId === appt.appointmentId);
+          if (dupEntry) {
+            dupEntry.indices.push(index);
+          }
+        }
+      }
+    });
+    
+    console.log(`Found ${duplicates.length} appointments with duplicates`);
+    
+    if (duplicates.length === 0) {
+      return { detected: 0, removed: 0 };
+    }
+    
+    // Log the duplicates found
+    await this.logTaskWithRetry({
+      timestamp: new Date().toISOString(),
+      eventType: AuditEventType.INTEGRATION_UPDATED,
+      description: `Detected ${duplicates.length} duplicate appointments`,
+      user: 'SYSTEM',
+      systemNotes: JSON.stringify({
+        duplicateIds: duplicates.map(d => d.appointmentId)
+      })
+    });
+    
+    // Remove duplicates (keeping the most recently updated one)
+    let removedCount = 0;
+    
+    for (const duplicate of duplicates) {
+      try {
+        // Get full appointment objects for each duplicate
+        const duplicateAppointments = duplicate.indices.map(idx => allAppointments[idx]);
+        
+        // Sort by lastUpdated (most recent first)
+        duplicateAppointments.sort((a, b) => {
+          const dateA = new Date(a.lastUpdated || '');
+          const dateB = new Date(b.lastUpdated || '');
+          return dateB.getTime() - dateA.getTime();
+        });
+        
+        // Keep the most recent one, delete the others
+        const keepAppointment = duplicateAppointments[0];
+        const deleteAppointments = duplicateAppointments.slice(1);
+        
+        console.log(`Keeping appointment ${keepAppointment.appointmentId} from ${keepAppointment.lastUpdated}`);
+        
+        // Delete duplicates
+        for (const deleteAppt of deleteAppointments) {
+          await this.sheetsService.deleteAppointment(deleteAppt.appointmentId);
+          removedCount++;
+          
+          console.log(`Removed duplicate appointment ${deleteAppt.appointmentId} from ${deleteAppt.lastUpdated}`);
+        }
+      } catch (error) {
+        console.error(`Error removing duplicates for appointment ${duplicate.appointmentId}:`, error);
+      }
+    }
+    
+    // Log completion
+    await this.logTaskWithRetry({
+      timestamp: new Date().toISOString(),
+      eventType: AuditEventType.INTEGRATION_UPDATED,
+      description: `Removed ${removedCount} duplicate appointments`,
+      user: 'SYSTEM',
+      systemNotes: JSON.stringify({
+        detected: duplicates.length,
+        removed: removedCount
+      })
+    });
+    
+    return {
+      detected: duplicates.length,
+      removed: removedCount
+    };
+  } catch (error) {
+    console.error('Error cleaning up duplicate appointments:', error);
+    
+    // Log error with retry
+    await this.logTaskWithRetry({
+      timestamp: new Date().toISOString(),
+      eventType: AuditEventType.SYSTEM_ERROR,
+      description: 'Failed to clean up duplicate appointments',
+      user: 'SYSTEM',
+      systemNotes: error instanceof Error ? error.message : 'Unknown error'
+    });
+    
+    return { detected: 0, removed: 0 };
+  }
+}
 
   /**
    * Get appointments that need assignment

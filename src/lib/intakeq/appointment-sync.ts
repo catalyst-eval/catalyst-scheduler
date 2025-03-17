@@ -246,58 +246,69 @@ private async handleAppointmentUpdate(
   }
 }
 
-  private async handleAppointmentCancellation(
-    appointment: IntakeQAppointment
-  ): Promise<WebhookResponse> {
-    try {
-      console.log('Processing appointment cancellation:', appointment.Id);
-      
-      // 1. Check if appointment exists
-      const existingAppointment = await this.sheetsService.getAppointment(appointment.Id);
-      
-      if (!existingAppointment) {
-        return {
-          success: false,
-          error: `Appointment ${appointment.Id} not found for cancellation`,
-          retryable: false
-        };
-      }
-      
-      // 2. Update appointment status to cancelled
-      const updatedAppointment: AppointmentRecord = normalizeAppointmentRecord({
-        ...existingAppointment,
-        status: 'cancelled',
-        lastUpdated: new Date().toISOString()
-      });
-      
-      // 3. Update appointment in Google Sheets
-      await this.sheetsService.updateAppointment(updatedAppointment);
-      
-      // 4. Log cancellation
-      await this.sheetsService.addAuditLog({
-        timestamp: new Date().toISOString(),
-        eventType: 'APPOINTMENT_CANCELLED' as AuditEventType,
-        description: `Cancelled appointment ${appointment.Id}`,
-        user: 'SYSTEM',
-        systemNotes: JSON.stringify({
-          appointmentId: appointment.Id,
-          clientId: appointment.ClientId,
-          reason: appointment.CancellationReason || 'No reason provided'
-        })
-      });
-
+private async handleAppointmentCancellation(
+  appointment: IntakeQAppointment
+): Promise<WebhookResponse> {
+  try {
+    console.log('Processing appointment cancellation:', appointment.Id);
+    
+    // 1. Check if appointment exists
+    const existingAppointment = await this.sheetsService.getAppointment(appointment.Id);
+    
+    if (!existingAppointment) {
       return {
-        success: true,
-        details: {
-          appointmentId: appointment.Id,
-          action: 'cancelled'
-        }
+        success: false,
+        error: `Appointment ${appointment.Id} not found for cancellation`,
+        retryable: false
       };
-    } catch (error) {
-      console.error('Error handling appointment cancellation:', error);
-      throw error;
     }
+    
+    // 2. Update appointment status to cancelled
+    const updatedAppointment: AppointmentRecord = normalizeAppointmentRecord({
+      ...existingAppointment,
+      status: 'cancelled',
+      lastUpdated: new Date().toISOString()
+    });
+    
+    // 3. Update appointment in Google Sheets
+    await this.sheetsService.updateAppointment(updatedAppointment);
+    
+    // 4. Log cancellation
+    await this.sheetsService.addAuditLog({
+      timestamp: new Date().toISOString(),
+      eventType: 'APPOINTMENT_CANCELLED' as AuditEventType,
+      description: `Cancelled appointment ${appointment.Id}`,
+      user: 'SYSTEM',
+      systemNotes: JSON.stringify({
+        appointmentId: appointment.Id,
+        clientId: appointment.ClientId,
+        reason: appointment.CancellationReason || 'No reason provided',
+        updateMethod: 'status_update'
+      })
+    });
+
+    return {
+      success: true,
+      details: {
+        appointmentId: appointment.Id,
+        action: 'cancelled'
+      }
+    };
+  } catch (error) {
+    console.error('Error handling appointment cancellation:', error);
+    
+    // Add detailed error logging
+    await this.sheetsService.addAuditLog({
+      timestamp: new Date().toISOString(),
+      eventType: 'SYSTEM_ERROR' as AuditEventType,
+      description: `Error cancelling appointment ${appointment.Id}`,
+      user: 'SYSTEM',
+      systemNotes: error instanceof Error ? error.message : 'Unknown error'
+    });
+    
+    throw error;
   }
+}
 
   /**
    * Extract assigned office from notes and/or requiredOffice field
@@ -337,7 +348,7 @@ private async handleAppointmentUpdate(
         };
       }
       
-      // 2. Delete appointment from Google Sheets
+      // 2. Delete appointment from Google Sheets (now removes entire row)
       await this.sheetsService.deleteAppointment(appointment.Id);
       
       // 3. Log deletion
@@ -348,10 +359,11 @@ private async handleAppointmentUpdate(
         user: 'SYSTEM',
         systemNotes: JSON.stringify({
           appointmentId: appointment.Id,
-          clientId: appointment.ClientId
+          clientId: appointment.ClientId,
+          deletionMethod: 'row_removal'
         })
       });
-
+  
       return {
         success: true,
         details: {
@@ -361,6 +373,16 @@ private async handleAppointmentUpdate(
       };
     } catch (error) {
       console.error('Error handling appointment deletion:', error);
+      
+      // Add detailed error logging
+      await this.sheetsService.addAuditLog({
+        timestamp: new Date().toISOString(),
+        eventType: 'SYSTEM_ERROR' as AuditEventType,
+        description: `Error deleting appointment ${appointment.Id}`,
+        user: 'SYSTEM',
+        systemNotes: error instanceof Error ? error.message : 'Unknown error'
+      });
+      
       throw error;
     }
   }

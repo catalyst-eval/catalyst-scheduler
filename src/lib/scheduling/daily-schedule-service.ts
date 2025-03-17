@@ -723,6 +723,12 @@ export class DailyScheduleService {
         date = today;
       }
       
+      // Check for API disable flag
+      if (process.env.DISABLE_API_CALLS === 'true') {
+        console.log(`API DISABLED: Skipping IntakeQ refresh for date ${date}`);
+        return 0;
+      }
+      
       console.log(`Refreshing appointments from IntakeQ for ${date}`);
       
       // 1. Initialize the IntakeQ service

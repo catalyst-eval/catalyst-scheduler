@@ -613,36 +613,38 @@ export class GoogleSheetsService implements IGoogleSheetsService {
             
             // Handle requirements parsing
             // Handle requirements parsing
-try {
-  const requirementsStr = row[12]?.toString().trim();
-  if (requirementsStr) {
-    // Check if the string starts with "Service:" - if so, it's not JSON
-    if (requirementsStr.startsWith('Service:')) {
-      appointment.requirements = { accessibility: false, specialFeatures: [] };
-      // Move the service info to notes if it's in the wrong column
-      appointment.notes = requirementsStr;
-    } else {
-      // Try to parse as JSON with error handling
-      try {
-        const cleanJson = requirementsStr
-          .replace(/[\u0000-\u0019]+/g, '')
-          .replace(/\s+/g, ' ')
-          .trim();
-        appointment.requirements = JSON.parse(cleanJson);
-      } catch (error) {
-        // Properly handle unknown error type
-        const jsonError = error instanceof Error ? error.message : 'Unknown JSON parsing error';
-        console.warn(`Error parsing requirements JSON, defaulting to empty: ${jsonError}`);
-        appointment.requirements = { accessibility: false, specialFeatures: [] };
-      }
-    }
-  } else {
-    appointment.requirements = { accessibility: false, specialFeatures: [] };
-  }
-} catch (err) {
-  console.error('Error parsing requirements JSON:', err, {value: row[12]});
-  appointment.requirements = { accessibility: false, specialFeatures: [] };
-}
+            try {
+              const requirementsStr = row[12]?.toString().trim();
+              if (requirementsStr) {
+                // Check if the string starts with "Service:" - if so, it's not JSON
+                if (requirementsStr.startsWith('Service:')) {
+                  appointment.requirements = { accessibility: false, specialFeatures: [] };
+                  // Move the service info to notes if it's in the wrong column
+                  appointment.notes = requirementsStr;
+                } else {
+                  // Try to parse as JSON with error handling
+                  try {
+                    const cleanJson = requirementsStr
+                      .replace(/[\u0000-\u0019]+/g, '')
+                      .replace(/\s+/g, ' ')
+                      .trim();
+                    appointment.requirements = JSON.parse(cleanJson);
+                  } catch (error) {
+                    // Properly handle unknown error type
+                    const jsonError = error instanceof Error ? error.message : 'Unknown JSON parsing error';
+                    console.warn(`Error parsing requirements JSON, defaulting to empty: ${jsonError}`);
+                    appointment.requirements = { accessibility: false, specialFeatures: [] };
+                  }
+                }
+              } else {
+                appointment.requirements = { accessibility: false, specialFeatures: [] };
+              }
+            } catch (err) {
+              console.error('Error parsing requirements JSON:', err, {value: row[12]});
+              appointment.requirements = { accessibility: false, specialFeatures: [] };
+            }
+            
+            
             
             // Handle office IDs - NEW FIELD NAMES
             // Column 5 (index 5) = currentOfficeId (previously officeId)
@@ -1263,59 +1265,141 @@ private extractMobilityNeeds(responses: Record<string, any>): string[] {
   return needs;
 }
 
-private extractSensoryPreferences(responses: Record<string, any>): string[] {
-  const preferences: string[] = [];
-  
-  const sensoryField = responses['Do you experience sensory sensitivities?'] || [];
-  if (Array.isArray(sensoryField)) {
-    if (sensoryField.includes('Light sensitivity')) preferences.push('light_sensitive');
-    if (sensoryField.includes('Preference for only natural light')) preferences.push('natural_light');
-    if (sensoryField.includes('Auditory sensitivity')) preferences.push('sound_sensitive');
+// Add these methods to the GoogleSheetsService class, after the existing extractMobilityNeeds method
+
+/**
+ * Safely extract sensory preferences from form responses
+ */
+private safeExtractSensoryPreferences(responses: Record<string, any>): string[] {
+  try {
+    const preferences: string[] = [];
+    
+    const sensoryField = responses['Do you experience sensory sensitivities?'] || [];
+    if (Array.isArray(sensoryField)) {
+      if (sensoryField.includes('Light sensitivity')) preferences.push('light_sensitive');
+      if (sensoryField.includes('Preference for only natural light')) preferences.push('natural_light');
+      if (sensoryField.includes('Auditory sensitivity')) preferences.push('sound_sensitive');
+    }
+    
+    const otherSensory = responses['Other (Please specify):'];
+    if (otherSensory && typeof otherSensory === 'string') preferences.push(otherSensory);
+    
+    return preferences;
+  } catch (error) {
+    console.warn('Error extracting sensory preferences:', error);
+    return [];
   }
-  
-  const otherSensory = responses['Other (Please specify):'];
-  if (otherSensory) preferences.push(otherSensory);
-  
-  return preferences;
 }
 
-private extractPhysicalNeeds(responses: Record<string, any>): string[] {
-  const needs: string[] = [];
-  
-  const physicalField = responses['Do you experience challenges with physical environment?'] || [];
-  if (Array.isArray(physicalField)) {
-    if (physicalField.includes('Seating support')) needs.push('seating_support');
-    if (physicalField.includes('Difficulty with stairs')) needs.push('no_stairs');
-    if (physicalField.includes('Need to see the door')) needs.push('door_visible');
+/**
+ * Safely extract physical needs from form responses
+ */
+private safeExtractPhysicalNeeds(responses: Record<string, any>): string[] {
+  try {
+    const needs: string[] = [];
+    
+    const physicalField = responses['Do you experience challenges with physical environment?'] || [];
+    if (Array.isArray(physicalField)) {
+      if (physicalField.includes('Seating support')) needs.push('seating_support');
+      if (physicalField.includes('Difficulty with stairs')) needs.push('no_stairs');
+      if (physicalField.includes('Need to see the door')) needs.push('door_visible');
+    }
+    
+    // Check for additional physical environment details
+    const physicalDetails = responses['Physical environment details:'];
+    if (physicalDetails && typeof physicalDetails === 'string' && physicalDetails.trim() !== '') {
+      needs.push(physicalDetails.trim());
+    }
+    
+    return needs;
+  } catch (error) {
+    console.warn('Error extracting physical needs:', error);
+    return [];
   }
-  
-  return needs;
 }
 
-private extractRoomConsistency(responses: Record<string, any>): number {
-  const value = responses['Please indicate your comfort level with this possibility:'];
-  const consistencyMap: Record<string, number> = {
-    '1 - Strong preference for consistency': 5,
-    '2 - High preference for consistency': 4,
-    '3 - Neutral about room changes': 3,
-    '4 - Somewhat comfortable with room changes when needed': 2,
-    '5 - Very comfortable with room changes when needed': 1
-  };
-  
-  return consistencyMap[value] || 3;
+/**
+ * Safely extract mobility needs from form responses
+ */
+private safeExtractMobilityNeeds(responses: Record<string, any>): string[] {
+  try {
+    const needs: string[] = [];
+    
+    const mobilityField = responses['Do you use any mobility devices?'] || [];
+    if (Array.isArray(mobilityField)) {
+      if (mobilityField.includes('Wheelchair')) needs.push('wheelchair_access');
+      if (mobilityField.includes('Crutches')) needs.push('mobility_aid_crutches');
+      if (mobilityField.includes('Walking boot')) needs.push('mobility_aid_boot');
+    }
+    
+    const otherMobility = responses['Access needs related to mobility/disability (Please specify)'];
+    if (otherMobility && typeof otherMobility === 'string') needs.push(otherMobility);
+    
+    return needs;
+  } catch (error) {
+    console.warn('Error extracting mobility needs:', error);
+    return [];
+  }
 }
 
-private extractSupportNeeds(responses: Record<string, any>): string[] {
-  const needs: string[] = [];
-  
-  const supportField = responses['Do you have support needs that involve any of the following?'] || [];
-  if (Array.isArray(supportField)) {
-    if (supportField.includes('Space for a service animal')) needs.push('service_animal');
-    if (supportField.includes('A support person present')) needs.push('support_person');
-    if (supportField.includes('The use of communication aids')) needs.push('communication_aids');
+/**
+ * Safely extract room consistency preference from form responses
+ */
+private safeExtractRoomConsistency(responses: Record<string, any>): number {
+  try {
+    const value = responses['Please indicate your comfort level with this possibility:'];
+    const consistencyMap: Record<string, number> = {
+      '1 - Strong preference for consistency': 5,
+      '2 - High preference for consistency': 4,
+      '3 - Neutral about room changes': 3,
+      '4 - Somewhat comfortable with room changes when needed': 2,
+      '5 - Very comfortable with room changes when needed': 1
+    };
+    
+    return typeof value === 'string' && consistencyMap[value] ? consistencyMap[value] : 3;
+  } catch (error) {
+    console.warn('Error extracting room consistency:', error);
+    return 3; // Default to neutral
   }
-  
-  return needs;
+}
+
+/**
+ * Safely extract support needs from form responses
+ */
+private safeExtractSupportNeeds(responses: Record<string, any>): string[] {
+  try {
+    const needs: string[] = [];
+    
+    const supportField = responses['Do you have support needs that involve any of the following?'] || [];
+    if (Array.isArray(supportField)) {
+      if (supportField.includes('Space for a service animal')) needs.push('service_animal');
+      if (supportField.includes('A support person present')) needs.push('support_person');
+      if (supportField.includes('The use of communication aids')) needs.push('communication_aids');
+    }
+    
+    // Check for additional support details
+    const supportDetails = responses['Support needs details:'];
+    if (supportDetails && typeof supportDetails === 'string' && supportDetails.trim() !== '') {
+      needs.push(supportDetails.trim());
+    }
+    
+    return needs;
+  } catch (error) {
+    console.warn('Error extracting support needs:', error);
+    return [];
+  }
+}
+
+/**
+ * Safely extract value from form responses
+ */
+private safeExtractValue(responses: Record<string, any>, key: string, defaultValue: any): any {
+  try {
+    return responses[key] !== undefined ? responses[key] : defaultValue;
+  } catch (error) {
+    console.warn(`Error extracting value for ${key}:`, error);
+    return defaultValue;
+  }
 }
 
 /**
@@ -1588,37 +1672,6 @@ async processAccessibilityForm(formData: {
       systemNotes: error instanceof Error ? error.message : 'Unknown error'
     });
     throw error;
-  }
-}
-
-// Add these helper methods to safely extract values
-private safeExtractValue(responses: Record<string, any>, key: string, defaultValue: any): any {
-  try {
-    return responses[key] !== undefined ? responses[key] : defaultValue;
-  } catch (error) {
-    console.warn(`Error extracting value for ${key}:`, error);
-    return defaultValue;
-  }
-}
-
-private safeExtractMobilityNeeds(responses: Record<string, any>): string[] {
-  try {
-    const needs: string[] = [];
-    
-    const mobilityField = responses['Do you use any mobility devices?'];
-    if (Array.isArray(mobilityField)) {
-      if (mobilityField.includes('Wheelchair')) needs.push('wheelchair_access');
-      if (mobilityField.includes('Crutches')) needs.push('mobility_aid_crutches');
-      if (mobilityField.includes('Walking boot')) needs.push('mobility_aid_boot');
-    }
-    
-    const otherMobility = responses['Access needs related to mobility/disability (Please specify)'];
-    if (otherMobility && typeof otherMobility === 'string') needs.push(otherMobility);
-    
-    return needs;
-  } catch (error) {
-    console.warn('Error extracting mobility needs:', error);
-    return [];
   }
 }
 
