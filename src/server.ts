@@ -13,7 +13,10 @@ dotenv.config();
 console.log('ENV check on startup:');
 console.log('- GOOGLE_SHEETS_PRIVATE_KEY exists:', !!process.env.GOOGLE_SHEETS_PRIVATE_KEY);
 console.log('- GOOGLE_SHEETS_CLIENT_EMAIL exists:', !!process.env.GOOGLE_SHEETS_CLIENT_EMAIL);
-console.log('- SENDGRID_API_KEY exists:', !!process.env.SENDGRID_API_KEY);
+console.log('- INTAKEQ_API_KEY exists:', !!process.env.INTAKEQ_API_KEY);
+console.log('- INTAKEQ_WEBHOOK_SECRET exists:', !!process.env.INTAKEQ_WEBHOOK_SECRET);
+console.log('- DISABLE_API_CALLS:', process.env.DISABLE_API_CALLS);
+console.log('- NODE_ENV:', process.env.NODE_ENV);
 
 // Create Express app
 const app = express();

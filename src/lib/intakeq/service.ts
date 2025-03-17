@@ -88,6 +88,7 @@ export class IntakeQService {
   private readonly sheetsService: GoogleSheetsService;
   private readonly MAX_RETRIES = 3;
   private readonly RETRY_DELAY = 1000; // 1 second base delay
+  private readonly DISABLE_API_CALLS = process.env.DISABLE_API_CALLS === 'true' || false;
   
   constructor(
     sheetsService: GoogleSheetsService,
@@ -131,12 +132,19 @@ export class IntakeQService {
     status: string = 'Confirmed,WaitingConfirmation,Pending'
   ): Promise<IntakeQAppointment[]> {
     try {
+      // Check if API calls are disabled
+      if (this.DISABLE_API_CALLS) {
+        console.log(`API DISABLED: Using local appointment data for date range ${startDate} to ${endDate}`);
+        return []; // Return empty array when API calls are disabled
+      }
+      
+      // Rest of the original implementation...
       console.log('Fetching IntakeQ appointments:', { startDate, endDate });
-
+  
       // Convert dates to proper format and ensure full day ranges
       const requestedStart = new Date(startDate);
       const requestedEnd = new Date(endDate);
-
+  
       // Create start of day in UTC
       const startOfDay = new Date(requestedStart);
       startOfDay.setHours(0, 0, 0, 0);
@@ -269,6 +277,11 @@ export class IntakeQService {
    */
   async getClient(clientId: number): Promise<any | null> {
     try {
+      // Check if API calls are disabled
+      if (this.DISABLE_API_CALLS) {
+        console.log(`API DISABLED: Skipping client data retrieval for client ${clientId}`);
+        return null;
+      }
       console.log(`Fetching IntakeQ client: ${clientId}`);
       
       // Get a whitelisted IP
@@ -323,6 +336,11 @@ export class IntakeQService {
    */
   async getFullIntakeForm(formId: string): Promise<any> {
     try {
+      // Check if API calls are disabled
+      if (this.DISABLE_API_CALLS) {
+        console.log(`API DISABLED: Skipping form retrieval for form ${formId}`);
+        return null;
+      }
       console.log(`Fetching full intake form data for ID: ${formId}`);
       
       // Get a whitelisted IP
@@ -432,6 +450,11 @@ export class IntakeQService {
    */
   async testConnection(): Promise<boolean> {
     try {
+      // Check if API calls are disabled
+      if (this.DISABLE_API_CALLS) {
+        console.log('API DISABLED: Skipping connection test');
+        return false;
+      }
       // Get a whitelisted IP
       const whitelistedIP = this.getRandomWhitelistedIP();
       
@@ -467,6 +490,11 @@ export class IntakeQService {
    */
   async fetchFromIntakeQ(endpoint: string): Promise<any> {
     try {
+      // Check if API calls are disabled
+      if (this.DISABLE_API_CALLS) {
+        console.log(`API DISABLED: Skipping API request to ${endpoint}`);
+        return null;
+      }
       console.log(`Fetching from IntakeQ API: ${endpoint}`);
       
       // Get a whitelisted IP

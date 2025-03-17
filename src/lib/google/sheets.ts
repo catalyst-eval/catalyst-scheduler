@@ -1143,9 +1143,23 @@ async deleteAppointment(appointmentId: string): Promise<void> {
       throw new Error(`Appointment ${appointmentId} not found`);
     }
 
-    await this.sheets.spreadsheets.values.clear({
+    // Instead of just clearing cells, delete the entire row
+    await this.sheets.spreadsheets.batchUpdate({
       spreadsheetId: this.spreadsheetId,
-      range: `${SHEET_NAMES.APPOINTMENTS}!A${appointmentRow + 2}:Q${appointmentRow + 2}`
+      requestBody: {
+        requests: [
+          {
+            deleteDimension: {
+              range: {
+                sheetId: 0, // Assuming appointments are on the first sheet
+                dimension: 'ROWS',
+                startIndex: appointmentRow + 1, // +1 because row 0 is header
+                endIndex: appointmentRow + 2 // +2 because endIndex is exclusive
+              }
+            }
+          }
+        ]
+      }
     });
 
     await this.refreshCache(`${SHEET_NAMES.APPOINTMENTS}!A2:Q`);
@@ -1155,11 +1169,25 @@ async deleteAppointment(appointmentId: string): Promise<void> {
       eventType: AuditEventType.APPOINTMENT_DELETED,
       description: `Deleted appointment ${appointmentId}`,
       user: 'SYSTEM',
-      systemNotes: JSON.stringify({ appointmentId })
+      systemNotes: JSON.stringify({ 
+        appointmentId,
+        rowIndex: appointmentRow + 2, // +2 for 1-based index and header
+        deletionType: 'full_row'
+      })
     });
   } catch (error) {
-    console.error('Error deleting appointment:', error);
-    throw new Error('Failed to delete appointment');
+    console.error(`Error deleting appointment ${appointmentId}:`, error);
+    
+    // Add detailed error logging
+    await this.addAuditLog({
+      timestamp: new Date().toISOString(),
+      eventType: AuditEventType.SYSTEM_ERROR,
+      description: `Failed to delete appointment ${appointmentId}`,
+      user: 'SYSTEM',
+      systemNotes: error instanceof Error ? error.message : 'Unknown error'
+    });
+    
+    throw new Error(`Failed to delete appointment: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
 
@@ -1510,17 +1538,28 @@ async processAccessibilityForm(formData: {
   formResponses: Record<string, any>;
 }): Promise<void> {
   try {
+    // Validate and sanitize inputs
+    if (!formData.clientId || !formData.clientName) {
+      throw new Error('Missing required client information');
+    }
+    
+    // Ensure formResponses is an object
+    const safeResponses = typeof formData.formResponses === 'object' && formData.formResponses !== null 
+      ? formData.formResponses 
+      : {};
+    
+    // Create client preference with safer extraction methods
     const preference: ClientPreference = {
       clientId: formData.clientId,
       name: formData.clientName,
-      email: formData.clientEmail,
-      mobilityNeeds: this.extractMobilityNeeds(formData.formResponses),
-      sensoryPreferences: this.extractSensoryPreferences(formData.formResponses),
-      physicalNeeds: this.extractPhysicalNeeds(formData.formResponses),
-      roomConsistency: this.extractRoomConsistency(formData.formResponses),
-      supportNeeds: this.extractSupportNeeds(formData.formResponses),
+      email: formData.clientEmail || '',
+      mobilityNeeds: this.safeExtractMobilityNeeds(safeResponses),
+      sensoryPreferences: this.safeExtractSensoryPreferences(safeResponses),
+      physicalNeeds: this.safeExtractPhysicalNeeds(safeResponses),
+      roomConsistency: this.safeExtractRoomConsistency(safeResponses),
+      supportNeeds: this.safeExtractSupportNeeds(safeResponses),
       specialFeatures: [], // Will be derived from other preferences
-      additionalNotes: formData.formResponses['Is there anything else we should know about your space or accessibility needs?'] || '',
+      additionalNotes: this.safeExtractValue(safeResponses, 'Is there anything else we should know about your space or accessibility needs?', ''),
       lastUpdated: new Date().toISOString(),
       preferredClinician: '',
       assignedOffice: ''
@@ -1533,7 +1572,11 @@ async processAccessibilityForm(formData: {
       eventType: AuditEventType.CLIENT_PREFERENCES_UPDATED,
       description: `Processed accessibility form for client ${formData.clientId}`,
       user: 'SYSTEM',
-      systemNotes: JSON.stringify(formData.formResponses)
+      systemNotes: JSON.stringify({
+        clientId: formData.clientId,
+        fieldsProcessed: Object.keys(safeResponses).length,
+        processingTime: new Date().toISOString()
+      })
     });
   } catch (error) {
     console.error('Error processing accessibility form:', error);
@@ -1545,6 +1588,37 @@ async processAccessibilityForm(formData: {
       systemNotes: error instanceof Error ? error.message : 'Unknown error'
     });
     throw error;
+  }
+}
+
+// Add these helper methods to safely extract values
+private safeExtractValue(responses: Record<string, any>, key: string, defaultValue: any): any {
+  try {
+    return responses[key] !== undefined ? responses[key] : defaultValue;
+  } catch (error) {
+    console.warn(`Error extracting value for ${key}:`, error);
+    return defaultValue;
+  }
+}
+
+private safeExtractMobilityNeeds(responses: Record<string, any>): string[] {
+  try {
+    const needs: string[] = [];
+    
+    const mobilityField = responses['Do you use any mobility devices?'];
+    if (Array.isArray(mobilityField)) {
+      if (mobilityField.includes('Wheelchair')) needs.push('wheelchair_access');
+      if (mobilityField.includes('Crutches')) needs.push('mobility_aid_crutches');
+      if (mobilityField.includes('Walking boot')) needs.push('mobility_aid_boot');
+    }
+    
+    const otherMobility = responses['Access needs related to mobility/disability (Please specify)'];
+    if (otherMobility && typeof otherMobility === 'string') needs.push(otherMobility);
+    
+    return needs;
+  } catch (error) {
+    console.warn('Error extracting mobility needs:', error);
+    return [];
   }
 }
 

@@ -584,6 +584,22 @@ private async handleAppointmentUpdate(
    */
   async determineOfficeAssignment(appointment: IntakeQAppointment): Promise<OfficeAssignmentResult> {
     try {
+      // Check if API calls are disabled
+      if (process.env.DISABLE_API_CALLS === 'true') {
+        console.log(`API DISABLED: Using simplified office assignment for appointment ${appointment.Id}`);
+        // Return a simplified assignment based on session type
+        if (this.determineSessionType(appointment) === 'telehealth') {
+          return {
+            officeId: 'A-v',
+            reasons: ['API DISABLED: Default virtual office for telehealth']
+          };
+        } else {
+          return {
+            officeId: 'TBD',
+            reasons: ['API DISABLED: Office to be determined during scheduling']
+          };
+        }
+      }
       console.log(`Determining office assignment for appointment ${appointment.Id}`);
       
       // 1. Get all configuration data

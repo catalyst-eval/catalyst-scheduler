@@ -66,60 +66,95 @@ export class WebhookHandler {
   }
 
   /**
-   * Process incoming webhook with validation and retries
-   */
-  async processWebhook(
-    payload: unknown,
-    signature?: string
-  ): Promise<WebhookResponse> {
-    try {
-      // Validate webhook payload
-      const validationResult = this.validateWebhook(payload);
-      if (!validationResult.isValid) {
-        await this.logWebhookError('VALIDATION_ERROR', validationResult.error || 'Unknown validation error', payload);
-        return {
-          success: false,
-          error: validationResult.error,
-          retryable: false
-        };
-      }
-  
-      const typedPayload = payload as IntakeQWebhookPayload;
-      const eventType = this.getEventType(typedPayload);
-  
-      // Log webhook receipt
+ * Process incoming webhook with validation and retries
+ */
+async processWebhook(
+  payload: unknown,
+  signature?: string
+): Promise<WebhookResponse> {
+  // Add timestamp to measure processing time
+  const startTime = Date.now();
+
+  try {
+    // Validate webhook payload
+    const validationResult = this.validateWebhook(payload);
+    if (!validationResult.isValid) {
+      await this.logWebhookError('VALIDATION_ERROR', validationResult.error || 'Unknown validation error', payload);
+      return {
+        success: false,
+        error: validationResult.error,
+        retryable: false
+      };
+    }
+
+    const typedPayload = payload as IntakeQWebhookPayload;
+    const eventType = this.getEventType(typedPayload);
+
+    // Log webhook receipt
+    await this.sheetsService.addAuditLog({
+      timestamp: new Date().toISOString(),
+      eventType: 'WEBHOOK_RECEIVED' as AuditEventType,
+      description: `Received ${eventType} webhook`,
+      user: 'INTAKEQ_WEBHOOK',
+      systemNotes: JSON.stringify({
+        type: eventType,
+        clientId: typedPayload.ClientId,
+        apiDisabled: process.env.DISABLE_API_CALLS === 'true' ? true : false
+      })
+    });
+
+    // Check if API calls are disabled
+    if (process.env.DISABLE_API_CALLS === 'true') {
+      console.log(`API DISABLED: Acknowledging webhook but not processing: ${eventType}`);
+      return {
+        success: true,
+        details: {
+          message: 'Webhook acknowledged but not processed (API calls disabled)',
+          webhookType: eventType
+        }
+      };
+    }
+
+    // Check if this is a form submission or an appointment webhook
+    let result: WebhookResponse;
+    if (eventType === "Form Submitted" || eventType === "Intake Submitted") {
+      result = await this.processIntakeFormSubmission(typedPayload);
+    } else if (typedPayload.Appointment && this.appointmentSyncHandler) {
+      // Process appointment event using the appointment sync handler
+      result = await this.appointmentSyncHandler.processAppointmentEvent(typedPayload);
+    } else {
+      // Process with retry logic for other events
+      result = await this.processWithRetry(typedPayload);
+    }
+
+    // Log successful webhook handling
+    if (result.success) {
       await this.sheetsService.addAuditLog({
         timestamp: new Date().toISOString(),
         eventType: 'WEBHOOK_RECEIVED' as AuditEventType,
-        description: `Received ${eventType} webhook`,
+        description: `Successfully processed ${eventType} webhook`,
         user: 'INTAKEQ_WEBHOOK',
         systemNotes: JSON.stringify({
           type: eventType,
-          clientId: typedPayload.ClientId
+          clientId: typedPayload.ClientId,
+          processingTime: Date.now() - startTime,
+          details: result.details
         })
       });
-  
-      // Check if this is a form submission or an appointment webhook
-      if (eventType === "Form Submitted" || eventType === "Intake Submitted") {
-        return await this.processIntakeFormSubmission(typedPayload);
-      } else if (typedPayload.Appointment && this.appointmentSyncHandler) {
-        // Process appointment event using the appointment sync handler
-        return await this.appointmentSyncHandler.processAppointmentEvent(typedPayload);
-      } else {
-        // Process with retry logic for other events
-        return await this.processWithRetry(typedPayload);
-      }
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      await this.logWebhookError('PROCESSING_ERROR', errorMessage, payload);
-      
-      return {
-        success: false,
-        error: errorMessage,
-        retryable: this.isRetryableError(error)
-      };
     }
+
+    return result;
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    await this.logWebhookError('PROCESSING_ERROR', errorMessage, payload);
+    
+    return {
+      success: false,
+      error: errorMessage,
+      retryable: this.isRetryableError(error)
+    };
   }
+}
 
   /**
  * Process intake form submission webhooks
@@ -407,7 +442,7 @@ private determineFormType(formData: any): 'Adult' | 'Minor' | 'Unknown' {
   ): { isValid: boolean; error?: string } {
     // Basic payload validation
     if (!payload || typeof payload !== 'object') {
-      return { isValid: false, error: 'Invalid payload format' };
+      return { isValid: false, error: 'Invalid payload format: not an object' };
     }
   
     // Stringify and re-parse to ensure any nested values are properly processed
@@ -418,7 +453,7 @@ private determineFormType(formData: any): 'Adult' | 'Minor' | 'Unknown' {
       // Required fields validation - check both Type and EventType
       const eventType = this.getEventType(typedPayload);
       if (!eventType) {
-        return { isValid: false, error: 'Missing event type field' };
+        return { isValid: false, error: 'Missing event type field (Type or EventType)' };
       }
       if (!typedPayload.ClientId) {
         return { isValid: false, error: 'Missing ClientId field' };
@@ -428,7 +463,14 @@ private determineFormType(formData: any): 'Adult' | 'Minor' | 'Unknown' {
     } catch (error: unknown) {
       console.error('Webhook payload parsing error:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown parsing error';
-      return { isValid: false, error: `Payload parsing error: ${errorMessage}` };
+      
+      // Add more detailed error info but avoid complex type manipulations
+      let detailedError = `Payload parsing error: ${errorMessage}`;
+  
+      // Add a very basic type indication without trying to preview the content
+      detailedError += ` | Payload type: ${payload === null ? 'null' : typeof payload}`;
+      
+      return { isValid: false, error: detailedError };
     }
   }
 

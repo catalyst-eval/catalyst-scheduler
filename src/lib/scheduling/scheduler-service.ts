@@ -105,16 +105,24 @@ export class SchedulerService {
         description: `Starting combined daily task for ${date}`,
         user: 'SYSTEM'
       });
-
-      // 1. Sync appointment statuses from IntakeQ
-      console.log('Step 1: Syncing appointment statuses');
-      const statusUpdateCount = await this.syncAppointmentStatuses();
-      console.log(`Synced ${statusUpdateCount} appointment statuses`);
+  
+      let statusUpdateCount = 0;
+      let refreshCount = 0;
       
-      // 2. Refresh appointments from IntakeQ
-      console.log('Step 2: Refreshing appointments');
-      const refreshCount = await this.refreshAppointmentsFromIntakeQ(date);
-      console.log(`Refreshed ${refreshCount} appointments`);
+      // Skip API-dependent tasks if disabled
+      if (process.env.DISABLE_API_CALLS !== 'true') {
+        // 1. Sync appointment statuses from IntakeQ
+        console.log('Step 1: Syncing appointment statuses');
+        statusUpdateCount = await this.syncAppointmentStatuses();
+        console.log(`Synced ${statusUpdateCount} appointment statuses`);
+        
+        // 2. Refresh appointments from IntakeQ
+        console.log('Step 2: Refreshing appointments');
+        refreshCount = await this.refreshAppointmentsFromIntakeQ(date);
+        console.log(`Refreshed ${refreshCount} appointments`);
+      } else {
+        console.log('API DISABLED: Skipping appointment status sync and refresh steps');
+      }
       
       // 3. Process unassigned appointments
       console.log('Step 3: Processing unassigned appointments');
@@ -465,6 +473,11 @@ export class SchedulerService {
    */
   async syncAppointmentStatuses(): Promise<number> {
     try {
+      // Check for API disable flag
+      if (process.env.DISABLE_API_CALLS === 'true') {
+        console.log(`API DISABLED: Skipping appointment status sync`);
+        return 0;
+      }
       console.log('Syncing appointment statuses from IntakeQ');
       
       // Get all appointments from the last 7 days
@@ -579,6 +592,11 @@ export class SchedulerService {
    */
   async refreshAppointmentsFromIntakeQ(targetDate?: string): Promise<number> {
     try {
+      // Check for API disable flag
+      if (process.env.DISABLE_API_CALLS === 'true') {
+        console.log(`API DISABLED: Skipping appointments refresh for date ${targetDate || 'today'}`);
+        return 0;
+      }
       // Use today's date if no target date provided
       const date = targetDate || new Date().toISOString().split('T')[0];
       console.log(`Refreshing appointments from IntakeQ for ${date}`);
