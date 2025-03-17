@@ -263,17 +263,10 @@ private async handleAppointmentCancellation(
       };
     }
     
-    // 2. Update appointment status to cancelled
-    const updatedAppointment: AppointmentRecord = normalizeAppointmentRecord({
-      ...existingAppointment,
-      status: 'cancelled',
-      lastUpdated: new Date().toISOString()
-    });
+    // 2. Delete appointment from Google Sheets instead of updating status
+    await this.sheetsService.deleteAppointment(appointment.Id);
     
-    // 3. Update appointment in Google Sheets
-    await this.sheetsService.updateAppointment(updatedAppointment);
-    
-    // 4. Log cancellation
+    // 3. Log cancellation
     await this.sheetsService.addAuditLog({
       timestamp: new Date().toISOString(),
       eventType: 'APPOINTMENT_CANCELLED' as AuditEventType,
@@ -283,7 +276,7 @@ private async handleAppointmentCancellation(
         appointmentId: appointment.Id,
         clientId: appointment.ClientId,
         reason: appointment.CancellationReason || 'No reason provided',
-        updateMethod: 'status_update'
+        deletionMethod: 'row_removal' // Update to match deletion method
       })
     });
 
@@ -291,7 +284,7 @@ private async handleAppointmentCancellation(
       success: true,
       details: {
         appointmentId: appointment.Id,
-        action: 'cancelled'
+        action: 'cancelled_and_removed'
       }
     };
   } catch (error) {
@@ -348,10 +341,12 @@ private async handleAppointmentCancellation(
         };
       }
       
-      // 2. Delete appointment from Google Sheets (now removes entire row)
+      // 2. Ensure we're calling the correct deletion method
+      // Add debug logging to confirm operation
+      console.log(`Deleting appointment row for ID: ${appointment.Id}`);
       await this.sheetsService.deleteAppointment(appointment.Id);
       
-      // 3. Log deletion
+      // 3. Log deletion with consistent terminology
       await this.sheetsService.addAuditLog({
         timestamp: new Date().toISOString(),
         eventType: 'APPOINTMENT_DELETED' as AuditEventType,

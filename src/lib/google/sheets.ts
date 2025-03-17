@@ -1134,18 +1134,42 @@ async getAppointment(appointmentId: string): Promise<AppointmentRecord | null> {
 }
 
 /**
- * Delete an appointment
+ * Delete an appointment - CORRECTED to properly remove the entire row
  */
 async deleteAppointment(appointmentId: string): Promise<void> {
   try {
-    const values = await this.readSheet(`${SHEET_NAMES.APPOINTMENTS}!A:A`);
-    const appointmentRow = values?.findIndex((row: SheetRow) => row[0] === appointmentId);
-
-    if (!values || appointmentRow === undefined || appointmentRow < 0) {
-      throw new Error(`Appointment ${appointmentId} not found`);
+    console.log(`Deleting appointment ${appointmentId}`);
+    
+    // Get all sheet metadata first to find the correct sheet ID
+    const spreadsheet = await this.sheets.spreadsheets.get({
+      spreadsheetId: this.spreadsheetId
+    });
+    
+    // Find the Appointments sheet
+    const appointmentsSheet = spreadsheet.data.sheets?.find(
+      sheet => sheet.properties?.title === SHEET_NAMES.APPOINTMENTS
+    );
+    
+    if (!appointmentsSheet || !appointmentsSheet.properties?.sheetId) {
+      throw new Error(`Could not find ${SHEET_NAMES.APPOINTMENTS} sheet`);
     }
-
-    // Instead of just clearing cells, delete the entire row
+    
+    const sheetId = appointmentsSheet.properties.sheetId;
+    
+    // Find the row with this appointment ID
+    const values = await this.readSheet(`${SHEET_NAMES.APPOINTMENTS}!A:A`);
+    const rowIndex = values?.findIndex(row => row[0] === appointmentId);
+    
+    if (rowIndex === undefined || rowIndex < 0) {
+      throw new Error(`Appointment ${appointmentId} not found for deletion`);
+    }
+    
+    // Add 1 because row 0 is the header row in the sheet
+    const actualRowIndex = rowIndex + 1;
+    
+    console.log(`Found appointment ${appointmentId} at row index ${actualRowIndex} in sheet ID ${sheetId}`);
+    
+    // Delete the row using batchUpdate with deleteDimension
     await this.sheets.spreadsheets.batchUpdate({
       spreadsheetId: this.spreadsheetId,
       requestBody: {
@@ -1153,28 +1177,32 @@ async deleteAppointment(appointmentId: string): Promise<void> {
           {
             deleteDimension: {
               range: {
-                sheetId: 0, // Assuming appointments are on the first sheet
+                sheetId: sheetId,
                 dimension: 'ROWS',
-                startIndex: appointmentRow + 1, // +1 because row 0 is header
-                endIndex: appointmentRow + 2 // +2 because endIndex is exclusive
+                startIndex: actualRowIndex,
+                endIndex: actualRowIndex + 1 // endIndex is exclusive
               }
             }
           }
         ]
       }
     });
-
+    
+    // Invalidate the cache for appointments
     await this.refreshCache(`${SHEET_NAMES.APPOINTMENTS}!A2:Q`);
     
+    console.log(`Successfully deleted appointment ${appointmentId} row`);
+    
+    // Log the deletion for audit purposes
     await this.addAuditLog({
       timestamp: new Date().toISOString(),
       eventType: AuditEventType.APPOINTMENT_DELETED,
       description: `Deleted appointment ${appointmentId}`,
       user: 'SYSTEM',
-      systemNotes: JSON.stringify({ 
+      systemNotes: JSON.stringify({
         appointmentId,
-        rowIndex: appointmentRow + 2, // +2 for 1-based index and header
-        deletionType: 'full_row'
+        rowIndex: actualRowIndex,
+        deletionMethod: 'row_removal'
       })
     });
   } catch (error) {
