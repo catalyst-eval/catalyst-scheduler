@@ -2,6 +2,7 @@
 
 import { google } from 'googleapis';
 import { JWT } from 'google-auth-library';
+import { logger } from './logger';
 
 // Expected sheet names and their expected positions
 const EXPECTED_SHEETS = {
@@ -16,10 +17,9 @@ const EXPECTED_SHEETS = {
 };
 
 /**
- * Verifies that all required sheets exist with the correct IDs
- * @returns Object with verification results
+ * Result of sheet verification
  */
-export async function verifySheetStructure(): Promise<{
+export interface SheetVerificationResult {
   verified: boolean;
   issues: string[];
   sheetInfo: Array<{
@@ -29,7 +29,13 @@ export async function verifySheetStructure(): Promise<{
     expected: boolean;
     positionCorrect: boolean;
   }>;
-}> {
+}
+
+/**
+ * Verifies that all required sheets exist with the correct IDs
+ * @returns Object with verification results
+ */
+export async function verifySheetStructure(): Promise<SheetVerificationResult> {
   const issues: string[] = [];
   const sheetInfo: Array<{
     title: string;
@@ -112,7 +118,7 @@ export async function verifySheetStructure(): Promise<{
       issues,
       sheetInfo
     };
-  } catch (error) {
+  } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     issues.push(`Failed to verify sheet structure: ${errorMessage}`);
     return {
@@ -126,26 +132,35 @@ export async function verifySheetStructure(): Promise<{
 /**
  * Runs sheet verification and logs any issues detected
  */
-export async function runSheetVerification(): Promise<void> {
-  console.log('Running sheet structure verification...');
+export async function runSheetVerification(): Promise<SheetVerificationResult> {
+  logger.info('Running sheet structure verification...');
   
   try {
     const result = await verifySheetStructure();
     
     if (result.verified) {
-      console.log('✅ Sheet structure verification passed');
+      logger.info('✅ Sheet structure verification passed');
     } else {
-      console.error('❌ Sheet structure verification failed:');
+      logger.error('❌ Sheet structure verification failed:');
       result.issues.forEach(issue => {
-        console.error(`  - ${issue}`);
+        logger.error(`  - ${issue}`);
       });
     }
     
-    console.log('Sheet information:');
+    logger.info('Sheet information:');
     result.sheetInfo.forEach(sheet => {
-      console.log(`${sheet.expected ? '✓' : '✗'} "${sheet.title}" (ID: ${sheet.sheetId}) at position ${sheet.index}`);
+      logger.info(`${sheet.expected ? '✓' : '✗'} "${sheet.title}" (ID: ${sheet.sheetId}) at position ${sheet.index}`);
     });
-  } catch (error) {
-    console.error('Failed to run sheet verification:', error);
+    
+    return result;
+  } catch (error: unknown) {
+    const typedError = error instanceof Error ? error : new Error(String(error));
+    logger.error('Failed to run sheet verification:', typedError);
+    
+    return {
+      verified: false,
+      issues: [typedError.message],
+      sheetInfo: []
+    };
   }
 }
