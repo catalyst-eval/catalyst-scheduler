@@ -274,31 +274,112 @@ export class RowMonitorService {
 }
 
 /**
- * Verify deleted appointments were actually removed
- * This utility can be called after appointment deletion operations
+ * Verify deleted appointments were actually removed with enhanced verification
+ * This utility uses multiple verification methods and attempts alternative deletion methods
  */
 export async function verifyAppointmentDeletion(
-  sheetsService: IGoogleSheetsService,
-  appointmentId: string,
-  expectedRowRemoval = true
-): Promise<boolean> {
-  try {
-    logger.info(`Verifying deletion of appointment ${appointmentId}`);
-    
-    // Check if appointment exists after deletion
-    const appointment = await sheetsService.getAppointment(appointmentId);
-    
-    if (appointment === null) {
-      logger.info(`Verification successful: Appointment ${appointmentId} was properly deleted`);
-      return true;
-    }
-    
-    // The appointment still exists
-    if (expectedRowRemoval) {
-      // This is unexpected - the row should have been removed
-      logger.warn(`Verification failed: Appointment ${appointmentId} still exists after deletion`);
+    sheetsService: IGoogleSheetsService,
+    appointmentId: string,
+    expectedRowRemoval = true,
+    options = { maxRetries: 2, retryDelayMs: 1000, forceCleanup: false }
+  ): Promise<boolean> {
+    try {
+      logger.info(`Verifying deletion of appointment ${appointmentId}`);
       
-      // Log the issue
+      // Wait a short delay for potential sheet sync (Google Sheets can have latency)
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Check if appointment exists after deletion
+      const appointment = await sheetsService.getAppointment(appointmentId);
+      
+      if (appointment === null) {
+        logger.info(`Verification successful: Appointment ${appointmentId} was properly deleted`);
+        return true;
+      }
+      
+      // The appointment still exists - try to understand why
+      logger.warn(`Verification failed: Appointment ${appointmentId} still exists after deletion attempt`);
+      
+      // If force cleanup is enabled, try alternative deletion methods
+      if (options.forceCleanup) {
+        for (let attempt = 0; attempt < options.maxRetries; attempt++) {
+          logger.info(`Attempting alternative deletion method ${attempt + 1} for appointment ${appointmentId}`);
+          
+          try {
+            // Try alternative deletion approach using direct API values.clear() method
+            await attemptAlternativeDeletion(sheetsService, appointmentId, attempt);
+            
+            // Wait for potential sheet sync
+            await new Promise(resolve => setTimeout(resolve, options.retryDelayMs));
+            
+            // Verify again
+            const appointmentAfterRetry = await sheetsService.getAppointment(appointmentId);
+            if (appointmentAfterRetry === null) {
+              logger.info(`Alternative deletion method ${attempt + 1} successfully deleted appointment ${appointmentId}`);
+              
+              // Log the recovery
+              await sheetsService.addAuditLog({
+                timestamp: new Date().toISOString(),
+                eventType: 'SYSTEM_ERROR' as AuditEventType,
+                description: `Successfully recovered failed deletion for appointment ${appointmentId}`,
+                user: 'DELETION_VERIFICATION',
+                systemNotes: JSON.stringify({
+                  appointmentId,
+                  verificationTimestamp: new Date().toISOString(),
+                  recoveryMethod: `alternative_deletion_${attempt + 1}`
+                })
+              });
+              
+              return true;
+            }
+          } catch (retryError: unknown) {
+            const typedError = retryError instanceof Error ? retryError : new Error(String(retryError));
+            logger.error(`Alternative deletion method ${attempt + 1} failed for appointment ${appointmentId}`, typedError);
+          }
+          
+          // Wait before next attempt
+          await new Promise(resolve => setTimeout(resolve, options.retryDelayMs));
+        }
+        
+        // If expected row removal, update status to cancelled as last resort
+        if (expectedRowRemoval && appointment.status !== 'cancelled') {
+          try {
+            logger.info(`Falling back to status update for appointment ${appointmentId}`);
+            
+            const cancellationUpdate = {
+              ...appointment,
+              status: 'cancelled' as 'cancelled',
+              lastUpdated: new Date().toISOString(),
+              notes: (appointment.notes || '') + `\nForced cancellation after failed deletion: ${new Date().toISOString()}`
+            };
+            
+            await sheetsService.updateAppointment(cancellationUpdate);
+            
+            logger.info(`Successfully updated appointment ${appointmentId} status to cancelled as fallback`);
+            
+            // Log the fallback action
+            await sheetsService.addAuditLog({
+              timestamp: new Date().toISOString(),
+              eventType: 'SYSTEM_ERROR' as AuditEventType,
+              description: `Applied fallback cancellation for appointment ${appointmentId}`,
+              user: 'DELETION_VERIFICATION',
+              systemNotes: JSON.stringify({
+                appointmentId,
+                verificationTimestamp: new Date().toISOString(),
+                action: 'status_update_fallback',
+                previousStatus: appointment.status
+              })
+            });
+            
+            return false; // Row still exists but we did our best
+          } catch (updateError: unknown) {
+            const typedError = updateError instanceof Error ? updateError : new Error(String(updateError));
+            logger.error(`Status update fallback failed for appointment ${appointmentId}`, typedError);
+          }
+        }
+      }
+      
+      // Log the verification failure
       await sheetsService.addAuditLog({
         timestamp: new Date().toISOString(),
         eventType: 'SYSTEM_ERROR' as AuditEventType,
@@ -307,24 +388,202 @@ export async function verifyAppointmentDeletion(
         systemNotes: JSON.stringify({
           appointmentId,
           verificationTimestamp: new Date().toISOString(),
-          status: appointment.status
+          status: appointment.status,
+          expectedRowRemoval: expectedRowRemoval,
+          actionTaken: options.forceCleanup ? 'attempted_recovery' : 'none'
         })
       });
       
-      return false;
-    } else {
-      // Check if the status was updated to 'cancelled'
-      if (appointment.status === 'cancelled') {
+      // If row wasn't expected to be removed, but status is cancelled, consider it a success
+      if (!expectedRowRemoval && appointment.status === 'cancelled') {
         logger.info(`Verification successful: Appointment ${appointmentId} was marked as cancelled`);
         return true;
-      } else {
-        logger.warn(`Verification failed: Appointment ${appointmentId} exists and is not cancelled`);
-        return false;
+      }
+      
+      logger.warn(`Verification failed: Appointment ${appointmentId} still exists and deletion recovery attempts failed`);
+      return false;
+    } catch (error: unknown) {
+      const typedError = error instanceof Error ? error : new Error(String(error));
+      logger.error(`Error verifying deletion of appointment ${appointmentId}`, typedError);
+      return false;
+    }
+  }
+  
+  /**
+   * Try alternative deletion methods based on attempt number
+   */
+  async function attemptAlternativeDeletion(
+    sheetsService: IGoogleSheetsService, 
+    appointmentId: string,
+    attempt: number
+  ): Promise<void> {
+    // Get row index for this appointment
+    const rowIndex = await findAppointmentRowIndex(sheetsService, appointmentId);
+    if (rowIndex === -1) {
+      throw new Error(`Could not find row index for appointment ${appointmentId}`);
+    }
+    
+    // Get actual sheet ID for Appointments sheet
+    const sheetInfo = await getSheetInfo(sheetsService);
+    const appointmentsSheet = sheetInfo.find(sheet => sheet.title === 'Appointments');
+    
+    if (!appointmentsSheet) {
+      throw new Error('Could not find Appointments sheet');
+    }
+    
+    // Attempt 0: Clear cell values instead of deleting row (less disruptive)
+    if (attempt === 0) {
+      logger.info(`Alternative method 1: Clearing cell values for appointment ${appointmentId} at row ${rowIndex + 2}`);
+      
+      // Use direct Google Sheets API to clear values
+      try {
+        // Access the sheets API directly through sheets service
+        const sheets = (sheetsService as any).sheets;
+        if (!sheets) {
+          throw new Error('Cannot access sheets API directly');
+        }
+        
+        // Use values.clear to clear the row content
+        const spreadsheetId = process.env.GOOGLE_SHEETS_SPREADSHEET_ID;
+        await sheets.spreadsheets.values.clear({
+          spreadsheetId,
+          range: `Appointments!A${rowIndex + 2}:Q${rowIndex + 2}`
+        });
+        
+        logger.info(`Successfully cleared values for appointment ${appointmentId}`);
+      } catch (clearError: unknown) {
+        const typedClearError = clearError instanceof Error ? clearError : new Error(String(clearError));
+        logger.error(`Failed to clear values for appointment ${appointmentId}`, typedClearError);
+        throw clearError;
       }
     }
-  } catch (error: unknown) {
-    const typedError = error instanceof Error ? error : new Error(String(error));
-    logger.error(`Error verifying deletion of appointment ${appointmentId}`, typedError);
-    return false;
+    // Attempt 1: Use directly configured sheet ID for deletion
+    else if (attempt === 1) {
+      logger.info(`Alternative method 2: Using direct sheet ID ${appointmentsSheet.sheetId} for deletion`);
+      
+      try {
+        // Access the sheets API directly through sheets service
+        const sheets = (sheetsService as any).sheets;
+        if (!sheets) {
+          throw new Error('Cannot access sheets API directly');
+        }
+        
+        // Use batchUpdate with explicit sheet ID
+        const spreadsheetId = process.env.GOOGLE_SHEETS_SPREADSHEET_ID;
+        
+        // Prepare and log the exact request being sent
+        const deleteRequest = {
+          spreadsheetId,
+          requestBody: {
+            requests: [{
+              deleteDimension: {
+                range: {
+                  sheetId: appointmentsSheet.sheetId,
+                  dimension: 'ROWS',
+                  startIndex: rowIndex + 1, // +1 for header row
+                  endIndex: rowIndex + 2    // +1 more because endIndex is exclusive
+                }
+              }
+            }]
+          }
+        };
+        
+        logger.info(`Delete request with direct sheet ID: ${JSON.stringify(deleteRequest, null, 2)}`);
+        
+        // Execute the delete request and capture the full response
+        const response = await sheets.spreadsheets.batchUpdate(deleteRequest);
+        
+        // Log the full response
+        logger.info(`Delete response with direct sheet ID: ${JSON.stringify(response.data, null, 2)}`);
+      } catch (deleteError: unknown) {
+        const typedDeleteError = deleteError instanceof Error ? deleteError : new Error(String(deleteError));
+        logger.error(`Failed to delete with direct sheet ID for appointment ${appointmentId}`, typedDeleteError);
+        throw deleteError;
+      }
+    }
   }
-}
+  
+  /**
+   * Find the row index for a specific appointment ID
+   */
+  async function findAppointmentRowIndex(
+    sheetsService: IGoogleSheetsService,
+    appointmentId: string
+  ): Promise<number> {
+    try {
+      // Access the sheets API directly through sheets service if possible
+      const sheets = (sheetsService as any).sheets;
+      
+      if (sheets) {
+        // Direct API method (faster)
+        const spreadsheetId = process.env.GOOGLE_SHEETS_SPREADSHEET_ID;
+        const response = await sheets.spreadsheets.values.get({
+          spreadsheetId,
+          range: 'Appointments!A:A'
+        });
+        
+        const values = response.data.values || [];
+        return values.findIndex((row: any[]) => row[0] === appointmentId) - 1; // -1 for header row
+      } else {
+        // Fallback to using the sheet service
+        try {
+          // Read only appointment IDs for efficiency
+          const rows = await (sheetsService as any).readSheet('Appointments!A:A');
+          
+          if (!rows || !Array.isArray(rows)) {
+            throw new Error('Failed to read appointment IDs');
+          }
+          
+          // Find the row with this appointment ID
+          const rowIndex = rows.findIndex(row => row[0] === appointmentId);
+          
+          if (rowIndex === -1) {
+            logger.warn(`Could not find appointment ${appointmentId} in sheet`);
+            return -1;
+          }
+          
+          return rowIndex - 1; // -1 for header row
+        } catch (readError: unknown) {
+          const typedReadError = readError instanceof Error ? readError : new Error(String(readError));
+          logger.error(`Error reading appointments`, typedReadError);
+          throw readError;
+        }
+      }
+    } catch (error: unknown) {
+      const typedError = error instanceof Error ? error : new Error(String(error));
+      logger.error(`Error finding row index for appointment ${appointmentId}`, typedError);
+      return -1;
+    }
+  }
+  
+  /**
+   * Get sheet information directly from Google Sheets API
+   */
+  async function getSheetInfo(sheetsService: IGoogleSheetsService): Promise<Array<{
+    title: string;
+    sheetId: number;
+    index: number;
+  }>> {
+    try {
+      // Access the sheets API directly through sheets service
+      const sheets = (sheetsService as any).sheets;
+      if (!sheets) {
+        throw new Error('Cannot access sheets API directly');
+      }
+      
+      const spreadsheetId = process.env.GOOGLE_SHEETS_SPREADSHEET_ID;
+      const response = await sheets.spreadsheets.get({
+        spreadsheetId
+      });
+      
+      return (response.data.sheets || []).map((sheet: any, index: number) => ({
+        title: sheet.properties?.title || '',
+        sheetId: sheet.properties?.sheetId || 0,
+        index
+      }));
+    } catch (error: unknown) {
+      const typedError = error instanceof Error ? error : new Error(String(error));
+      logger.error('Error getting sheet info', typedError);
+      return [];
+    }
+  }
