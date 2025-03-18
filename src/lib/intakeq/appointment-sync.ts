@@ -341,12 +341,10 @@ private async handleAppointmentCancellation(
         };
       }
       
-      // 2. Ensure we're calling the correct deletion method
-      // Add debug logging to confirm operation
-      console.log(`Deleting appointment row for ID: ${appointment.Id}`);
+      // 2. Delete appointment from Google Sheets
       await this.sheetsService.deleteAppointment(appointment.Id);
       
-      // 3. Log deletion with consistent terminology
+      // 3. Log deletion
       await this.sheetsService.addAuditLog({
         timestamp: new Date().toISOString(),
         eventType: 'APPOINTMENT_DELETED' as AuditEventType,
