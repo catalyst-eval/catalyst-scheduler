@@ -1134,15 +1134,33 @@ async getAppointment(appointmentId: string): Promise<AppointmentRecord | null> {
 }
 
 /**
- * Delete an appointment - CORRECTED to properly remove the entire row
+ * Delete an appointment - Fixed to properly handle sheet IDs and row deletion
  */
 async deleteAppointment(appointmentId: string): Promise<void> {
   try {
-    console.log(`Deleting appointment ${appointmentId}`);
+    console.log(`Starting deletion process for appointment ${appointmentId}`);
     
-    // Get all sheet metadata first to find the correct sheet ID
+    // Find the row with this appointment ID
+    const values = await this.readSheet(`${SHEET_NAMES.APPOINTMENTS}!A:A`);
+    const rowIndex = values?.findIndex(row => row[0] === appointmentId);
+    
+    if (rowIndex === undefined || rowIndex < 0) {
+      console.error(`Appointment ${appointmentId} not found for deletion`);
+      throw new Error(`Appointment ${appointmentId} not found for deletion`);
+    }
+    
+    console.log(`Found appointment ${appointmentId} at row index ${rowIndex} (Row ${rowIndex + 2} in sheet)`);
+    
+    // Get spreadsheet metadata to find correct sheet ID
+    console.log(`Retrieving sheet metadata for spreadsheet ID: ${this.spreadsheetId}`);
     const spreadsheet = await this.sheets.spreadsheets.get({
       spreadsheetId: this.spreadsheetId
+    });
+    
+    // Debug: Log all sheets in the spreadsheet
+    console.log('All sheets in spreadsheet:');
+    spreadsheet.data.sheets?.forEach((sheet, index) => {
+      console.log(`Sheet ${index}: "${sheet.properties?.title}" (ID: ${sheet.properties?.sheetId})`);
     });
     
     // Find the Appointments sheet
@@ -1150,50 +1168,53 @@ async deleteAppointment(appointmentId: string): Promise<void> {
       sheet => sheet.properties?.title === SHEET_NAMES.APPOINTMENTS
     );
     
-    if (!appointmentsSheet || !appointmentsSheet.properties?.sheetId) {
-      throw new Error(`Could not find ${SHEET_NAMES.APPOINTMENTS} sheet`);
-    }
-    
-    const sheetId = appointmentsSheet.properties.sheetId;
-    
-    // Find the row with this appointment ID
-    const values = await this.readSheet(`${SHEET_NAMES.APPOINTMENTS}!A:A`);
-    const rowIndex = values?.findIndex(row => row[0] === appointmentId);
-    
-    if (rowIndex === undefined || rowIndex < 0) {
-      throw new Error(`Appointment ${appointmentId} not found for deletion`);
-    }
-    
-    // Add 1 because row 0 is the header row in the sheet
-    const actualRowIndex = rowIndex + 1;
-    
-    console.log(`Found appointment ${appointmentId} at row index ${actualRowIndex} in sheet ID ${sheetId}`);
-    
-    // Delete the row using batchUpdate with deleteDimension
-    await this.sheets.spreadsheets.batchUpdate({
-      spreadsheetId: this.spreadsheetId,
-      requestBody: {
-        requests: [
-          {
+    if (!appointmentsSheet || appointmentsSheet.properties?.sheetId === undefined) {
+      console.error(`Could not find sheet ID for ${SHEET_NAMES.APPOINTMENTS}, attempting fallback method`);
+      
+      // Attempt to delete by clearing the content instead
+      console.log(`Fallback: Clearing row ${rowIndex + 2} content instead of deleting the row`);
+      await this.sheets.spreadsheets.values.clear({
+        spreadsheetId: this.spreadsheetId,
+        range: `${SHEET_NAMES.APPOINTMENTS}!A${rowIndex + 2}:Q${rowIndex + 2}`
+      });
+      
+      console.log(`Row cleared successfully via fallback method`);
+    } else {
+      // Use the found sheet ID
+      const sheetId = appointmentsSheet.properties.sheetId;
+      
+      console.log(`Found Appointments sheet with ID ${sheetId}, deleting row at index ${rowIndex + 1}`);
+      
+      // Prepare and log the exact request being sent
+      const deleteRequest = {
+        spreadsheetId: this.spreadsheetId,
+        requestBody: {
+          requests: [{
             deleteDimension: {
               range: {
                 sheetId: sheetId,
                 dimension: 'ROWS',
-                startIndex: actualRowIndex,
-                endIndex: actualRowIndex + 1 // endIndex is exclusive
+                startIndex: rowIndex + 1, // +1 for header row
+                endIndex: rowIndex + 2    // +1 more because endIndex is exclusive
               }
             }
-          }
-        ]
-      }
-    });
+          }]
+        }
+      };
+      
+      console.log(`Delete request details: ${JSON.stringify(deleteRequest, null, 2)}`);
+      
+      // Execute the delete request and capture the full response
+      const response = await this.sheets.spreadsheets.batchUpdate(deleteRequest);
+      
+      // Log the full response
+      console.log(`Delete response: ${JSON.stringify(response.data, null, 2)}`);
+    }
     
-    // Invalidate the cache for appointments
+    // Clear the cache for appointments
     await this.refreshCache(`${SHEET_NAMES.APPOINTMENTS}!A2:Q`);
     
-    console.log(`Successfully deleted appointment ${appointmentId} row`);
-    
-    // Log the deletion for audit purposes
+    // Log deletion
     await this.addAuditLog({
       timestamp: new Date().toISOString(),
       eventType: AuditEventType.APPOINTMENT_DELETED,
@@ -1201,10 +1222,12 @@ async deleteAppointment(appointmentId: string): Promise<void> {
       user: 'SYSTEM',
       systemNotes: JSON.stringify({
         appointmentId,
-        rowIndex: actualRowIndex,
-        deletionMethod: 'row_removal'
+        rowIndex: rowIndex + 2, // +2 because Google Sheets is 1-indexed and we have a header
+        deletionMethod: appointmentsSheet ? 'row_removal' : 'content_clearing'
       })
     });
+    
+    console.log(`Successfully deleted appointment ${appointmentId} from row ${rowIndex + 2}`);
   } catch (error) {
     console.error(`Error deleting appointment ${appointmentId}:`, error);
     
@@ -1218,6 +1241,103 @@ async deleteAppointment(appointmentId: string): Promise<void> {
     });
     
     throw new Error(`Failed to delete appointment: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
+
+/**
+ * Update an appointment's status
+ * This provides a consistent way to handle status changes, including cancellations
+ */
+async updateAppointmentStatus(
+  appointmentId: string, 
+  status: 'scheduled' | 'completed' | 'cancelled' | 'rescheduled',
+  additionalInfo?: { 
+    reason?: string;
+    notes?: string;
+  }
+): Promise<boolean> {
+  try {
+    console.log(`Updating appointment ${appointmentId} status to ${status}`);
+    
+    // Find the appointment
+    const appointment = await this.getAppointment(appointmentId);
+    
+    if (!appointment) {
+      console.error(`Appointment ${appointmentId} not found for status update`);
+      return false;
+    }
+    
+    // If we're cancelling, attempt to delete first
+    if (status === 'cancelled') {
+      try {
+        await this.deleteAppointment(appointmentId);
+        
+        // Log the status change
+        await this.addAuditLog({
+          timestamp: new Date().toISOString(),
+          eventType: AuditEventType.APPOINTMENT_CANCELLED,
+          description: `Cancelled appointment ${appointmentId}`,
+          user: 'SYSTEM',
+          systemNotes: JSON.stringify({
+            appointmentId,
+            reason: additionalInfo?.reason || 'No reason provided',
+            method: 'deletion'
+          })
+        });
+        
+        return true;
+      } catch (deleteError) {
+        console.warn(`Deletion failed for cancelled appointment ${appointmentId}, falling back to status update:`, deleteError);
+        // Continue to status update as fallback
+      }
+    }
+    
+    // Update the appointment with new status
+    const updatedAppointment = {
+      ...appointment,
+      status: status,
+      lastUpdated: new Date().toISOString(),
+      notes: additionalInfo?.notes 
+        ? (appointment.notes || '') + `\n${additionalInfo.notes}`
+        : appointment.notes,
+    };
+    
+    // Add cancellation reason if provided
+    if (status === 'cancelled' && additionalInfo?.reason) {
+      updatedAppointment.notes = (updatedAppointment.notes || '') + 
+        `\nCancellation Reason: ${additionalInfo.reason}`;
+    }
+    
+    // Update the appointment
+    await this.updateAppointment(updatedAppointment);
+    
+    // Log the status change
+    const eventType = status === 'cancelled' 
+      ? AuditEventType.APPOINTMENT_CANCELLED 
+      : AuditEventType.APPOINTMENT_UPDATED;
+    
+    await this.addAuditLog({
+      timestamp: new Date().toISOString(),
+      eventType: eventType,
+      description: `Updated appointment ${appointmentId} status to ${status}`,
+      user: 'SYSTEM',
+      newValue: JSON.stringify(updatedAppointment)
+    });
+    
+    return true;
+  } catch (error) {
+    console.error(`Error updating appointment ${appointmentId} status:`, error);
+    
+    // Log the error
+    await this.addAuditLog({
+      timestamp: new Date().toISOString(),
+      eventType: AuditEventType.SYSTEM_ERROR,
+      description: `Failed to update appointment ${appointmentId} status to ${status}`,
+      user: 'SYSTEM',
+      systemNotes: error instanceof Error ? error.message : 'Unknown error'
+    });
+    
+    return false;
   }
 }
 

@@ -246,6 +246,9 @@ private async handleAppointmentUpdate(
   }
 }
 
+/**
+ * Handle appointment cancellation - Enhanced with fallback mechanism
+ */
 private async handleAppointmentCancellation(
   appointment: IntakeQAppointment
 ): Promise<WebhookResponse> {
@@ -263,8 +266,34 @@ private async handleAppointmentCancellation(
       };
     }
     
-    // 2. Delete appointment from Google Sheets instead of updating status
-    await this.sheetsService.deleteAppointment(appointment.Id);
+    try {
+      // 2. First try to delete appointment from Google Sheets
+      console.log(`Attempting to delete appointment ${appointment.Id} from sheet`);
+      await this.sheetsService.deleteAppointment(appointment.Id);
+      console.log(`Successfully deleted appointment ${appointment.Id} from sheet`);
+    } catch (deleteError) {
+      // If deletion fails, try to update status instead as a fallback
+      console.error(`Failed to delete appointment ${appointment.Id}, falling back to status update:`, deleteError);
+      
+      try {
+        // Create a modified copy of the existing appointment
+        const cancellationUpdate: AppointmentRecord = {
+          ...existingAppointment,
+          status: 'cancelled' as 'cancelled', // Type assertion to match the union type
+          lastUpdated: new Date().toISOString(),
+          notes: (existingAppointment.notes || '') + 
+                 `\nCancelled: ${new Date().toISOString()}` + 
+                 (appointment.CancellationReason ? `\nReason: ${appointment.CancellationReason}` : '')
+        };
+        
+        // Update the appointment with cancelled status
+        await this.sheetsService.updateAppointment(cancellationUpdate);
+        console.log(`Fallback successful: Updated appointment ${appointment.Id} status to cancelled`);
+      } catch (updateError) {
+        console.error(`Both deletion and status update failed for appointment ${appointment.Id}:`, updateError);
+        throw new Error(`Failed to process cancellation: ${updateError instanceof Error ? updateError.message : 'Unknown error'}`);
+      }
+    }
     
     // 3. Log cancellation
     await this.sheetsService.addAuditLog({
@@ -276,7 +305,7 @@ private async handleAppointmentCancellation(
         appointmentId: appointment.Id,
         clientId: appointment.ClientId,
         reason: appointment.CancellationReason || 'No reason provided',
-        deletionMethod: 'row_removal' // Update to match deletion method
+        deletionMethod: 'row_removal_with_status_fallback'
       })
     });
 
@@ -284,7 +313,7 @@ private async handleAppointmentCancellation(
       success: true,
       details: {
         appointmentId: appointment.Id,
-        action: 'cancelled_and_removed'
+        action: 'cancelled_and_processed'
       }
     };
   } catch (error) {
