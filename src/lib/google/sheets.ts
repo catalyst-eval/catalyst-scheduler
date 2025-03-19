@@ -1194,8 +1194,8 @@ async deleteAppointment(appointmentId: string): Promise<void> {
               range: {
                 sheetId: sheetId,
                 dimension: 'ROWS',
-                startIndex: rowIndex + 1, // +1 to account for header row (don't add additional +1)
-                endIndex: rowIndex + 2    // endIndex is exclusive, so we need row+2 to include current row
+                startIndex: rowIndex, // Don't add +1 since we're already 1 off
+                endIndex: rowIndex + 1 // +1 only for exclusive range
               }
             }
           }]
