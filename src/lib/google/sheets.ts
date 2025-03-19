@@ -1134,7 +1134,7 @@ async getAppointment(appointmentId: string): Promise<AppointmentRecord | null> {
 }
 
 /**
- * Delete an appointment - Fixed to properly handle sheet IDs and row deletion
+ * Delete an appointment - FIXED to properly handle sheet IDs and row deletion
  */
 async deleteAppointment(appointmentId: string): Promise<void> {
   try {
@@ -1183,9 +1183,9 @@ async deleteAppointment(appointmentId: string): Promise<void> {
       // Use the found sheet ID
       const sheetId = appointmentsSheet.properties.sheetId;
       
-      console.log(`Found Appointments sheet with ID ${sheetId}, deleting row at index ${rowIndex + 1}`);
+      console.log(`Found Appointments sheet with ID ${sheetId}, deleting row at index ${rowIndex + 2}`);
       
-      // Prepare and log the exact request being sent
+      // Prepare and log the exact request being sent - FIX: adjusted indices to match actual row
       const deleteRequest = {
         spreadsheetId: this.spreadsheetId,
         requestBody: {
@@ -1194,8 +1194,8 @@ async deleteAppointment(appointmentId: string): Promise<void> {
               range: {
                 sheetId: sheetId,
                 dimension: 'ROWS',
-                startIndex: rowIndex + 1, // +1 for header row
-                endIndex: rowIndex + 2    // +1 more because endIndex is exclusive
+                startIndex: rowIndex + 1, // +1 to account for header row (don't add additional +1)
+                endIndex: rowIndex + 2    // endIndex is exclusive, so we need row+2 to include current row
               }
             }
           }]

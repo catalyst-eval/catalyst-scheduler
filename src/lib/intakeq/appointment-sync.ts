@@ -427,59 +427,96 @@ private async handleAppointmentCancellation(
     return 'scheduled';
   }
 
-  /**
-   * Convert IntakeQ appointment to our AppointmentRecord format
-   */
-  // In appointment-sync.ts, around line 247, in the convertToAppointmentRecord method:
-  private async convertToAppointmentRecord(
-    appointment: IntakeQAppointment
-  ): Promise<AppointmentRecord> {
-    try {
-      // Sanitize client name and other text fields
-      const safeClientName = this.sanitizeText(appointment.ClientName || '');
-      const safePractitionerName = this.sanitizeText(appointment.PractitionerName || '');
-      const safeServiceName = this.sanitizeText(appointment.ServiceName || '');
-      
-      // Get all clinicians to find the matching one
-      const clinicians = await this.sheetsService.getClinicians();
-      
-      // Find clinician by IntakeQ practitioner ID
-      const clinician = clinicians.find(
-        c => c.intakeQPractitionerId === appointment.PractitionerId
-      );
-      
-      // Determine session type
-      const sessionType = this.determineSessionType(appointment);
-      
-      // Get requirements - ensure it's a proper object with defined fields
-      const requirements = await this.determineRequirements(appointment) || 
-                            { accessibility: false, specialFeatures: [] };
-      
-      // Convert the appointment to our format
-      const appointmentRecord: AppointmentRecord = normalizeAppointmentRecord({
-        appointmentId: appointment.Id,
-        clientId: appointment.ClientId.toString(),
-        clientName: safeClientName,
-        clientDateOfBirth: appointment.ClientDateOfBirth || '',
-        clinicianId: clinician?.clinicianId || appointment.PractitionerId,
-        clinicianName: clinician?.name || safePractitionerName,
-        sessionType: sessionType,
-        startTime: appointment.StartDateIso,
-        endTime: appointment.EndDateIso,
-        status: this.mapIntakeQStatus(appointment.Status || ''),
-        lastUpdated: new Date().toISOString(),
-        source: 'intakeq',
-        requirements: requirements,
-        notes: `Service: ${safeServiceName}`
-      });
-      
-      return appointmentRecord;
-    } catch (error: unknown) {
-      console.error('Error converting appointment:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      throw new Error(`Failed to convert appointment: ${errorMessage}`);
-    }
+  // Improved convertToAppointmentRecord method for appointment-sync.ts
+
+/**
+ * Convert IntakeQ appointment to our AppointmentRecord format
+ * FIXED to ensure correct field formatting and validation
+ */
+private async convertToAppointmentRecord(
+  appointment: IntakeQAppointment
+): Promise<AppointmentRecord> {
+  try {
+    // Sanitize client name and other text fields
+    const safeClientName = this.sanitizeText(appointment.ClientName || '');
+    const safePractitionerName = this.sanitizeText(appointment.PractitionerName || '');
+    const safeServiceName = this.sanitizeText(appointment.ServiceName || '');
+    
+    // Get all clinicians to find the matching one
+    const clinicians = await this.sheetsService.getClinicians();
+    
+    // Find clinician by IntakeQ practitioner ID
+    const clinician = clinicians.find(
+      c => c.intakeQPractitionerId === appointment.PractitionerId
+    );
+    
+    // Determine session type
+    const sessionType = this.determineSessionType(appointment);
+    
+    // Get requirements - ensure it's a proper object with defined fields
+    const requirements = await this.determineRequirements(appointment) || 
+                          { accessibility: false, specialFeatures: [] };
+    
+    // Validate critical date fields
+    this.validateAppointmentDates(appointment);
+    
+    // Convert the appointment to our format
+    const appointmentRecord: AppointmentRecord = normalizeAppointmentRecord({
+      appointmentId: appointment.Id,
+      clientId: appointment.ClientId.toString(),
+      clientName: safeClientName,
+      clientDateOfBirth: appointment.ClientDateOfBirth || '',
+      clinicianId: clinician?.clinicianId || appointment.PractitionerId,
+      clinicianName: clinician?.name || safePractitionerName,
+      sessionType: sessionType,
+      startTime: appointment.StartDateIso,
+      endTime: appointment.EndDateIso,
+      status: this.mapIntakeQStatus(appointment.Status || ''),
+      lastUpdated: new Date().toISOString(),
+      source: 'intakeq',
+      requirements: requirements,
+      notes: `Service: ${safeServiceName}`
+    });
+    
+    return appointmentRecord;
+  } catch (error: unknown) {
+    console.error('Error converting appointment:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    throw new Error(`Failed to convert appointment: ${errorMessage}`);
   }
+}
+
+/**
+ * Validate appointment date fields to prevent corrupted data
+ * NEW helper method to validate date fields
+ */
+private validateAppointmentDates(appointment: IntakeQAppointment): void {
+  // Validate StartDateIso
+  if (!appointment.StartDateIso || typeof appointment.StartDateIso !== 'string' || !appointment.StartDateIso.includes('T')) {
+    console.error(`Invalid StartDateIso for appointment ${appointment.Id}: "${appointment.StartDateIso}"`);
+    throw new Error(`Invalid StartDateIso format for appointment ${appointment.Id}`);
+  }
+  
+  // Validate EndDateIso
+  if (!appointment.EndDateIso || typeof appointment.EndDateIso !== 'string' || !appointment.EndDateIso.includes('T')) {
+    console.error(`Invalid EndDateIso for appointment ${appointment.Id}: "${appointment.EndDateIso}"`);
+    throw new Error(`Invalid EndDateIso format for appointment ${appointment.Id}`);
+  }
+  
+  // Validate that EndDateIso is after StartDateIso
+  const startDate = new Date(appointment.StartDateIso);
+  const endDate = new Date(appointment.EndDateIso);
+  
+  if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+    console.error(`Date parsing failed for appointment ${appointment.Id}`);
+    throw new Error(`Date parsing failed for appointment ${appointment.Id}`);
+  }
+  
+  if (endDate <= startDate) {
+    console.error(`EndDateIso (${appointment.EndDateIso}) must be after StartDateIso (${appointment.StartDateIso}) for appointment ${appointment.Id}`);
+    throw new Error(`EndDateIso must be after StartDateIso for appointment ${appointment.Id}`);
+  }
+}
   
   // Add this helper method after the convertToAppointmentRecord method
   private sanitizeText(text: string): string {

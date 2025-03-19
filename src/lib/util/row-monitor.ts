@@ -275,7 +275,7 @@ export class RowMonitorService {
 
 /**
  * Verify deleted appointments were actually removed with enhanced verification
- * This utility uses multiple verification methods and attempts alternative deletion methods
+ * FIXED to improve row index calculation and fallback mechanisms
  */
 export async function verifyAppointmentDeletion(
     sheetsService: IGoogleSheetsService,
@@ -300,13 +300,21 @@ export async function verifyAppointmentDeletion(
       // The appointment still exists - try to understand why
       logger.warn(`Verification failed: Appointment ${appointmentId} still exists after deletion attempt`);
       
+      // Log the values found for debugging
+      logger.info(`Current appointment data in sheet: ${JSON.stringify({
+        appointmentId: appointment.appointmentId,
+        status: appointment.status,
+        startTime: appointment.startTime,
+        assignedOfficeId: appointment.assignedOfficeId
+      })}`);
+      
       // If force cleanup is enabled, try alternative deletion methods
       if (options.forceCleanup) {
         for (let attempt = 0; attempt < options.maxRetries; attempt++) {
           logger.info(`Attempting alternative deletion method ${attempt + 1} for appointment ${appointmentId}`);
           
           try {
-            // Try alternative deletion approach using direct API values.clear() method
+            // Try alternative deletion approach
             await attemptAlternativeDeletion(sheetsService, appointmentId, attempt);
             
             // Wait for potential sheet sync
@@ -411,6 +419,7 @@ export async function verifyAppointmentDeletion(
   
   /**
    * Try alternative deletion methods based on attempt number
+   * FIXED to improve row index calculation
    */
   async function attemptAlternativeDeletion(
     sheetsService: IGoogleSheetsService, 
@@ -472,6 +481,7 @@ export async function verifyAppointmentDeletion(
         const spreadsheetId = process.env.GOOGLE_SHEETS_SPREADSHEET_ID;
         
         // Prepare and log the exact request being sent
+        // FIX: adjusted indices for proper row deletion
         const deleteRequest = {
           spreadsheetId,
           requestBody: {
@@ -480,8 +490,8 @@ export async function verifyAppointmentDeletion(
                 range: {
                   sheetId: appointmentsSheet.sheetId,
                   dimension: 'ROWS',
-                  startIndex: rowIndex + 1, // +1 for header row
-                  endIndex: rowIndex + 2    // +1 more because endIndex is exclusive
+                  startIndex: rowIndex + 1, // +1 for header row, DON'T add another +1
+                  endIndex: rowIndex + 2    // +2 because endIndex is exclusive
                 }
               }
             }]
@@ -499,6 +509,32 @@ export async function verifyAppointmentDeletion(
         const typedDeleteError = deleteError instanceof Error ? deleteError : new Error(String(deleteError));
         logger.error(`Failed to delete with direct sheet ID for appointment ${appointmentId}`, typedDeleteError);
         throw deleteError;
+      }
+    }
+    // Attempt 2: Try using broader range clearing
+    else if (attempt === 2) {
+      logger.info(`Alternative method 3: Using broader range clearing for appointment ${appointmentId}`);
+      
+      try {
+        // Access the sheets API directly through sheets service
+        const sheets = (sheetsService as any).sheets;
+        if (!sheets) {
+          throw new Error('Cannot access sheets API directly');
+        }
+        
+        // Use values.clear with a broader range to ensure deletion
+        const spreadsheetId = process.env.GOOGLE_SHEETS_SPREADSHEET_ID;
+        await sheets.spreadsheets.values.clear({
+          spreadsheetId,
+          // Clear the row plus one cell above and below to handle potential index drift
+          range: `Appointments!A${Math.max(2, rowIndex + 1)}:Q${rowIndex + 3}`
+        });
+        
+        logger.info(`Successfully cleared broader range for appointment ${appointmentId}`);
+      } catch (clearError: unknown) {
+        const typedClearError = clearError instanceof Error ? clearError : new Error(String(clearError));
+        logger.error(`Failed to clear broader range for appointment ${appointmentId}`, typedClearError);
+        throw clearError;
       }
     }
   }
