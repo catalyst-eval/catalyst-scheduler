@@ -245,6 +245,41 @@ export class DailyScheduleService {
           
           // Get client accessibility info - critical for several rules
           const clientAccessibility = await this.sheetsService.getClientAccessibilityInfo(appt.clientId);
+
+          // Debug logging for client accessibility info
+if (clientAccessibility) {
+  console.log(`Found accessibility info for client ${appt.clientName} (ID: ${appt.clientId})`);
+  console.log(`  Has mobility needs: ${clientAccessibility.hasMobilityNeeds}`);
+  console.log(`  Has required office: ${clientAccessibility.requiredOffice ? 'Yes - ' + clientAccessibility.requiredOffice : 'No'}`);
+} else {
+  console.log(`No accessibility info found for client ${appt.clientName} (ID: ${appt.clientId})`);
+  
+  // Check client ID format to help with debugging
+  console.log(`  Client ID format check: Type=${typeof appt.clientId}, Length=${appt.clientId.length}`);
+  
+  // Try alternative formats of client ID
+  try {
+    // Try with a numeric ID if the current ID is a string
+    if (typeof appt.clientId === 'string' && !isNaN(Number(appt.clientId))) {
+      const numericId = Number(appt.clientId).toString();
+      if (numericId !== appt.clientId) {
+        console.log(`  Trying alternative numeric format: ${numericId}`);
+        const altCheck = await this.sheetsService.getClientAccessibilityInfo(numericId);
+        if (altCheck) {
+          console.log(`  Found record with numeric ID format!`);
+          console.log(`  Has mobility needs: ${altCheck.hasMobilityNeeds}`);
+          console.log(`  Has required office: ${altCheck.requiredOffice ? 'Yes - ' + altCheck.requiredOffice : 'No'}`);
+        } else {
+          console.log(`  No record found with numeric ID format`);
+        }
+      }
+    }
+  } catch (e) {
+    console.log(`  Error checking alternative ID formats: ${e}`);
+  }
+}
+
+
           
           // Get client preferences
           const clientPreference = clientPreferences.find(p => p.clientId === appt.clientId);
@@ -268,21 +303,35 @@ export class DailyScheduleService {
           
           // Try to determine client age if available (for age-based rules)
           let clientAge: number | null = null;
-          try {
-            // We'll use client preferences as that's already available
-            const clientPreference = clientPreferences.find(p => p.clientId === appt.clientId);
-            
-            // If we have a date of birth from elsewhere (not shown here), we could use it
-            // For now, we'll rely on age information that might be passed in from IntakeQ
-            
-            // This is where we would determine age if we had DOB info
-            // Since we don't have direct access to client DOB, we'll use the value that was
-            // determined earlier (possibly from IntakeQ data)
-            
-            console.log(`Client age determined as: ${clientAge !== null ? clientAge : 'unknown'}`);
-          } catch (error) {
-            console.log(`Could not determine age for client ${appt.clientName}`);
-          }
+try {
+  // Direct access to DOB from appointment record
+  if (appt.clientDateOfBirth && appt.clientDateOfBirth.trim() !== '') {
+    const dobDate = new Date(appt.clientDateOfBirth);
+    
+    // Ensure we have a valid date
+    if (!isNaN(dobDate.getTime())) {
+      const today = new Date();
+      
+      // Calculate age
+      let age = today.getFullYear() - dobDate.getFullYear();
+      
+      // Adjust age if birthday hasn't occurred yet this year
+      const monthDiff = today.getMonth() - dobDate.getMonth();
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dobDate.getDate())) {
+        age--;
+      }
+      
+      clientAge = age;
+      console.log(`Client age determined as: ${clientAge} from DOB: ${appt.clientDateOfBirth}`);
+    } else {
+      console.log(`Invalid DOB format for client ${appt.clientName}: ${appt.clientDateOfBirth}`);
+    }
+  } else {
+    console.log(`No DOB found for client ${appt.clientName}, age-based rules will be skipped`);
+  }
+} catch (error) {
+  console.log(`Error determining age for client ${appt.clientName}: ${error}`);
+}
           
           // ===============================================
           // RULE PRIORITY 100: Client Specific Requirement
@@ -1246,4 +1295,158 @@ export class DailyScheduleService {
       return false; // Assume not available on error
     }
   }
+
+  /**
+ * Test office assignment rules on a week of appointments
+ * Used for debugging and validation only
+ */
+async testOfficeAssignmentRules(startDate: string, endDate: string): Promise<any> {
+  try {
+    console.log(`Testing office assignment rules from ${startDate} to ${endDate}`);
+    
+    // Get date range
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    
+    // Get all appointments in range
+    const appointments = await this.sheetsService.getAppointments(start.toISOString(), end.toISOString());
+    console.log(`Found ${appointments.length} appointments for testing`);
+    
+    // Statistics to track
+    const stats = {
+      totalAppointments: appointments.length,
+      ruleMatches: {} as Record<string, number>,
+      ageGroups: {
+        unknown: 0,
+        under10: 0,
+        age11to17: 0,
+        adult: 0
+      },
+      mobilityNeeds: 0,
+      requiredOffices: 0,
+      testResults: [] as any[]
+    };
+    
+    // Process each appointment
+    for (const appt of appointments) {
+      console.log(`\n--- Testing appointment ${appt.appointmentId} for ${appt.clientName} ---`);
+      
+      // Get client accessibility info
+      const clientAccessibility = await this.sheetsService.getClientAccessibilityInfo(appt.clientId);
+      
+      // Log client accessibility info
+      if (clientAccessibility) {
+        console.log(`Client accessibility: Mobility=${clientAccessibility.hasMobilityNeeds}, RequiredOffice=${clientAccessibility.requiredOffice || 'None'}`);
+        if (clientAccessibility.hasMobilityNeeds) stats.mobilityNeeds++;
+        if (clientAccessibility.requiredOffice) stats.requiredOffices++;
+      } else {
+        console.log('No client accessibility info found');
+      }
+      
+      // Calculate age
+      let clientAge: number | null = null;
+      if (appt.clientDateOfBirth && appt.clientDateOfBirth.trim() !== '') {
+        try {
+          const dobDate = new Date(appt.clientDateOfBirth);
+          if (!isNaN(dobDate.getTime())) {
+            const appointmentDate = new Date(appt.startTime);
+            clientAge = appointmentDate.getFullYear() - dobDate.getFullYear();
+            
+            // Adjust age if birthday hasn't occurred yet this year
+            const monthDiff = appointmentDate.getMonth() - dobDate.getMonth();
+            if (monthDiff < 0 || (monthDiff === 0 && appointmentDate.getDate() < dobDate.getDate())) {
+              clientAge--;
+            }
+            
+            // Count age groups
+            if (clientAge <= 10) stats.ageGroups.under10++;
+            else if (clientAge <= 17) stats.ageGroups.age11to17++;
+            else stats.ageGroups.adult++;
+          }
+        } catch (e) {
+          console.log(`Error calculating age: ${e}`);
+        }
+      }
+      
+      if (clientAge === null) stats.ageGroups.unknown++;
+      console.log(`Client age: ${clientAge !== null ? clientAge : 'unknown'}`);
+      
+      // Apply rules in order
+      let assignedOffice = null;
+      let assignmentReason = '';
+      
+      // RULE PRIORITY 100: Client Specific Requirement
+      if (!assignedOffice && clientAccessibility) {
+        // Extract from required office or notes
+        const specificOffice = this.extractAssignedOfficeFromNotes(
+          clientAccessibility.additionalNotes || '',
+          clientAccessibility.requiredOffice
+        );
+        
+        if (specificOffice) {
+          assignedOffice = specificOffice;
+          assignmentReason = `Client has specific office requirement (Priority 100)`;
+          stats.ruleMatches['100'] = (stats.ruleMatches['100'] || 0) + 1;
+        }
+      }
+      
+      // RULE PRIORITY 90: Accessibility Requirement
+      if (!assignedOffice && clientAccessibility?.hasMobilityNeeds) {
+        assignedOffice = 'B-4'; // Simplified for testing
+        assignmentReason = `Client requires accessible office (Priority 90)`;
+        stats.ruleMatches['90'] = (stats.ruleMatches['90'] || 0) + 1;
+      }
+      
+      // RULE PRIORITY 80: Young Children
+      if (!assignedOffice && clientAge !== null && clientAge <= 10) {
+        assignedOffice = 'B-5';
+        assignmentReason = `Young child assigned to B-5 (Priority 80)`;
+        stats.ruleMatches['80'] = (stats.ruleMatches['80'] || 0) + 1;
+      }
+      
+      // RULE PRIORITY 75: Older Children and Teens
+      if (!assignedOffice && clientAge !== null && clientAge >= 11 && clientAge <= 17) {
+        assignedOffice = 'C-1';
+        assignmentReason = `Older child/teen assigned to C-1 (Priority 75)`;
+        stats.ruleMatches['75'] = (stats.ruleMatches['75'] || 0) + 1;
+      }
+      
+      // Log result
+      console.log(`Test assignment: ${assignedOffice || 'None'} - ${assignmentReason || 'No matching high-priority rule'}`);
+      
+      // Save result for analysis
+      stats.testResults.push({
+        appointmentId: appt.appointmentId,
+        clientName: appt.clientName,
+        clientId: appt.clientId,
+        clientAge: clientAge,
+        hasMobilityNeeds: clientAccessibility?.hasMobilityNeeds || false,
+        requiredOffice: clientAccessibility?.requiredOffice || null,
+        assignedOffice: assignedOffice,
+        assignmentReason: assignmentReason,
+        currentAssignment: appt.assignedOfficeId || appt.currentOfficeId || null
+      });
+    }
+    
+    // Log summary statistics
+    console.log('\n--- Office Assignment Test Summary ---');
+    console.log(`Total appointments tested: ${stats.totalAppointments}`);
+    console.log('Age groups:');
+    console.log(`  Unknown age: ${stats.ageGroups.unknown}`);
+    console.log(`  Children ≤10: ${stats.ageGroups.under10}`);
+    console.log(`  Children/Teens 11-17: ${stats.ageGroups.age11to17}`);
+    console.log(`  Adults: ${stats.ageGroups.adult}`);
+    console.log(`Clients with mobility needs: ${stats.mobilityNeeds}`);
+    console.log(`Clients with required offices: ${stats.requiredOffices}`);
+    console.log('Rule matches:');
+    Object.entries(stats.ruleMatches).forEach(([priority, count]) => {
+      console.log(`  Priority ${priority}: ${count} appointments`);
+    });
+    
+    return stats;
+  } catch (error) {
+    console.error('Error testing office assignment rules:', error);
+    throw error;
+  }
+}
 }

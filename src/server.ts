@@ -8,6 +8,7 @@ import schedulingRoutes from './routes/scheduling';
 import { GoogleSheetsService } from './lib/google/sheets';
 import { initializeServices, EnhancedServices } from './lib/util/service-initializer';
 import { logger } from './lib/util/logger';
+import diagnosticsRoutes from './routes/maintenance/diagnostics';
 
 // Load environment variables
 dotenv.config();
@@ -67,6 +68,7 @@ app.get('/health', (req: Request, res: Response) => {
 
 // Mount API routes
 app.use('/api', apiRoutes);
+app.use('/api/diagnostics', diagnosticsRoutes);
 
 // Start server
 const server = app.listen(PORT, () => {
