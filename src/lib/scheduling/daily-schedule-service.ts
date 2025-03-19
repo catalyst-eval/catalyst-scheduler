@@ -174,25 +174,55 @@ export class DailyScheduleService {
   }
 
   /**
-   * Helper method to extract assigned office from notes and/or requiredOffice field
-   */
-  private extractAssignedOfficeFromNotes(notes: string, requiredOffice?: string): string {
-    // First check for explicit requiredOffice field
-    if (requiredOffice && requiredOffice.trim() !== '') {
-      return requiredOffice.trim();
+ * Extract assigned office from notes and/or requiredOffice field
+ * Updated to handle various office ID formats including non-hyphenated ones
+ */
+private extractAssignedOfficeFromNotes(notes: string, requiredOffice?: string): string {
+  // First check for explicit requiredOffice field
+  if (requiredOffice && requiredOffice.trim() !== '') {
+    console.log(`  Found explicit requiredOffice: ${requiredOffice.trim()}`);
+    
+    const cleanedOfficeId = requiredOffice.trim();
+    
+    // Check if the office ID matches standard pattern
+    if (/^[A-C]-[0-9v]$/.test(cleanedOfficeId)) {
+      return cleanedOfficeId; // Already in standard format
     }
     
-    // Fall back to parsing from notes if field is not set
-    if (!notes) return '';
-    
-    // Check for patterns like "Assigned Office: B-4" in notes
-    const officeMatch = notes.match(/assigned\s+office:?\s*([A-C]-\d+|A-v)/i);
-    if (officeMatch && officeMatch[1]) {
-      return officeMatch[1];
+    // Check if it's a non-hyphenated format (e.g., "C1" instead of "C-1")
+    if (/^[A-C][0-9v]$/.test(cleanedOfficeId)) {
+      const floor = cleanedOfficeId.charAt(0);
+      const unit = cleanedOfficeId.charAt(1);
+      const standardFormat = `${floor}-${unit}`;
+      console.log(`  Standardizing office format from ${cleanedOfficeId} to ${standardFormat}`);
+      return standardFormat;
     }
     
-    return '';
+    // For other formats, just return as is
+    return cleanedOfficeId;
   }
+  
+  // Fall back to parsing from notes if field is not set
+  if (!notes) return '';
+  
+  // Check for patterns like "Assigned Office: B-4" in notes
+  const officeMatch = notes.match(/assigned\s+office:?\s*([A-C]-?\d+|A-?v)/i);
+  if (officeMatch && officeMatch[1]) {
+    console.log(`  Found office ID in notes text: ${officeMatch[1]}`);
+    
+    // Standardize format if needed
+    const extractedId = officeMatch[1];
+    if (/^[A-C][0-9v]$/.test(extractedId)) {
+      const floor = extractedId.charAt(0);
+      const unit = extractedId.charAt(1);
+      return `${floor}-${unit}`;
+    }
+    
+    return extractedId;
+  }
+  
+  return '';
+}
 
   /**
  * Resolve office assignments using strict rule priority
@@ -352,36 +382,51 @@ private async resolveOfficeAssignments(appointments: AppointmentRecord[]): Promi
         // ===============================================
         // RULE PRIORITY 100: Client Specific Requirement
         // ===============================================
-        if (!assignedOffice) {
-          console.log("Checking PRIORITY 100: Client Specific Requirement");
-          if (clientAccessibility) {
-            // Check both requiredOffice field and notes
-            let clientSpecificOffice = this.extractAssignedOfficeFromNotes(
-              clientAccessibility.additionalNotes || '',
-              clientAccessibility.requiredOffice  // New field
-            );
-            
-            if (clientSpecificOffice) {
-              // Add this standardization check
-              if (clientSpecificOffice.includes('-') || /^[A-C]-[0-9v]/.test(clientSpecificOffice)) {
-                // Standard format - use standardizeOfficeId
-                assignedOffice = standardizeOfficeId(clientSpecificOffice);
-              } else {
-                // Try to find a matching office by ID
-                const matchingOffice = activeOffices.find(o => o.officeId === clientSpecificOffice);
-                if (matchingOffice) {
-                  assignedOffice = standardizeOfficeId(matchingOffice.officeId);
-                } else {
-                  console.log(`  Client has non-standard office ID: ${clientSpecificOffice}, cannot map to standard format`);
-                  assignedOffice = 'TBD'; // Or some other fallback
-                }
-              }
-              
-              assignmentReason = `Client has specific office requirement (Priority ${RulePriority.CLIENT_SPECIFIC_REQUIREMENT})`;
-              console.log(`  MATCH: ${assignmentReason} - Office ${assignedOffice}`);
-            }
-          }
+        // In resolveOfficeAssignments method, within the Priority 100 section:
+if (!assignedOffice) {
+  console.log("Checking PRIORITY 100: Client Specific Requirement");
+  if (clientAccessibility) {
+    // Check both requiredOffice field and notes
+    let clientSpecificOffice = this.extractAssignedOfficeFromNotes(
+      clientAccessibility.additionalNotes || '',
+      clientAccessibility.requiredOffice  // New field
+    );
+    
+    if (clientSpecificOffice) {
+      console.log(`  Found client specific office: "${clientSpecificOffice}"`);
+      
+      // Handle different formats of office IDs
+      if (/^[A-C]-[0-9v]/.test(clientSpecificOffice)) {
+        // Standard format (e.g., "B-4", "C-3", "A-v")
+        assignedOffice = standardizeOfficeId(clientSpecificOffice);
+        console.log(`  Using standard office ID: ${assignedOffice}`);
+      } else if (clientSpecificOffice.includes('-')) {
+        // Might be a UUID format
+        console.log(`  Legacy office ID (UUID format): ${clientSpecificOffice}`);
+        // Try to map this UUID to a standard office ID
+        // For now, use it as is or set a fallback
+        assignedOffice = clientSpecificOffice;
+      } else {
+        // Could be a simple name without hyphen (e.g., "C1" instead of "C-1")
+        // Try to standardize it
+        if (/^[A-C][0-9v]$/.test(clientSpecificOffice)) {
+          // Format like "C1", "B4", "Av"
+          const floor = clientSpecificOffice.charAt(0);
+          const unit = clientSpecificOffice.charAt(1);
+          assignedOffice = standardizeOfficeId(`${floor}-${unit}`);
+          console.log(`  Converted simple format ${clientSpecificOffice} to ${assignedOffice}`);
+        } else {
+          // Unknown format, use as is
+          console.log(`  Unknown office ID format: ${clientSpecificOffice}`);
+          assignedOffice = clientSpecificOffice;
         }
+      }
+      
+      assignmentReason = `Client has specific office requirement (Priority ${RulePriority.CLIENT_SPECIFIC_REQUIREMENT})`;
+      console.log(`  MATCH: ${assignmentReason} - Office ${assignedOffice}`);
+    }
+  }
+}
         
         // ==========================================
         // RULE PRIORITY 90: Accessibility Requirement
