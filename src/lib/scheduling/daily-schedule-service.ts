@@ -362,19 +362,24 @@ private async resolveOfficeAssignments(appointments: AppointmentRecord[]): Promi
             );
             
             if (clientSpecificOffice) {
-              assignedOffice = standardizeOfficeId(clientSpecificOffice);
+              // Add this standardization check
+              if (clientSpecificOffice.includes('-') || /^[A-C]-[0-9v]/.test(clientSpecificOffice)) {
+                // Standard format - use standardizeOfficeId
+                assignedOffice = standardizeOfficeId(clientSpecificOffice);
+              } else {
+                // Try to find a matching office by ID
+                const matchingOffice = activeOffices.find(o => o.officeId === clientSpecificOffice);
+                if (matchingOffice) {
+                  assignedOffice = standardizeOfficeId(matchingOffice.officeId);
+                } else {
+                  console.log(`  Client has non-standard office ID: ${clientSpecificOffice}, cannot map to standard format`);
+                  assignedOffice = 'TBD'; // Or some other fallback
+                }
+              }
+              
               assignmentReason = `Client has specific office requirement (Priority ${RulePriority.CLIENT_SPECIFIC_REQUIREMENT})`;
               console.log(`  MATCH: ${assignmentReason} - Office ${assignedOffice}`);
-            } else {
-              console.log(`  No specific office requirement found in client accessibility info`);
             }
-          } else if (clientPreference?.assignedOffice) {
-            // Fallback to old client preferences data if available
-            assignedOffice = standardizeOfficeId(clientPreference.assignedOffice);
-            assignmentReason = `Client has specific office requirement (Priority ${RulePriority.CLIENT_SPECIFIC_REQUIREMENT})`;
-            console.log(`  MATCH: ${assignmentReason} - Office ${assignedOffice}`);
-          } else {
-            console.log(`  No client-specific office requirement found`);
           }
         }
         
