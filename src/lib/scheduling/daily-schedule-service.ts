@@ -1704,6 +1704,7 @@ try {
         currentAssignment: appt.assignedOfficeId || appt.currentOfficeId || null
       });
     }
+
     
     // Log summary statistics
     console.log('\n--- Office Assignment Test Summary ---');
@@ -1726,4 +1727,280 @@ try {
     throw error;
   }
 }
+
+/**
+ * Test the office assignment for a single appointment
+ * This allows testing the rule application for a specific appointment
+ */
+async testSingleAppointmentAssignment(appointmentId: string): Promise<any> {
+  try {
+    console.log(`Testing office assignment for appointment: ${appointmentId}`);
+    
+    // Get the appointment
+    const appointment = await this.sheetsService.getAppointment(appointmentId);
+    
+    if (!appointment) {
+      throw new Error(`Appointment ${appointmentId} not found`);
+    }
+    
+    console.log(`Found appointment for ${appointment.clientName} (Client ID: ${appointment.clientId})`);
+    
+    // Get necessary configuration data
+    const offices = await this.sheetsService.getOffices();
+    const activeOffices = offices.filter(o => o.inService === true);
+    const clinicians = await this.sheetsService.getClinicians();
+    const clientPreferences = await this.sheetsService.getClientPreferences();
+    
+    console.log(`Loaded configuration: ${activeOffices.length} active offices, ${clinicians.length} clinicians`);
+    
+    // Get client accessibility info - critical for several rules
+    const clientAccessibility = await this.sheetsService.getClientAccessibilityInfo(appointment.clientId);
+    
+    // Log client accessibility info for debugging
+    console.log('Client Accessibility Info:');
+    if (clientAccessibility) {
+      console.log(`  ClientId: ${clientAccessibility.clientId}`);
+      console.log(`  ClientName: ${clientAccessibility.clientName}`);
+      console.log(`  Has mobility needs: ${clientAccessibility.hasMobilityNeeds}`);
+      console.log(`  Has sensory needs: ${clientAccessibility.hasSensoryNeeds}`);
+      console.log(`  Has physical needs: ${clientAccessibility.hasPhysicalNeeds}`);
+      console.log(`  Room consistency: ${clientAccessibility.roomConsistency}`);
+      console.log(`  Has support needs: ${clientAccessibility.hasSupport}`);
+      console.log(`  Additional notes: ${clientAccessibility.additionalNotes || 'None'}`);
+      console.log(`  Required office: ${clientAccessibility.requiredOffice || 'None'}`);
+      
+      // Test extracting assigned office
+      const extractedOffice = this.extractAssignedOfficeFromNotes(
+        clientAccessibility.additionalNotes || '',
+        clientAccessibility.requiredOffice
+      );
+      console.log(`  Extracted office from notes/requiredOffice: ${extractedOffice || 'None'}`);
+    } else {
+      console.log('  No accessibility info found');
+      
+      // Try with integer ID if the client ID is a string with numbers
+      if (typeof appointment.clientId === 'string' && !isNaN(Number(appointment.clientId))) {
+        const numericId = Number(appointment.clientId).toString();
+        if (numericId !== appointment.clientId) {
+          console.log(`  Trying with numeric ID format: ${numericId}`);
+          const altCheck = await this.sheetsService.getClientAccessibilityInfo(numericId);
+          if (altCheck) {
+            console.log(`  Found accessibility info with numeric ID`);
+            console.log(`  Has mobility needs: ${altCheck.hasMobilityNeeds}`);
+            console.log(`  Required office: ${altCheck.requiredOffice || 'None'}`);
+          }
+        }
+      }
+    }
+    
+    // Get client preferences
+    const clientPreference = clientPreferences.find(p => p.clientId === appointment.clientId);
+    if (clientPreference?.assignedOffice) {
+      console.log(`Client ${appointment.clientName} has assigned office from preferences: ${clientPreference.assignedOffice}`);
+    }
+    
+    // Try to determine client age
+    let clientAge: number | null = null;
+    try {
+      if (appointment.clientDateOfBirth && appointment.clientDateOfBirth.trim() !== '') {
+        const dobDate = new Date(appointment.clientDateOfBirth);
+        if (!isNaN(dobDate.getTime())) {
+          const appointmentDate = new Date(appointment.startTime);
+          let age = appointmentDate.getFullYear() - dobDate.getFullYear();
+          const monthDiff = appointmentDate.getMonth() - dobDate.getMonth();
+          if (monthDiff < 0 || (monthDiff === 0 && appointmentDate.getDate() < dobDate.getDate())) {
+            age--;
+          }
+          clientAge = age;
+          console.log(`Client age determined as: ${clientAge} from DOB: ${appointment.clientDateOfBirth}`);
+        }
+      }
+    } catch (error) {
+      console.log(`Error determining age: ${error}`);
+    }
+    
+    // Now let's run through each rule in priority order
+    console.log('\nApplying office assignment rules:');
+    let assignedOffice = null;
+    let assignmentReason = '';
+    
+    // Create a function to log rule application
+    const logRuleCheck = (priority: number, ruleName: string) => {
+      console.log(`\nChecking PRIORITY ${priority}: ${ruleName}`);
+    };
+    
+    const logRuleApplied = (priority: number, ruleName: string, office: string) => {
+      console.log(`RULE APPLIED: Priority ${priority} - ${ruleName}`);
+      console.log(`Assigned office: ${office}`);
+    };
+    
+    // ---------- PRIORITY 100 - TAG-BASED ----------
+    if (!assignedOffice && appointment.tags && appointment.tags.length > 0) {
+      logRuleCheck(100, "Office Tag (tag-based)");
+      
+      // Look for tags matching office IDs (case-insensitive)
+      const officeTags = appointment.tags.filter(tag => 
+        /^[a-c]-[0-9v]$/i.test(tag) || // Match format like "b-4", "c-1", "a-v"
+        /^[a-c][0-9v]$/i.test(tag)     // Also match format like "b4", "c1", "av"
+      );
+      
+      if (officeTags.length > 0) {
+        // Take the first matching office tag
+        let officeTag = officeTags[0].toLowerCase();
+        
+        // Normalize format if needed (convert b4 to b-4)
+        if (/^[a-c][0-9v]$/.test(officeTag)) {
+          officeTag = `${officeTag[0]}-${officeTag[1]}`;
+        }
+        
+        assignedOffice = standardizeOfficeId(officeTag);
+        assignmentReason = `Client has specific office tag ${officeTag} (Priority 100 TAG)`;
+        logRuleApplied(100, "Office Tag", assignedOffice);
+      }
+    }
+    
+    // ---------- PRIORITY 100 - CLIENT-SPECIFIC ----------
+    if (!assignedOffice) {
+      logRuleCheck(100, "Client Specific Requirement");
+      if (clientAccessibility) {
+        // Check both requiredOffice field and notes
+        let clientSpecificOffice = this.extractAssignedOfficeFromNotes(
+          clientAccessibility.additionalNotes || '',
+          clientAccessibility.requiredOffice  // New field
+        );
+        
+        if (clientSpecificOffice) {
+          console.log(`  Found client specific office: "${clientSpecificOffice}"`);
+          
+          // Handle different formats of office IDs
+          if (/^[A-C]-[0-9v]/.test(clientSpecificOffice)) {
+            // Standard format (e.g., "B-4", "C-3", "A-v")
+            assignedOffice = standardizeOfficeId(clientSpecificOffice);
+            console.log(`  Using standard office ID: ${assignedOffice}`);
+          } else if (clientSpecificOffice.includes('-')) {
+            // Might be a UUID format
+            console.log(`  Legacy office ID (UUID format): ${clientSpecificOffice}`);
+            assignedOffice = clientSpecificOffice;
+          } else {
+            // Could be a simple name without hyphen (e.g., "C1" instead of "C-1")
+            if (/^[A-C][0-9v]$/.test(clientSpecificOffice)) {
+              // Format like "C1", "B4", "Av"
+              const floor = clientSpecificOffice.charAt(0);
+              const unit = clientSpecificOffice.charAt(1);
+              assignedOffice = standardizeOfficeId(`${floor}-${unit}`);
+              console.log(`  Converted simple format ${clientSpecificOffice} to ${assignedOffice}`);
+            } else {
+              // Unknown format, use as is
+              console.log(`  Unknown office ID format: ${clientSpecificOffice}`);
+              assignedOffice = clientSpecificOffice;
+            }
+          }
+          
+          assignmentReason = `Client has specific office requirement (Priority 100)`;
+          logRuleApplied(100, "Client Specific Requirement", assignedOffice);
+        }
+      }
+    }
+    
+    // ---------- PRIORITY 90 - TAG-BASED ----------
+    if (!assignedOffice && appointment.tags && appointment.tags.includes('mobility')) {
+      logRuleCheck(90, "Mobility Tag (tag-based)");
+      
+      // Prioritize B-4, B-5 as specified in rule
+      const accessibleOffices = ['B-4', 'B-5'];
+      
+      console.log(`  Client has mobility tag, checking accessible offices: ${accessibleOffices.join(', ')}`);
+      
+      for (const officeId of accessibleOffices) {
+        console.log(`  Checking accessible office: ${officeId}`);
+        const matchingOffice = activeOffices.find(o => 
+          standardizeOfficeId(o.officeId) === standardizeOfficeId(officeId)
+        );
+        
+        if (matchingOffice) {
+          const available = await this.isOfficeAvailable(matchingOffice.officeId, appointment, [appointment]);
+          console.log(`  Office ${officeId} availability: ${available ? 'Available' : 'NOT Available'}`);
+          if (available) {
+            assignedOffice = standardizeOfficeId(matchingOffice.officeId);
+            assignmentReason = `Client has mobility tag (Priority 90 TAG)`;
+            logRuleApplied(90, "Mobility Tag", assignedOffice);
+            break;
+          }
+        } else {
+          console.log(`  Office ${officeId} not found in active offices list`);
+        }
+      }
+    }
+    
+    // ---------- PRIORITY 90 - ACCESSIBILITY ----------
+    if (!assignedOffice) {
+      logRuleCheck(90, "Accessibility Requirement");
+      if (clientAccessibility?.hasMobilityNeeds) {
+        console.log(`  Client has mobility needs, checking accessible offices`);
+        
+        // Prioritize B-4, B-5 as specified in rule
+        const accessibleOffices = ['B-4', 'B-5'];
+        
+        for (const officeId of accessibleOffices) {
+          console.log(`  Checking accessible office: ${officeId}`);
+          const matchingOffice = activeOffices.find(o => 
+            standardizeOfficeId(o.officeId) === standardizeOfficeId(officeId)
+          );
+          
+          if (matchingOffice) {
+            const available = await this.isOfficeAvailable(matchingOffice.officeId, appointment, [appointment]);
+            console.log(`  Office ${officeId} availability: ${available ? 'Available' : 'NOT Available'}`);
+            if (available) {
+              assignedOffice = standardizeOfficeId(matchingOffice.officeId);
+              assignmentReason = `Client requires accessible office (Priority 90)`;
+              logRuleApplied(90, "Accessibility Requirement", assignedOffice);
+              break;
+            }
+          } else {
+            console.log(`  Office ${officeId} not found in active offices list`);
+          }
+        }
+      } else {
+        console.log(`  Client does not have mobility needs, skipping accessibility rule`);
+      }
+    }
+    
+    // Provide the final result
+    if (assignedOffice) {
+      console.log(`\nFINAL RESULT: Office ${assignedOffice} assigned because: ${assignmentReason}`);
+    } else {
+      console.log('\nNo specific office could be assigned based on priority rules');
+    }
+    
+    return {
+      appointmentId: appointment.appointmentId,
+      clientId: appointment.clientId,
+      clientName: appointment.clientName,
+      sessionType: appointment.sessionType,
+      startTime: appointment.startTime,
+      endTime: appointment.endTime,
+      originalOfficeId: appointment.currentOfficeId || appointment.officeId,
+      assignedOfficeId: assignedOffice || 'TBD',
+      assignmentReason: assignmentReason || 'No rule applied',
+      clientAge: clientAge,
+      mobilityNeeds: clientAccessibility?.hasMobilityNeeds || false,
+      requiredOffice: clientAccessibility?.requiredOffice || null,
+      hasTags: appointment.tags && appointment.tags.length > 0
+    };
+  } catch (error) {
+    console.error('Error testing office assignment:', error);
+    
+    // Log error
+    await this.sheetsService.addAuditLog({
+      timestamp: new Date().toISOString(),
+      eventType: 'SYSTEM_ERROR',
+      description: 'Error testing office assignment',
+      user: 'SYSTEM',
+      systemNotes: error instanceof Error ? error.message : 'Unknown error'
+    });
+    
+    throw error;
+  }
+}
+
 }

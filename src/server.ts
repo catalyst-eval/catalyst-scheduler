@@ -9,6 +9,7 @@ import { GoogleSheetsService } from './lib/google/sheets';
 import { initializeServices, EnhancedServices } from './lib/util/service-initializer';
 import { logger } from './lib/util/logger';
 import diagnosticsRoutes from './routes/maintenance/diagnostics';
+import testingRoutes from './routes/testing/office-assignments';
 
 // Load environment variables
 dotenv.config();
@@ -36,6 +37,7 @@ const schedulerService = new SchedulerService();
 // Basic JSON parser for all routes
 app.use(express.json());
 app.use('/api/scheduling', schedulingRoutes);
+app.use('/api/testing', testingRoutes);
 
 // Initialize enhanced services
 initializeServices(sheetsService)
