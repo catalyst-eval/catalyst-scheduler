@@ -18,44 +18,44 @@ export type WebhookEventType =
   | 'AppointmentDeleted'
   | 'Appointment Deleted';
 
-export interface IntakeQAppointment {
-  Id: string;
-  ClientName: string;
-  ClientEmail: string;
-  ClientPhone: string;
-  ClientDateOfBirth: string;
-  ClientId: number;
-  Status: string;
-  StartDate: number;
-  EndDate: number;
-  Duration: number;
-  ServiceName: string;
-  ServiceId: string;
-  LocationName: string;
-  LocationId: string;
-  Price: number;
-  PractitionerName: string;
-  PractitionerEmail: string;
-  PractitionerId: string;
-  IntakeId: string | null;
-  DateCreated: number;
-  CreatedBy: string;
-  BookedByClient: boolean;
-  ExternalClientId?: string;
-  StartDateIso: string;
-  EndDateIso: string;
-  StartDateLocal: string;
-  EndDateLocal: string;
-  StartDateLocalFormatted: string;
-  CancellationReason?: string;
-  RecurrencePattern?: {
-    frequency: 'weekly' | 'biweekly' | 'monthly';
-    occurrences: number;
-    endDate?: string;
-  };
-  Tags?: string;
-  [key: string]: any;
-}
+  export interface IntakeQAppointment {
+    Id: string;
+    ClientName: string;
+    ClientEmail: string;
+    ClientPhone: string;
+    ClientDateOfBirth: string;
+    ClientId: number;
+    Status: string;
+    StartDate: number;
+    EndDate: number;
+    Duration: number;
+    ServiceName: string;
+    ServiceId: string;
+    LocationName: string;
+    LocationId: string;
+    Price: number;
+    PractitionerName: string;
+    PractitionerEmail: string;
+    PractitionerId: string;
+    IntakeId: string | null;
+    DateCreated: number;
+    CreatedBy: string;
+    BookedByClient: boolean;
+    ExternalClientId?: string;
+    StartDateIso: string;
+    EndDateIso: string;
+    StartDateLocal: string;
+    EndDateLocal: string;
+    StartDateLocalFormatted: string;
+    CancellationReason?: string;
+    Tags?: string | string[]; // Updated to handle both string and array
+    RecurrencePattern?: {
+      frequency: 'weekly' | 'biweekly' | 'monthly';
+      occurrences: number;
+      endDate?: string;
+    };
+    [key: string]: any;
+  }
 
 export interface IntakeQWebhookPayload {
   IntakeId?: string;

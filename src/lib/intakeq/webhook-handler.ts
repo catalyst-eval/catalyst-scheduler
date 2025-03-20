@@ -93,6 +93,15 @@ async processWebhook(
 
     const typedPayload = payload as IntakeQWebhookPayload;
     const eventType = this.getEventType(typedPayload);
+    
+    // Log the appointment data including tags if present
+    if (typedPayload.Appointment) {
+      console.log('Webhook Appointment data:', {
+        id: typedPayload.Appointment.Id,
+        clientId: typedPayload.Appointment.ClientId,
+        tags: typedPayload.Appointment.Tags || 'none'
+      });
+    }
       
     // Log webhook receipt
     await this.sheetsService.addAuditLog({

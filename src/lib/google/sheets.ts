@@ -1077,6 +1077,7 @@ async cleanupDefaultClientAccessibility(): Promise<number> {
 
 /**
  * Update an appointment - Updated with correct column ordering and robust JSON handling
+ * Made sure tags are properly handled
  */
 async updateAppointment(appointment: AppointmentRecord): Promise<void> {
   try {
@@ -1110,6 +1111,12 @@ async updateAppointment(appointment: AppointmentRecord): Promise<void> {
       console.error('Error stringifying requirements, using default:', jsonError);
     }
 
+    // Format tags as comma-separated string
+    const tagsString = normalizedAppointment.tags && normalizedAppointment.tags.length > 0 ? 
+      normalizedAppointment.tags.join(',') : '';
+    
+    console.log(`Updating appointment ${normalizedAppointment.appointmentId} with tags: ${tagsString}`);
+
     // Prepare row data - CORRECTED column ordering matching sheet structure
     const rowData = [
       normalizedAppointment.appointmentId,                     // Column A: appointmentId
@@ -1128,12 +1135,13 @@ async updateAppointment(appointment: AppointmentRecord): Promise<void> {
       requirementsJson,                                        // Column N: requirements
       normalizedAppointment.notes || '',                       // Column O: notes
       assignedOfficeId,                                        // Column P: assignedOfficeId
-      normalizedAppointment.assignmentReason || ''             // Column Q: assignmentReason
+      normalizedAppointment.assignmentReason || '',            // Column Q: assignmentReason
+      tagsString                                               // Column R: tags (NEW)
     ];
 
     await this.sheets.spreadsheets.values.update({
       spreadsheetId: this.spreadsheetId,
-      range: `${SHEET_NAMES.APPOINTMENTS}!A${appointmentRow + 2}:Q${appointmentRow + 2}`,
+      range: `${SHEET_NAMES.APPOINTMENTS}!A${appointmentRow + 2}:R${appointmentRow + 2}`,
       valueInputOption: 'RAW',
       requestBody: {
         values: [rowData]

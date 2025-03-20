@@ -114,13 +114,19 @@ async processAppointmentEvent(
 }
 
 /**
- * Handle new appointment - UPDATED to defer office assignment
+ * Handle new appointment - UPDATED to pass tags correctly
  */
 private async handleNewAppointment(
   appointment: IntakeQAppointment
 ): Promise<WebhookResponse> {
   try {
     console.log('Processing new appointment:', appointment.Id);
+    console.log('Appointment data:', JSON.stringify({
+      id: appointment.Id,
+      clientId: appointment.ClientId,
+      clientName: appointment.ClientName,
+      tags: appointment.Tags
+    }));
     
     // 1. Convert IntakeQ appointment to our AppointmentRecord format
     const appointmentRecord = await this.convertToAppointmentRecord(appointment);
@@ -130,6 +136,9 @@ private async handleNewAppointment(
     appointmentRecord.assignedOfficeId = 'TBD';
     appointmentRecord.currentOfficeId = 'TBD';
     appointmentRecord.assignmentReason = 'To be determined during daily schedule generation';
+    
+    // Log the tags before saving
+    console.log(`Tags before saving: ${JSON.stringify(appointmentRecord.tags)}`);
     
     // 3. Save appointment to Google Sheets
     await this.sheetsService.addAppointment(appointmentRecord);
@@ -144,7 +153,8 @@ private async handleNewAppointment(
         appointmentId: appointment.Id,
         officeId: 'TBD',
         clientId: appointment.ClientId,
-        deferredAssignment: true
+        deferredAssignment: true,
+        tags: appointmentRecord.tags // Add tags to the log
       })
     });
 
@@ -154,7 +164,8 @@ private async handleNewAppointment(
         appointmentId: appointment.Id,
         officeId: 'TBD',
         action: 'created',
-        deferredAssignment: true
+        deferredAssignment: true,
+        tags: appointmentRecord.tags // Include tags in the response
       }
     };
   } catch (error) {
@@ -460,8 +471,24 @@ private async convertToAppointmentRecord(
     // Validate critical date fields
     this.validateAppointmentDates(appointment);
     
-    // Process tags from IntakeQ
-    const tags = this.processTags(appointment.Tags);
+    // Process tags from IntakeQ - ensure we're handling it correctly
+    // Log the raw Tags field to help with debugging
+    console.log(`Processing tags for appointment ${appointment.Id}`);
+    console.log(`Raw Tags field: ${JSON.stringify(appointment.Tags)}`);
+    
+    // Process tags, handling different possible formats
+    let tags: string[] = [];
+    if (appointment.Tags) {
+      if (typeof appointment.Tags === 'string') {
+        // If Tags is a string, split by commas
+        tags = appointment.Tags.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0);
+      } else if (Array.isArray(appointment.Tags)) {
+        // If Tags is already an array, use it directly
+        tags = appointment.Tags.map(tag => tag.toString().trim()).filter(tag => tag.length > 0);
+      }
+    }
+    
+    console.log(`Processed tags: ${JSON.stringify(tags)}`);
     
     // Standardize date formats for better consistency
     const standardizedStartTime = this.standardizeDateFormat(appointment.StartDateIso);
@@ -484,8 +511,10 @@ private async convertToAppointmentRecord(
       source: 'intakeq',
       requirements: requirements,
       notes: `Service: ${safeServiceName}`,
-      tags: tags
+      tags: tags // Ensure tags are being properly set
     });
+    
+    console.log(`Converted appointment record with tags: ${JSON.stringify(appointmentRecord.tags)}`);
     
     return appointmentRecord;
   } catch (error: unknown) {
@@ -497,17 +526,27 @@ private async convertToAppointmentRecord(
 
 /**
  * Process tags from IntakeQ
- * NEW helper method to process tags
+ * Updated with proper type annotations to fix TypeScript errors
  */
-private processTags(tagString?: string): string[] {
-  if (!tagString || typeof tagString !== 'string') {
+private processTags(tagString?: string | string[]): string[] {
+  if (!tagString) {
     return [];
   }
   
-  // Split by commas and trim each tag
-  return tagString.split(',')
-    .map(tag => tag.trim())
-    .filter(tag => tag.length > 0);
+  if (typeof tagString === 'string') {
+    // Split by commas and trim each tag
+    return tagString.split(',')
+      .map((tag: string) => tag.trim())
+      .filter((tag: string) => tag.length > 0);
+  } else if (Array.isArray(tagString)) {
+    // If it's already an array, just make sure all elements are strings
+    return tagString
+      .map((tag: any) => String(tag).trim())
+      .filter((tag: string) => tag.length > 0);
+  }
+  
+  // Default return for any other case
+  return [];
 }
 
 /**
