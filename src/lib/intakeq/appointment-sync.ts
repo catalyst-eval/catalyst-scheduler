@@ -816,88 +816,167 @@ private async handleNewAppointment(
     return 'in-person';
   }
 
-  private validateAppointmentDates(appointment: IntakeQAppointment): void {
-    console.log(`Validating dates for appointment ${appointment.Id}, StartDateIso: ${appointment.StartDateIso}, EndDateIso: ${appointment.EndDateIso}`);
-    
-    // Some IntakeQ webhooks might provide StartDate/EndDate (Unix timestamp) instead of StartDateIso/EndDateIso
-    // Handle this case by checking and converting if needed
-    if (!appointment.StartDateIso && appointment.StartDate) {
-      console.log(`Converting StartDate timestamp ${appointment.StartDate} to ISO string`);
-      try {
-        appointment.StartDateIso = new Date(Number(appointment.StartDate)).toISOString();
-      } catch (error) {
-        console.error(`Failed to convert StartDate timestamp ${appointment.StartDate} to ISO string:`, error);
-      }
-    }
-    
-    if (!appointment.EndDateIso && appointment.EndDate) {
-      console.log(`Converting EndDate timestamp ${appointment.EndDate} to ISO string`);
-      try {
-        appointment.EndDateIso = new Date(Number(appointment.EndDate)).toISOString();
-      } catch (error) {
-        console.error(`Failed to convert EndDate timestamp ${appointment.EndDate} to ISO string:`, error);
-      }
-    }
+/**
+ * Validate and fix appointment date fields to prevent corrupted data
+ * Enhanced to handle IntakeQ webhook format changes
+ */
+private validateAppointmentDates(appointment: IntakeQAppointment): void {
+  console.log(`Validating dates for appointment ${appointment.Id}, StartDateIso: ${appointment.StartDateIso}, EndDateIso: ${appointment.EndDateIso}`);
+  console.log(`Additional date info - StartDate: ${appointment.StartDate}, EndDate: ${appointment.EndDate}, Duration: ${appointment.Duration}`);
   
-    // Now validate StartDateIso
-    if (!appointment.StartDateIso || typeof appointment.StartDateIso !== 'string') {
-      console.error(`Invalid StartDateIso for appointment ${appointment.Id}: "${appointment.StartDateIso}"`);
-      throw new Error(`Invalid StartDateIso format for appointment ${appointment.Id}`);
-    }
-    
-    // Now validate EndDateIso
-    if (!appointment.EndDateIso || typeof appointment.EndDateIso !== 'string') {
-      console.error(`Invalid EndDateIso for appointment ${appointment.Id}: "${appointment.EndDateIso}"`);
-      
-      // Use appointment Duration if available
-      if (appointment.Duration && !isNaN(Number(appointment.Duration))) {
-        try {
-          // Parse StartDateIso carefully
-          const startDate = new Date(appointment.StartDateIso);
-          if (!isNaN(startDate.getTime())) {
-            const durationMinutes = Number(appointment.Duration);
-            const endDate = new Date(startDate.getTime() + (durationMinutes * 60000));
-            appointment.EndDateIso = endDate.toISOString();
-            console.log(`Generated EndDateIso for appointment ${appointment.Id} using Duration ${durationMinutes} minutes: ${appointment.EndDateIso}`);
-          } else {
-            throw new Error(`Cannot calculate EndDateIso: invalid StartDateIso for appointment ${appointment.Id}`);
-          }
-        } catch (error) {
-          console.error(`Failed to generate EndDateIso for appointment ${appointment.Id}:`, error);
-          throw new Error(`Failed to generate EndDateIso: ${error instanceof Error ? error.message : String(error)}`);
-        }
-      } else {
-        throw new Error(`Missing EndDateIso and no Duration available for appointment ${appointment.Id}`);
-      }
-    }
-    
-    // Final validation - parse and check dates
+  // STEP 1: Clean up invalid values in date fields
+  
+  // Fix when EndDateIso contains a status value instead of a date
+  if (typeof appointment.EndDateIso === 'string' && 
+      (appointment.EndDateIso === 'scheduled' || 
+       appointment.EndDateIso === 'confirmed' || 
+       appointment.EndDateIso === 'cancelled' || 
+       appointment.EndDateIso === 'canceled')) {
+    console.log(`Detected status value "${appointment.EndDateIso}" in EndDateIso field, clearing it`);
+    appointment.EndDateIso = '';
+  }
+  
+  // Same check for StartDateIso
+  if (typeof appointment.StartDateIso === 'string' && 
+      (appointment.StartDateIso === 'scheduled' || 
+       appointment.StartDateIso === 'confirmed' || 
+       appointment.StartDateIso === 'cancelled' || 
+       appointment.StartDateIso === 'canceled')) {
+    console.log(`Detected status value "${appointment.StartDateIso}" in StartDateIso field, clearing it`);
+    appointment.StartDateIso = '';
+  }
+  
+  // STEP 2: Use available date information in order of reliability
+  
+  // Try to use StartDateIso if it's available and valid
+  let validStartDate: Date | null = null;
+  if (appointment.StartDateIso && typeof appointment.StartDateIso === 'string') {
     try {
-      const startDate = new Date(appointment.StartDateIso);
-      const endDate = new Date(appointment.EndDateIso);
-      
-      if (isNaN(startDate.getTime())) {
-        throw new Error(`Invalid StartDateIso value: ${appointment.StartDateIso}`);
+      const testDate = new Date(appointment.StartDateIso);
+      if (!isNaN(testDate.getTime())) {
+        validStartDate = testDate;
+        console.log(`Using valid StartDateIso: ${appointment.StartDateIso}`);
+      } else {
+        console.warn(`StartDateIso exists but is invalid: ${appointment.StartDateIso}`);
       }
-      
-      if (isNaN(endDate.getTime())) {
-        throw new Error(`Invalid EndDateIso value: ${appointment.EndDateIso}`);
-      }
-      
-      if (endDate <= startDate) {
-        console.error(`EndDateIso (${appointment.EndDateIso}) must be after StartDateIso (${appointment.StartDateIso}) for appointment ${appointment.Id}`);
-        
-        // Fix end date by adding default duration (50 minutes if not specified)
-        const durationMinutes = appointment.Duration ? Number(appointment.Duration) : 50;
-        const fixedEndDate = new Date(startDate.getTime() + (durationMinutes * 60000));
-        appointment.EndDateIso = fixedEndDate.toISOString();
-        console.log(`Fixed EndDateIso for appointment ${appointment.Id}: ${appointment.EndDateIso}`);
-      }
-    } catch (error) {
-      console.error(`Date validation failed for appointment ${appointment.Id}:`, error);
-      throw new Error(`Date parsing failed for appointment ${appointment.Id}: ${error instanceof Error ? error.message : String(error)}`);
+    } catch (e) {
+      console.warn(`Error parsing StartDateIso: ${appointment.StartDateIso}`, e);
     }
   }
+  
+  // If StartDateIso is invalid, try Unix timestamp StartDate
+  if (!validStartDate && appointment.StartDate) {
+    try {
+      // Make sure it's a number and convert
+      const startTimestamp = Number(appointment.StartDate);
+      if (!isNaN(startTimestamp) && startTimestamp > 0) {
+        validStartDate = new Date(startTimestamp);
+        appointment.StartDateIso = validStartDate.toISOString();
+        console.log(`Generated StartDateIso from StartDate timestamp: ${appointment.StartDateIso}`);
+      }
+    } catch (e) {
+      console.warn(`Error converting StartDate timestamp: ${appointment.StartDate}`, e);
+    }
+  }
+  
+  // If we still don't have a valid start date, use current time as a fallback
+  if (!validStartDate) {
+    validStartDate = new Date();
+    appointment.StartDateIso = validStartDate.toISOString();
+    console.log(`No valid start date found, using current time: ${appointment.StartDateIso}`);
+  }
+  
+  // Now do the same for end date
+  let validEndDate: Date | null = null;
+  if (appointment.EndDateIso && typeof appointment.EndDateIso === 'string') {
+    try {
+      const testDate = new Date(appointment.EndDateIso);
+      if (!isNaN(testDate.getTime())) {
+        validEndDate = testDate;
+        console.log(`Using valid EndDateIso: ${appointment.EndDateIso}`);
+      } else {
+        console.warn(`EndDateIso exists but is invalid: ${appointment.EndDateIso}`);
+      }
+    } catch (e) {
+      console.warn(`Error parsing EndDateIso: ${appointment.EndDateIso}`, e);
+    }
+  }
+  
+  // If EndDateIso is invalid, try Unix timestamp EndDate
+  if (!validEndDate && appointment.EndDate) {
+    try {
+      // Make sure it's a number and convert
+      const endTimestamp = Number(appointment.EndDate);
+      if (!isNaN(endTimestamp) && endTimestamp > 0) {
+        validEndDate = new Date(endTimestamp);
+        appointment.EndDateIso = validEndDate.toISOString();
+        console.log(`Generated EndDateIso from EndDate timestamp: ${appointment.EndDateIso}`);
+      }
+    } catch (e) {
+      console.warn(`Error converting EndDate timestamp: ${appointment.EndDate}`, e);
+    }
+  }
+  
+  // Try to calculate from Duration if available
+  if (!validEndDate && validStartDate && appointment.Duration && !isNaN(Number(appointment.Duration))) {
+    try {
+      const durationMinutes = Number(appointment.Duration);
+      validEndDate = new Date(validStartDate.getTime() + (durationMinutes * 60000));
+      appointment.EndDateIso = validEndDate.toISOString();
+      console.log(`Generated EndDateIso from StartDateIso and Duration: ${appointment.EndDateIso}`);
+    } catch (e) {
+      console.warn(`Error calculating EndDateIso from Duration: ${appointment.Duration}`, e);
+    }
+  }
+  
+  // Use hardcoded default duration if we still don't have an end date
+  // Most therapy appointments are either 50 minutes or 45 minutes
+  if (!validEndDate && validStartDate) {
+    const defaultDuration = 50; // 50 minutes
+    validEndDate = new Date(validStartDate.getTime() + (defaultDuration * 60000));
+    appointment.EndDateIso = validEndDate.toISOString();
+    console.log(`No valid end date found, using default 50-minute duration: ${appointment.EndDateIso}`);
+  }
+  
+  // STEP 3: Final validation and fix any remaining issues
+  
+  // Ensure StartDateIso is a valid string
+  if (!appointment.StartDateIso || typeof appointment.StartDateIso !== 'string') {
+    console.error(`StartDateIso is still missing or invalid after recovery attempts`);
+    throw new Error(`Invalid StartDateIso format for appointment ${appointment.Id}`);
+  }
+  
+  // Ensure EndDateIso is a valid string
+  if (!appointment.EndDateIso || typeof appointment.EndDateIso !== 'string') {
+    console.error(`EndDateIso is still missing or invalid after recovery attempts`);
+    throw new Error(`Invalid EndDateIso format for appointment ${appointment.Id}`);
+  }
+  
+  // Final validation - parse and confirm dates are valid
+  const startDate = new Date(appointment.StartDateIso);
+  const endDate = new Date(appointment.EndDateIso);
+  
+  if (isNaN(startDate.getTime())) {
+    throw new Error(`Final validation failed: Invalid StartDateIso value: ${appointment.StartDateIso}`);
+  }
+  
+  if (isNaN(endDate.getTime())) {
+    throw new Error(`Final validation failed: Invalid EndDateIso value: ${appointment.EndDateIso}`);
+  }
+  
+  // Ensure end date is after start date
+  if (endDate <= startDate) {
+    console.error(`EndDateIso (${appointment.EndDateIso}) must be after StartDateIso (${appointment.StartDateIso})`);
+    
+    // Fix end date by adding 50 minutes to start time
+    const fixedEndDate = new Date(startDate.getTime() + (50 * 60000));
+    appointment.EndDateIso = fixedEndDate.toISOString();
+    console.log(`Fixed EndDateIso: ${appointment.EndDateIso}`);
+  }
+  
+  console.log(`Date validation complete for appointment ${appointment.Id}`);
+  console.log(`Final dates - StartDateIso: ${appointment.StartDateIso}, EndDateIso: ${appointment.EndDateIso}`);
+}
   
 
   private standardizeDateFormat(dateStr: string | number): string {
