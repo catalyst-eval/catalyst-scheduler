@@ -28,164 +28,177 @@ export class AppointmentSyncHandler {
     private readonly intakeQService?: any // Optional service for API calls
   ) {}
 
-  /**
-   * Process appointment webhook events from IntakeQ
-   */
-  async processAppointmentEvent(
-    payload: IntakeQWebhookPayload
-  ): Promise<WebhookResponse> {
-    if (!payload.Appointment) {
-      return { 
-        success: false, 
-        error: 'Missing appointment data',
-        retryable: false 
-      };
+// Modified processAppointmentEvent for better event tracking
+async processAppointmentEvent(
+  payload: IntakeQWebhookPayload
+): Promise<WebhookResponse> {
+  if (!payload.Appointment) {
+    return { 
+      success: false, 
+      error: 'Missing appointment data',
+      retryable: false 
+    };
+  }
+
+  try {
+    const eventType = payload.Type || payload.EventType || 'Unknown';
+    console.log(`Processing ${eventType} event for appointment ${payload.Appointment.Id} for client ${payload.Appointment.ClientName || payload.ClientId}`);
+    
+    // Log complete payload structure for debugging duplicates
+    const cleanPayload = { ...payload };
+    if (cleanPayload.Appointment?.ClientEmail) cleanPayload.Appointment.ClientEmail = '[REDACTED]';
+    if (cleanPayload.Appointment?.ClientPhone) cleanPayload.Appointment.ClientPhone = '[REDACTED]';
+    console.log(`Event payload: ${JSON.stringify(cleanPayload)}`);
+    
+    // Add timestamp tracking for webhooks
+    const processTime = new Date().toISOString();
+    
+    // Log webhook receipt
+    try {
+      await this.sheetsService.addAuditLog({
+        timestamp: processTime,
+        eventType: 'WEBHOOK_RECEIVED',
+        description: `Received ${eventType} webhook for appointment ${payload.Appointment.Id}`,
+        user: 'INTAKEQ_WEBHOOK',
+        systemNotes: JSON.stringify({
+          appointmentId: payload.Appointment.Id,
+          type: eventType,
+          clientId: payload.ClientId,
+          processTime: processTime
+        })
+      });
+    } catch (logError) {
+      console.warn('Failed to log webhook receipt, continuing:', logError);
     }
 
-    try {
-      // Log webhook receipt (with improved error handling)
-      try {
-        await this.retryWithBackoff(() => this.sheetsService.addAuditLog({
-          timestamp: new Date().toISOString(),
-          eventType: 'WEBHOOK_RECEIVED',
-          description: `Received ${payload.Type || payload.EventType} webhook`,
-          user: 'INTAKEQ_WEBHOOK',
-          systemNotes: JSON.stringify({
-            appointmentId: payload.Appointment?.Id,  // Fixed: Added optional chaining
-            type: payload.Type || payload.EventType,
-            clientId: payload.ClientId
-          })
-        }), 3); // 3 retries for logging
-      } catch (logError) {
-        console.warn('Failed to log webhook receipt, continuing processing:', logError);
-      }
-
-      // Make sure Appointment exists again after our initial check (to satisfy TypeScript)
-      if (!payload.Appointment) {
-        return { 
-          success: false, 
-          error: 'Missing appointment data',
-          retryable: false 
-        };
-      }
-
-      const eventType = payload.Type || payload.EventType;
-        
-      // Handle appointment events based on type
-      if (eventType?.includes('Created')) {
-        // For created events
-        return await this.handleNewAppointment(payload.Appointment);
-      } 
-      else if (eventType?.includes('Updated') || 
-               eventType?.includes('Rescheduled') || 
-               eventType?.includes('Confirmed')) {
-        // For update, reschedule, and confirm events
+    // Handle appointment events based on type
+    if (eventType.includes('Created')) {
+      // Check if the appointment already exists first to prevent duplicates
+      const existingAppointment = await this.checkIfAppointmentExists(payload.Appointment.Id);
+      if (existingAppointment) {
+        console.log(`Appointment ${payload.Appointment.Id} already exists, handling as update instead of create`);
         return await this.handleAppointmentUpdate(payload.Appointment);
       }
-      else if (eventType?.includes('Cancelled') || eventType?.includes('Canceled')) {
-        // For cancellation events
-        return await this.handleAppointmentCancellation(payload.Appointment);
-      }
-      else if (eventType?.includes('Deleted')) {
-        // Handle deletion events
-        return await this.handleAppointmentDeletion(payload.Appointment);
-      }
-      else {
-        // Unsupported event type
-        return {
-          success: false,
-          error: `Unsupported event type: ${eventType}`,
-          retryable: false
-        };
-      }
-    } catch (error) {
-      console.error('Appointment processing error:', error);
       
-      // We need to check if Appointment exists here too
-      if (!payload.Appointment) {
-        return {
-          success: false,
-          error: 'Missing appointment data during error handling',
-          retryable: false
-        };
-      }
-      
-      // Log the error (with safe error handling)
-      try {
-        await this.sheetsService.addAuditLog({
-          timestamp: new Date().toISOString(),
-          eventType: 'SYSTEM_ERROR',
-          description: `Error processing appointment ${payload.Appointment.Id}`,
-          user: 'SYSTEM',
-          systemNotes: error instanceof Error ? error.message : 'Unknown error'
-        });
-      } catch (logError) {
-        console.error('Failed to log processing error:', logError);
-      }
-
+      // For truly new appointments
+      return await this.handleNewAppointment(payload.Appointment);
+    } 
+    else if (
+      eventType.includes('Updated') || 
+      eventType.includes('Rescheduled') || 
+      eventType.includes('Confirmed')
+    ) {
+      // For update, reschedule, and confirm events
+      return await this.handleAppointmentUpdate(payload.Appointment);
+    }
+    else if (eventType.includes('Cancelled') || eventType.includes('Canceled')) {
+      // For cancellation events
+      return await this.handleAppointmentCancellation(payload.Appointment);
+    }
+    else if (eventType.includes('Deleted')) {
+      // Handle deletion events
+      return await this.handleAppointmentDeletion(payload.Appointment);
+    }
+    else {
+      // Unsupported event type
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
-        retryable: true
+        error: `Unsupported event type: ${eventType}`,
+        retryable: false
       };
     }
-  }
+  } catch (error) {
+    console.error('Appointment processing error:', error);
+    
+    // Log the error
+    await this.sheetsService.addAuditLog({
+      timestamp: new Date().toISOString(),
+      eventType: 'SYSTEM_ERROR',
+      description: `Error processing appointment ${payload.Appointment.Id}`,
+      user: 'SYSTEM',
+      systemNotes: error instanceof Error ? error.message : 'Unknown error'
+    });
 
-  /**
-   * Handle a new appointment
-   */
-  private async handleNewAppointment(
-    appointment: IntakeQAppointment
-  ): Promise<WebhookResponse> {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+      retryable: true
+    };
+  }
+}
+
+// New helper method to check if an appointment already exists
+private async checkIfAppointmentExists(appointmentId: string): Promise<boolean> {
+  try {
+    const appointment = await this.sheetsService.getAppointment(appointmentId);
+    return !!appointment;
+  } catch (error) {
+    console.warn(`Error checking if appointment ${appointmentId} exists:`, error);
+    return false;
+  }
+}
+
+  // Modified handleNewAppointment to prevent duplicates
+private async handleNewAppointment(
+  appointment: IntakeQAppointment
+): Promise<WebhookResponse> {
+  try {
+    console.log(`Processing new appointment: ${appointment.Id}, client: ${appointment.ClientName}`);
+    
+    // Double check if appointment already exists to prevent duplicates
     try {
-      console.log('Processing new appointment:', appointment.Id);
-      
-      // Validate dates early to catch issues
-      this.validateAppointmentDates(appointment);
-      
-      // Convert IntakeQ appointment to our AppointmentRecord format
-      const appointmentRecord = await this.convertToAppointmentRecord(appointment);
-      
-      // Always set office to TBD - DEFERRED ASSIGNMENT
-      appointmentRecord.assignedOfficeId = 'TBD';
-      appointmentRecord.currentOfficeId = 'TBD';
-      appointmentRecord.assignmentReason = 'To be determined during daily schedule generation';
-      
-      // Save appointment to Google Sheets with retry logic
-      await this.retryWithBackoff(() => this.sheetsService.addAppointment(appointmentRecord));
-      
-      // Log success (but don't fail if logging fails)
-      try {
-        await this.retryWithBackoff(() => this.sheetsService.addAuditLog({
-          timestamp: new Date().toISOString(),
-          eventType: 'APPOINTMENT_CREATED' as AuditEventType,
-          description: `Added appointment ${appointment.Id}`,
-          user: 'SYSTEM',
-          systemNotes: JSON.stringify({
-            appointmentId: appointment.Id,
-            officeId: 'TBD',
-            clientId: appointment.ClientId,
-            deferredAssignment: true
-          })
-        }), 2); // Fewer retries for logging
-      } catch (logError) {
-        console.warn('Failed to log appointment creation:', logError);
+      const existingAppointment = await this.sheetsService.getAppointment(appointment.Id);
+      if (existingAppointment) {
+        console.log(`Appointment ${appointment.Id} already exists, handling as update instead`);
+        return await this.handleAppointmentUpdate(appointment);
       }
-
-      return {
-        success: true,
-        details: {
-          appointmentId: appointment.Id,
-          officeId: 'TBD',
-          action: 'created',
-          deferredAssignment: true
-        }
-      };
-    } catch (error) {
-      console.error('Error handling new appointment:', error);
-      throw error;
+    } catch (getError) {
+      // If there's an error checking, we'll continue with creating a new appointment
+      console.warn(`Error checking for existing appointment ${appointment.Id}:`, getError);
     }
+    
+    // Validate dates early to catch issues
+    this.validateAppointmentDates(appointment);
+    
+    // Convert IntakeQ appointment to our AppointmentRecord format
+    const appointmentRecord = await this.convertToAppointmentRecord(appointment);
+    
+    // Always set office to TBD - DEFERRED ASSIGNMENT
+    appointmentRecord.assignedOfficeId = 'TBD';
+    appointmentRecord.currentOfficeId = 'TBD';
+    appointmentRecord.assignmentReason = 'To be determined during daily schedule generation';
+    
+    // Save appointment to Google Sheets
+    await this.sheetsService.addAppointment(appointmentRecord);
+    
+    // Log success
+    await this.sheetsService.addAuditLog({
+      timestamp: new Date().toISOString(),
+      eventType: 'APPOINTMENT_CREATED',
+      description: `Added appointment ${appointment.Id}`,
+      user: 'SYSTEM',
+      systemNotes: JSON.stringify({
+        appointmentId: appointment.Id,
+        officeId: 'TBD',
+        clientId: appointment.ClientId,
+        deferredAssignment: true
+      })
+    });
+
+    return {
+      success: true,
+      details: {
+        appointmentId: appointment.Id,
+        officeId: 'TBD',
+        action: 'created',
+        deferredAssignment: true
+      }
+    };
+  } catch (error) {
+    console.error(`Error handling new appointment ${appointment.Id}:`, error);
+    throw error;
   }
+}
 
   /**
    * Handle an appointment update
@@ -743,90 +756,133 @@ export class AppointmentSyncHandler {
     return 'in-person';
   }
 
-  /**
-   * Validate appointment date fields to prevent corrupted data
-   */
   private validateAppointmentDates(appointment: IntakeQAppointment): void {
-    // Check if StartDateIso exists and is valid
+    console.log(`Validating dates for appointment ${appointment.Id}, StartDateIso: ${appointment.StartDateIso}, EndDateIso: ${appointment.EndDateIso}`);
+    
+    // Some IntakeQ webhooks might provide StartDate/EndDate (Unix timestamp) instead of StartDateIso/EndDateIso
+    // Handle this case by checking and converting if needed
+    if (!appointment.StartDateIso && appointment.StartDate) {
+      console.log(`Converting StartDate timestamp ${appointment.StartDate} to ISO string`);
+      try {
+        appointment.StartDateIso = new Date(Number(appointment.StartDate)).toISOString();
+      } catch (error) {
+        console.error(`Failed to convert StartDate timestamp ${appointment.StartDate} to ISO string:`, error);
+      }
+    }
+    
+    if (!appointment.EndDateIso && appointment.EndDate) {
+      console.log(`Converting EndDate timestamp ${appointment.EndDate} to ISO string`);
+      try {
+        appointment.EndDateIso = new Date(Number(appointment.EndDate)).toISOString();
+      } catch (error) {
+        console.error(`Failed to convert EndDate timestamp ${appointment.EndDate} to ISO string:`, error);
+      }
+    }
+  
+    // Now validate StartDateIso
     if (!appointment.StartDateIso || typeof appointment.StartDateIso !== 'string') {
       console.error(`Invalid StartDateIso for appointment ${appointment.Id}: "${appointment.StartDateIso}"`);
       throw new Error(`Invalid StartDateIso format for appointment ${appointment.Id}`);
     }
     
-    // Check if EndDateIso exists and is valid
+    // Now validate EndDateIso
     if (!appointment.EndDateIso || typeof appointment.EndDateIso !== 'string') {
       console.error(`Invalid EndDateIso for appointment ${appointment.Id}: "${appointment.EndDateIso}"`);
       
-      // If appointment has duration, try to generate EndDateIso
-      if (appointment.Duration && !isNaN(appointment.Duration)) {
+      // Use appointment Duration if available
+      if (appointment.Duration && !isNaN(Number(appointment.Duration))) {
         try {
+          // Parse StartDateIso carefully
           const startDate = new Date(appointment.StartDateIso);
           if (!isNaN(startDate.getTime())) {
-            const endDate = new Date(startDate.getTime() + (appointment.Duration * 60000));
+            const durationMinutes = Number(appointment.Duration);
+            const endDate = new Date(startDate.getTime() + (durationMinutes * 60000));
             appointment.EndDateIso = endDate.toISOString();
-            console.log(`Generated EndDateIso for appointment ${appointment.Id}: ${appointment.EndDateIso}`);
+            console.log(`Generated EndDateIso for appointment ${appointment.Id} using Duration ${durationMinutes} minutes: ${appointment.EndDateIso}`);
           } else {
-            throw new Error(`Invalid StartDateIso for calculating end time: ${appointment.StartDateIso}`);
+            throw new Error(`Cannot calculate EndDateIso: invalid StartDateIso for appointment ${appointment.Id}`);
           }
         } catch (error) {
-          // Fixed: Type narrowing for error
-          const errorMessage = error instanceof Error ? error.message : String(error);
-          throw new Error(`Failed to generate EndDateIso for appointment ${appointment.Id}: ${errorMessage}`);
+          console.error(`Failed to generate EndDateIso for appointment ${appointment.Id}:`, error);
+          throw new Error(`Failed to generate EndDateIso: ${error instanceof Error ? error.message : String(error)}`);
         }
       } else {
-        throw new Error(`Invalid EndDateIso format for appointment ${appointment.Id}`);
+        throw new Error(`Missing EndDateIso and no Duration available for appointment ${appointment.Id}`);
       }
     }
     
-    // Validate that EndDateIso is after StartDateIso
-    const startDate = new Date(appointment.StartDateIso);
-    const endDate = new Date(appointment.EndDateIso);
-    
-    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
-      console.error(`Date parsing failed for appointment ${appointment.Id}`);
-      throw new Error(`Date parsing failed for appointment ${appointment.Id}`);
-    }
-    
-    if (endDate <= startDate) {
-      console.error(`EndDateIso (${appointment.EndDateIso}) must be after StartDateIso (${appointment.StartDateIso}) for appointment ${appointment.Id}`);
+    // Final validation - parse and check dates
+    try {
+      const startDate = new Date(appointment.StartDateIso);
+      const endDate = new Date(appointment.EndDateIso);
       
-      // Fix end date by adding default duration
-      const defaultDuration = appointment.Duration || 50; // 50 minutes default
-      const fixedEndDate = new Date(startDate.getTime() + (defaultDuration * 60000));
-      appointment.EndDateIso = fixedEndDate.toISOString();
-      console.log(`Fixed EndDateIso for appointment ${appointment.Id}: ${appointment.EndDateIso}`);
+      if (isNaN(startDate.getTime())) {
+        throw new Error(`Invalid StartDateIso value: ${appointment.StartDateIso}`);
+      }
+      
+      if (isNaN(endDate.getTime())) {
+        throw new Error(`Invalid EndDateIso value: ${appointment.EndDateIso}`);
+      }
+      
+      if (endDate <= startDate) {
+        console.error(`EndDateIso (${appointment.EndDateIso}) must be after StartDateIso (${appointment.StartDateIso}) for appointment ${appointment.Id}`);
+        
+        // Fix end date by adding default duration (50 minutes if not specified)
+        const durationMinutes = appointment.Duration ? Number(appointment.Duration) : 50;
+        const fixedEndDate = new Date(startDate.getTime() + (durationMinutes * 60000));
+        appointment.EndDateIso = fixedEndDate.toISOString();
+        console.log(`Fixed EndDateIso for appointment ${appointment.Id}: ${appointment.EndDateIso}`);
+      }
+    } catch (error) {
+      console.error(`Date validation failed for appointment ${appointment.Id}:`, error);
+      throw new Error(`Date parsing failed for appointment ${appointment.Id}: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
+  
 
-  /**
-   * Standardize date format for consistency
-   */
-  private standardizeDateFormat(dateStr: string): string {
+  private standardizeDateFormat(dateStr: string | number): string {
     if (!dateStr) return '';
     
     try {
-      const date = new Date(dateStr);
-      if (isNaN(date.getTime())) {
+      // Handle Unix timestamp (number or numeric string)
+      let dateObj: Date;
+      if (typeof dateStr === 'number' || !isNaN(Number(dateStr))) {
+        const timestamp = Number(dateStr);
+        if (timestamp > 0) {
+          dateObj = new Date(timestamp);
+        } else {
+          throw new Error(`Invalid timestamp: ${dateStr}`);
+        }
+      } else {
+        // Handle date string
+        dateObj = new Date(dateStr);
+      }
+      
+      // Validate we got a valid date
+      if (isNaN(dateObj.getTime())) {
         console.warn(`Invalid date format: "${dateStr}", returning as-is`);
-        return dateStr; // Return original if parsing fails
+        return String(dateStr); // Return original if parsing fails
       }
       
       // Format as YYYY-MM-DD
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const day = String(date.getDate()).padStart(2, '0');
+      const year = dateObj.getFullYear();
+      const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+      const day = String(dateObj.getDate()).padStart(2, '0');
       
       // If the original string contains time information, add formatted time
-      if (dateStr.includes('T') || dateStr.includes(':')) {
-        const hours = String(date.getHours()).padStart(2, '0');
-        const minutes = String(date.getMinutes()).padStart(2, '0');
+      if (
+        (typeof dateStr === 'string' && (dateStr.includes('T') || dateStr.includes(':'))) ||
+        typeof dateStr === 'number'
+      ) {
+        const hours = String(dateObj.getHours()).padStart(2, '0');
+        const minutes = String(dateObj.getMinutes()).padStart(2, '0');
         return `${year}-${month}-${day} ${hours}:${minutes}`;
       }
       
       return `${year}-${month}-${day}`;
     } catch (error) {
       console.error(`Error standardizing date format for "${dateStr}":`, error);
-      return dateStr; // Return original on error
+      return String(dateStr); // Return original on error
     }
   }
 
