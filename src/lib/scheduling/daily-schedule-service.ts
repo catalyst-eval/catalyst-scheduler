@@ -229,6 +229,12 @@ private extractAssignedOfficeFromNotes(notes: string, requiredOffice?: string): 
  * This is the most critical method - it applies assignment rules in strict priority order
  * and disregards existing office assignments completely
  */
+/**
+ * Resolve office assignments using strict rule priority
+ * This is the most critical method - it applies assignment rules in strict priority order
+ * and disregards existing office assignments completely
+ * Updated to consider tags for priority 100 (specific office) and 90 (mobility)
+ */
 private async resolveOfficeAssignments(appointments: AppointmentRecord[]): Promise<AppointmentRecord[]> {
   try {
     console.log('Resolving office assignments using strict priority rules');
@@ -269,6 +275,12 @@ private async resolveOfficeAssignments(appointments: AppointmentRecord[]): Promi
         console.log(`\n------------------------------------------------`);
         console.log(`Resolving office for appointment ${apptKey}: ${appt.clientName} with ${appt.clinicianName}`);
         console.log(`Session type: ${appt.sessionType}, Time: ${new Date(appt.startTime).toLocaleString()}`);
+        
+        // NEW: Log tags if present
+        if (appt.tags && appt.tags.length > 0) {
+          console.log(`Appointment has tags: ${appt.tags.join(', ')}`);
+        }
+        
         console.log(`------------------------------------------------`);
         
         // IMPORTANT: We are disregarding existing assignments and starting fresh
@@ -377,59 +389,119 @@ private async resolveOfficeAssignments(appointments: AppointmentRecord[]): Promi
         if (clinician) {
           console.log(`Clinician Preferred Offices: ${clinician.preferredOffices?.join(', ') || 'None'}`);
         }
+        // NEW: Show tags information in summary
+        if (appt.tags && appt.tags.length > 0) {
+          console.log(`Tags: ${appt.tags.join(', ')}`);
+        } else {
+          console.log(`Tags: None`);
+        }
         console.log(`---------------------------------------------`);
         
-        // ===============================================
-        // RULE PRIORITY 100: Client Specific Requirement
-        // ===============================================
-        // In resolveOfficeAssignments method, within the Priority 100 section:
-if (!assignedOffice) {
-  console.log("Checking PRIORITY 100: Client Specific Requirement");
-  if (clientAccessibility) {
-    // Check both requiredOffice field and notes
-    let clientSpecificOffice = this.extractAssignedOfficeFromNotes(
-      clientAccessibility.additionalNotes || '',
-      clientAccessibility.requiredOffice  // New field
-    );
-    
-    if (clientSpecificOffice) {
-      console.log(`  Found client specific office: "${clientSpecificOffice}"`);
-      
-      // Handle different formats of office IDs
-      if (/^[A-C]-[0-9v]/.test(clientSpecificOffice)) {
-        // Standard format (e.g., "B-4", "C-3", "A-v")
-        assignedOffice = standardizeOfficeId(clientSpecificOffice);
-        console.log(`  Using standard office ID: ${assignedOffice}`);
-      } else if (clientSpecificOffice.includes('-')) {
-        // Might be a UUID format
-        console.log(`  Legacy office ID (UUID format): ${clientSpecificOffice}`);
-        // Try to map this UUID to a standard office ID
-        // For now, use it as is or set a fallback
-        assignedOffice = clientSpecificOffice;
-      } else {
-        // Could be a simple name without hyphen (e.g., "C1" instead of "C-1")
-        // Try to standardize it
-        if (/^[A-C][0-9v]$/.test(clientSpecificOffice)) {
-          // Format like "C1", "B4", "Av"
-          const floor = clientSpecificOffice.charAt(0);
-          const unit = clientSpecificOffice.charAt(1);
-          assignedOffice = standardizeOfficeId(`${floor}-${unit}`);
-          console.log(`  Converted simple format ${clientSpecificOffice} to ${assignedOffice}`);
-        } else {
-          // Unknown format, use as is
-          console.log(`  Unknown office ID format: ${clientSpecificOffice}`);
-          assignedOffice = clientSpecificOffice;
+        // NEW: RULE PRIORITY 100 (TAG-BASED): Check for specific office tag
+        if (!assignedOffice && appt.tags && appt.tags.length > 0) {
+          console.log("Checking PRIORITY 100 (TAG-BASED): Office Tag");
+          // Look for tags matching office IDs (case-insensitive)
+          const officeTags = appt.tags.filter(tag => 
+            /^[a-c]-[0-9v]$/i.test(tag) || // Match format like "b-4", "c-1", "a-v"
+            /^[a-c][0-9v]$/i.test(tag)     // Also match format like "b4", "c1", "av"
+          );
+          
+          if (officeTags.length > 0) {
+            // Take the first matching office tag
+            let officeTag = officeTags[0].toLowerCase();
+            
+            // Normalize format if needed (convert b4 to b-4)
+            if (/^[a-c][0-9v]$/.test(officeTag)) {
+              officeTag = `${officeTag[0]}-${officeTag[1]}`;
+            }
+            
+            assignedOffice = standardizeOfficeId(officeTag);
+            assignmentReason = `Client has specific office tag ${officeTag} (Priority ${RulePriority.CLIENT_SPECIFIC_REQUIREMENT} TAG)`;
+            console.log(`  MATCH: ${assignmentReason} - Office ${assignedOffice}`);
+          } else {
+            console.log("  No office tag found, continuing to next rule");
+          }
         }
-      }
-      
-      assignmentReason = `Client has specific office requirement (Priority ${RulePriority.CLIENT_SPECIFIC_REQUIREMENT})`;
-      console.log(`  MATCH: ${assignmentReason} - Office ${assignedOffice}`);
-    }
-  }
-}
+        
+        // ===============================================
+        // RULE PRIORITY 100: Client Specific Requirement from accessibility info
+        // ===============================================
+        if (!assignedOffice) {
+          console.log("Checking PRIORITY 100: Client Specific Requirement");
+          if (clientAccessibility) {
+            // Check both requiredOffice field and notes
+            let clientSpecificOffice = this.extractAssignedOfficeFromNotes(
+              clientAccessibility.additionalNotes || '',
+              clientAccessibility.requiredOffice  // New field
+            );
+            
+            if (clientSpecificOffice) {
+              console.log(`  Found client specific office: "${clientSpecificOffice}"`);
+              
+              // Handle different formats of office IDs
+              if (/^[A-C]-[0-9v]/.test(clientSpecificOffice)) {
+                // Standard format (e.g., "B-4", "C-3", "A-v")
+                assignedOffice = standardizeOfficeId(clientSpecificOffice);
+                console.log(`  Using standard office ID: ${assignedOffice}`);
+              } else if (clientSpecificOffice.includes('-')) {
+                // Might be a UUID format
+                console.log(`  Legacy office ID (UUID format): ${clientSpecificOffice}`);
+                // Try to map this UUID to a standard office ID
+                // For now, use it as is or set a fallback
+                assignedOffice = clientSpecificOffice;
+              } else {
+                // Could be a simple name without hyphen (e.g., "C1" instead of "C-1")
+                // Try to standardize it
+                if (/^[A-C][0-9v]$/.test(clientSpecificOffice)) {
+                  // Format like "C1", "B4", "Av"
+                  const floor = clientSpecificOffice.charAt(0);
+                  const unit = clientSpecificOffice.charAt(1);
+                  assignedOffice = standardizeOfficeId(`${floor}-${unit}`);
+                  console.log(`  Converted simple format ${clientSpecificOffice} to ${assignedOffice}`);
+                } else {
+                  // Unknown format, use as is
+                  console.log(`  Unknown office ID format: ${clientSpecificOffice}`);
+                  assignedOffice = clientSpecificOffice;
+                }
+              }
+              
+              assignmentReason = `Client has specific office requirement (Priority ${RulePriority.CLIENT_SPECIFIC_REQUIREMENT})`;
+              console.log(`  MATCH: ${assignmentReason} - Office ${assignedOffice}`);
+            }
+          }
+        }
+        
+        // NEW: RULE PRIORITY 90 (TAG-BASED): Check for mobility tag
+        if (!assignedOffice && appt.tags && appt.tags.includes('mobility')) {
+          console.log("Checking PRIORITY 90 (TAG-BASED): Mobility Tag");
+          // Prioritize B-4, B-5 as specified in rule
+          const accessibleOffices = ['B-4', 'B-5'];
+          
+          console.log(`  Client has mobility tag, checking accessible offices: ${accessibleOffices.join(', ')}`);
+          
+          for (const officeId of accessibleOffices) {
+            console.log(`  Checking accessible office: ${officeId}`);
+            const matchingOffice = activeOffices.find(o => 
+              standardizeOfficeId(o.officeId) === standardizeOfficeId(officeId)
+            );
+            
+            if (matchingOffice) {
+              const available = await this.isOfficeAvailable(matchingOffice.officeId, appt, appointments);
+              console.log(`  Office ${officeId} availability: ${available ? 'Available' : 'NOT Available'}`);
+              if (available) {
+                assignedOffice = standardizeOfficeId(matchingOffice.officeId);
+                assignmentReason = `Client has mobility tag (Priority ${RulePriority.ACCESSIBILITY_REQUIREMENT} TAG)`;
+                console.log(`  MATCH: ${assignmentReason} - Office ${assignedOffice}`);
+                break;
+              }
+            } else {
+              console.log(`  Office ${officeId} not found in active offices list`);
+            }
+          }
+        }
         
         // ==========================================
-        // RULE PRIORITY 90: Accessibility Requirement
+        // RULE PRIORITY 90: Accessibility Requirement from accessibility info
         // ==========================================
         if (!assignedOffice) {
           console.log("Checking PRIORITY 90: Accessibility Requirement");
@@ -831,7 +903,6 @@ if (!assignedOffice) {
         console.log(`\nFINAL ASSIGNMENT for ${appt.clientName}:`);
         console.log(`  Office: ${assignedOffice}`);
         console.log(`  Reason: ${assignmentReason}`);
-        console.log(`  Age: ${clientAge !== null ? clientAge : 'unknown'}`);
         console.log(`------------------------------------------------\n`);
         
         // Return updated appointment (without adding clientAge property)

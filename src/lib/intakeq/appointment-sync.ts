@@ -431,7 +431,7 @@ private async handleAppointmentCancellation(
 
 /**
  * Convert IntakeQ appointment to our AppointmentRecord format
- * FIXED to ensure correct field formatting and validation
+ * UPDATED to handle tags and standardize date formats
  */
 private async convertToAppointmentRecord(
   appointment: IntakeQAppointment
@@ -460,22 +460,31 @@ private async convertToAppointmentRecord(
     // Validate critical date fields
     this.validateAppointmentDates(appointment);
     
+    // Process tags from IntakeQ
+    const tags = this.processTags(appointment.Tags);
+    
+    // Standardize date formats for better consistency
+    const standardizedStartTime = this.standardizeDateFormat(appointment.StartDateIso);
+    const standardizedEndTime = this.standardizeDateFormat(appointment.EndDateIso);
+    const standardizedDOB = this.standardizeDateFormat(appointment.ClientDateOfBirth || '');
+    
     // Convert the appointment to our format
     const appointmentRecord: AppointmentRecord = normalizeAppointmentRecord({
       appointmentId: appointment.Id,
       clientId: appointment.ClientId.toString(),
       clientName: safeClientName,
-      clientDateOfBirth: appointment.ClientDateOfBirth || '',
+      clientDateOfBirth: standardizedDOB,
       clinicianId: clinician?.clinicianId || appointment.PractitionerId,
       clinicianName: clinician?.name || safePractitionerName,
       sessionType: sessionType,
-      startTime: appointment.StartDateIso,
-      endTime: appointment.EndDateIso,
+      startTime: standardizedStartTime,
+      endTime: standardizedEndTime,
       status: this.mapIntakeQStatus(appointment.Status || ''),
       lastUpdated: new Date().toISOString(),
       source: 'intakeq',
       requirements: requirements,
-      notes: `Service: ${safeServiceName}`
+      notes: `Service: ${safeServiceName}`,
+      tags: tags
     });
     
     return appointmentRecord;
@@ -483,6 +492,53 @@ private async convertToAppointmentRecord(
     console.error('Error converting appointment:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     throw new Error(`Failed to convert appointment: ${errorMessage}`);
+  }
+}
+
+/**
+ * Process tags from IntakeQ
+ * NEW helper method to process tags
+ */
+private processTags(tagString?: string): string[] {
+  if (!tagString || typeof tagString !== 'string') {
+    return [];
+  }
+  
+  // Split by commas and trim each tag
+  return tagString.split(',')
+    .map(tag => tag.trim())
+    .filter(tag => tag.length > 0);
+}
+
+/**
+ * Standardize date format for consistency
+ * NEW helper method for date standardization
+ */
+private standardizeDateFormat(dateStr: string): string {
+  if (!dateStr) return '';
+  
+  try {
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) {
+      return dateStr; // Return original if parsing fails
+    }
+    
+    // Format as YYYY-MM-DD
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    
+    // If the original string contains time information, add formatted time
+    if (dateStr.includes('T') && dateStr.includes(':')) {
+      const hours = String(date.getHours()).padStart(2, '0');
+      const minutes = String(date.getMinutes()).padStart(2, '0');
+      return `${year}-${month}-${day} ${hours}:${minutes}`;
+    }
+    
+    return `${year}-${month}-${day}`;
+  } catch (error) {
+    console.error('Error standardizing date format:', error);
+    return dateStr; // Return original on error
   }
 }
 

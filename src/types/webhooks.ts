@@ -53,6 +53,7 @@ export interface IntakeQAppointment {
     occurrences: number;
     endDate?: string;
   };
+  Tags?: string;
   [key: string]: any;
 }
 

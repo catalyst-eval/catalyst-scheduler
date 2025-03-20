@@ -68,6 +68,10 @@ export class WebhookHandler {
   /**
  * Process incoming webhook with validation and retries
  */
+/**
+ * Process incoming webhook with validation and retries
+ * Updated to handle tags from IntakeQ
+ */
 async processWebhook(
   payload: unknown,
   signature?: string
@@ -89,7 +93,7 @@ async processWebhook(
 
     const typedPayload = payload as IntakeQWebhookPayload;
     const eventType = this.getEventType(typedPayload);
-
+      
     // Log webhook receipt
     await this.sheetsService.addAuditLog({
       timestamp: new Date().toISOString(),
@@ -99,6 +103,8 @@ async processWebhook(
       systemNotes: JSON.stringify({
         type: eventType,
         clientId: typedPayload.ClientId,
+        // Log tags if present in appointment
+        tags: typedPayload.Appointment?.Tags || 'none',
         apiDisabled: process.env.DISABLE_API_CALLS === 'true' ? true : false
       })
     });

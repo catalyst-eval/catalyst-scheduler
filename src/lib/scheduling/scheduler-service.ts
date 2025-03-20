@@ -234,69 +234,83 @@ async generateDailyScheduleOnDemand(date?: string): Promise<any> {
 }
 
   /**
-   * Weekly cleanup task that handles maintenance operations
-   */
-  async weeklyCleanupTask(): Promise<void> {
+ * Weekly cleanup task that handles maintenance operations
+ * Updated to include client accessibility data cleanup
+ */
+async weeklyCleanupTask(): Promise<void> {
+  try {
+    console.log('Running weekly cleanup task');
+    
+    // Log task start
+    await this.logTaskWithRetry({
+      timestamp: new Date().toISOString(),
+      eventType: AuditEventType.INTEGRATION_UPDATED,
+      description: 'Starting weekly cleanup task',
+      user: 'SYSTEM'
+    });
+    
+    // 1. Clean up old appointments
+    console.log('Step 1: Cleaning up old appointments');
+    const deletedCount = await this.cleanupOldAppointments();
+    console.log(`Cleaned up ${deletedCount} old appointments`);
+    
+    // 2. Clean up empty rows
+    console.log('Step 2: Cleaning up empty rows');
+    const { removed, errors } = await this.cleanEmptyRows();
+    console.log(`Removed ${removed} empty rows with ${errors} errors`);
+    
+    // NEW: Clean up default client accessibility records
+    console.log('Step 2.5: Cleaning up default client accessibility records');
+    let accessibilityRemoved = 0;
     try {
-      console.log('Running weekly cleanup task');
-      
-      // Log task start
-      await this.logTaskWithRetry({
-        timestamp: new Date().toISOString(),
-        eventType: AuditEventType.INTEGRATION_UPDATED,
-        description: 'Starting weekly cleanup task',
-        user: 'SYSTEM'
-      });
-      
-      // 1. Clean up old appointments
-      console.log('Step 1: Cleaning up old appointments');
-      const deletedCount = await this.cleanupOldAppointments();
-      console.log(`Cleaned up ${deletedCount} old appointments`);
-      
-      // 2. Clean up empty rows
-      console.log('Step 2: Cleaning up empty rows');
-      const { removed, errors } = await this.cleanEmptyRows();
-      console.log(`Removed ${removed} empty rows with ${errors} errors`);
+      // Cast to any to access the new method
+      accessibilityRemoved = await (this.sheetsService as any).cleanupDefaultClientAccessibility();
+      console.log(`Cleaned up ${accessibilityRemoved} default client accessibility records`);
+    } catch (cleanupError) {
+      console.error('Error cleaning up default client accessibility records:', cleanupError);
+    }
 
-      // 2.5. Check and clean up duplicate appointments
-console.log('Step 2.5: Checking for duplicate appointments');
-const duplicateResult = await this.cleanupDuplicateAppointments();
-console.log(`Found ${duplicateResult.detected} appointments with duplicates, removed ${duplicateResult.removed}`);
-      
-      // 3. Refresh the two-week window
-      console.log('Step 3: Refreshing two-week window');
-      const windowResult = await this.refreshTwoWeekWindow();
-      console.log(`Two-week window refresh: ${windowResult.removed} removed, ${windowResult.preserved} preserved`);
-      
-      // Log task completion
+    // 2.5. Check and clean up duplicate appointments
+    console.log('Step 3: Checking for duplicate appointments');
+    const duplicateResult = await this.cleanupDuplicateAppointments();
+    console.log(`Found ${duplicateResult.detected} appointments with duplicates, removed ${duplicateResult.removed}`);
+    
+    // 3. Refresh the two-week window
+    console.log('Step 4: Refreshing two-week window');
+    const windowResult = await this.refreshTwoWeekWindow();
+    console.log(`Two-week window refresh: ${windowResult.removed} removed, ${windowResult.preserved} preserved`);
+    
+    // Log task completion
+    await this.logTaskWithRetry({
+      timestamp: new Date().toISOString(),
+      eventType: AuditEventType.INTEGRATION_UPDATED,
+      description: 'Completed weekly cleanup task',
+      user: 'SYSTEM',
+      systemNotes: JSON.stringify({
+        appointmentsDeleted: deletedCount,
+        emptyRowsRemoved: removed,
+        accessibilityRecordsRemoved: accessibilityRemoved,
+        duplicatesRemoved: duplicateResult.removed,
+        windowRefresh: windowResult
+      })
+    });
+  } catch (error) {
+    console.error('Error in weekly cleanup task:', error);
+    
+    // Log error
+    try {
       await this.logTaskWithRetry({
         timestamp: new Date().toISOString(),
-        eventType: AuditEventType.INTEGRATION_UPDATED,
-        description: 'Completed weekly cleanup task',
+        eventType: AuditEventType.SYSTEM_ERROR,
+        description: 'Error in weekly cleanup task',
         user: 'SYSTEM',
-        systemNotes: JSON.stringify({
-          appointmentsDeleted: deletedCount,
-          emptyRowsRemoved: removed,
-          windowRefresh: windowResult
-        })
+        systemNotes: error instanceof Error ? error.message : 'Unknown error'
       });
-    } catch (error) {
-      console.error('Error in weekly cleanup task:', error);
-      
-      // Log error
-      try {
-        await this.logTaskWithRetry({
-          timestamp: new Date().toISOString(),
-          eventType: AuditEventType.SYSTEM_ERROR,
-          description: 'Error in weekly cleanup task',
-          user: 'SYSTEM',
-          systemNotes: error instanceof Error ? error.message : 'Unknown error'
-        });
-      } catch (logError) {
-        console.error('Failed to log error:', logError);
-      }
+    } catch (logError) {
+      console.error('Failed to log error:', logError);
     }
   }
+}
 
   /**
  * Detect and remove duplicate appointment entries

@@ -96,6 +96,7 @@ export interface AppointmentRecord {
     accessibility?: boolean;
     specialFeatures?: string[];
   };
+  tags?: string[];               
   notes?: string;
 }
 
@@ -119,6 +120,7 @@ export function normalizeAppointmentRecord(record: any): AppointmentRecord {
     lastUpdated: record.lastUpdated || new Date().toISOString(),
     source: record.source || 'manual',
     notes: record.notes,
+    tags: record.tags || [],
     requirements: record.requirements
   };
 
