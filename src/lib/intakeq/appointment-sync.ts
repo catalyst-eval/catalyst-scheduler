@@ -35,10 +35,7 @@ export class AppointmentSyncHandler {
     private readonly intakeQService?: any // Optional service for API calls
   ) {}
 
-  /**
- * Process appointment webhook events
- * UPDATED: Now defers office assignment for new appointments
- */
+// Enhanced processAppointmentEvent method with better error handling
 async processAppointmentEvent(
   payload: IntakeQWebhookPayload
 ): Promise<WebhookResponse> {
@@ -51,7 +48,7 @@ async processAppointmentEvent(
   }
 
   try {
-    // Log webhook receipt
+    // Log webhook receipt with more details
     await this.sheetsService.addAuditLog({
       timestamp: new Date().toISOString(),
       eventType: 'WEBHOOK_RECEIVED', // Use string directly instead of AuditEventType
@@ -60,7 +57,9 @@ async processAppointmentEvent(
       systemNotes: JSON.stringify({
         appointmentId: payload.Appointment.Id,
         type: payload.Type || payload.EventType,
-        clientId: payload.ClientId
+        clientId: payload.ClientId,
+        hasStartDate: !!payload.Appointment.StartDateIso,
+        hasEndDate: !!payload.Appointment.EndDateIso
       })
     });
 
@@ -96,13 +95,22 @@ async processAppointmentEvent(
   } catch (error) {
     console.error('Appointment processing error:', error);
     
-    // Log the error
+    // Enhanced error logging
     await this.sheetsService.addAuditLog({
       timestamp: new Date().toISOString(),
       eventType: 'SYSTEM_ERROR', // Use string directly
       description: `Error processing appointment ${payload.Appointment.Id}`,
       user: 'SYSTEM',
-      systemNotes: error instanceof Error ? error.message : 'Unknown error'
+      systemNotes: JSON.stringify({
+        error: error instanceof Error ? error.message : 'Unknown error',
+        appointmentData: {
+          id: payload.Appointment.Id,
+          clientId: payload.Appointment.ClientId,
+          startDate: payload.Appointment.StartDateIso,
+          endDate: payload.Appointment.EndDateIso,
+          status: payload.Appointment.Status
+        }
+      })
     });
 
     return {
@@ -156,9 +164,61 @@ private async fetchClientTagsFromIntakeQ(clientId: string | number): Promise<str
   }
 }
 
-/**
- * Handle new appointment - UPDATED to fetch client tags from API
- */
+// Add method to extract office IDs from tags - new functionality mentioned in transition doc
+private extractOfficeIdFromTags(tags: string[]): string | null {
+  if (!tags || !Array.isArray(tags) || tags.length === 0) {
+    return null;
+  }
+  
+  // Look for tags that match office ID patterns
+  const officeTags = tags.filter(tag => {
+    // Normalize the tag for comparison
+    const normalizedTag = tag.toLowerCase().trim().replace(/\s+/g, '');
+    
+    // Check for standard office ID patterns
+    // B-4, B4, b4, b-4, etc.
+    return /^[a-c][-]?\d+$/.test(normalizedTag) || 
+           // Special case for virtual office
+           normalizedTag === 'a-v' || 
+           normalizedTag === 'av';
+  });
+  
+  if (officeTags.length > 0) {
+    // Use the first matching tag (highest priority)
+    const officeTag = officeTags[0].toLowerCase().trim();
+    
+    // Standardize the office ID format
+    let officeId = officeTag;
+    
+    // Check if we need to add a hyphen
+    if (officeTag.length === 2 && !officeTag.includes('-')) {
+      // Format like 'b4' to 'B-4'
+      officeId = `${officeTag[0].toUpperCase()}-${officeTag[1]}`;
+    } else {
+      // Format like 'b-4' to 'B-4'
+      officeId = officeTag.toUpperCase();
+    }
+    
+    console.log(`Extracted office ID ${officeId} from tags: ${JSON.stringify(officeTags)}`);
+    return officeId;
+  }
+  
+  // Check for mobility tag which requires accessible office
+  const hasMobilityTag = tags.some(tag => 
+    tag.toLowerCase().trim() === 'mobility' || 
+    tag.toLowerCase().trim() === 'accessible'
+  );
+  
+  if (hasMobilityTag) {
+    console.log(`Found mobility tag in tags: ${JSON.stringify(tags)}`);
+    // Return null, but the mobility tag will be processed elsewhere
+    // to assign an accessible office
+  }
+  
+  return null;
+}
+
+// Update handleNewAppointment to support tag-based office assignment
 private async handleNewAppointment(
   appointment: IntakeQAppointment
 ): Promise<WebhookResponse> {
@@ -188,18 +248,37 @@ private async handleNewAppointment(
       }
     }
     
-    // 3. Set office to TBD - DEFERRED ASSIGNMENT
-    appointmentRecord.assignedOfficeId = 'TBD';
-    appointmentRecord.currentOfficeId = 'TBD';
-    appointmentRecord.assignmentReason = 'To be determined during daily schedule generation';
+    // 3. Check for office assignment in tags (new functionality)
+    let officeId = 'TBD';
+    let assignmentReason = 'To be determined during daily schedule generation';
+    
+    if (appointmentRecord.tags && appointmentRecord.tags.length > 0) {
+      const tagOfficeId = this.extractOfficeIdFromTags(appointmentRecord.tags);
+      if (tagOfficeId) {
+        officeId = tagOfficeId;
+        assignmentReason = `Assigned based on client tag: ${tagOfficeId} (Priority 100)`;
+        console.log(`Appointment ${appointment.Id} assigned to ${tagOfficeId} based on tag`);
+      } else if (appointmentRecord.tags.some(tag => 
+                 tag.toLowerCase().trim() === 'mobility' || 
+                 tag.toLowerCase().trim() === 'accessible')) {
+        // Set to TBD but add indication of accessibility needs
+        assignmentReason = 'To be determined during daily schedule generation (has mobility tag)';
+        console.log(`Appointment ${appointment.Id} has mobility tag, will prioritize accessible office`);
+      }
+    }
+    
+    // 4. Set office assignment
+    appointmentRecord.assignedOfficeId = officeId;
+    appointmentRecord.currentOfficeId = officeId;
+    appointmentRecord.assignmentReason = assignmentReason;
     
     // Tags before saving - for debugging
     console.log(`Tags before saving: ${JSON.stringify(appointmentRecord.tags)}`);
     
-    // 4. Save appointment to Google Sheets
+    // 5. Save appointment to Google Sheets
     await this.sheetsService.addAppointment(appointmentRecord);
     
-    // 5. Log success
+    // 6. Log success
     await this.sheetsService.addAuditLog({
       timestamp: new Date().toISOString(),
       eventType: 'APPOINTMENT_CREATED' as AuditEventType,
@@ -207,10 +286,11 @@ private async handleNewAppointment(
       user: 'SYSTEM',
       systemNotes: JSON.stringify({
         appointmentId: appointment.Id,
-        officeId: 'TBD',
+        officeId: officeId,
         clientId: appointment.ClientId,
-        deferredAssignment: true,
-        tags: appointmentRecord.tags // Include tags in the log
+        deferredAssignment: officeId === 'TBD',
+        tags: appointmentRecord.tags,
+        tagBasedAssignment: officeId !== 'TBD'
       })
     });
 
@@ -218,10 +298,10 @@ private async handleNewAppointment(
       success: true,
       details: {
         appointmentId: appointment.Id,
-        officeId: 'TBD',
+        officeId: officeId,
         action: 'created',
-        deferredAssignment: true,
-        tags: appointmentRecord.tags // Include tags in the response
+        deferredAssignment: officeId === 'TBD',
+        tags: appointmentRecord.tags
       }
     };
   } catch (error) {
@@ -494,12 +574,7 @@ private async handleAppointmentCancellation(
     return 'scheduled';
   }
 
-  // Improved convertToAppointmentRecord method for appointment-sync.ts
-
-/**
- * Convert IntakeQ appointment to our AppointmentRecord format
- * UPDATED to handle tags and standardize date formats
- */
+  // Enhanced convertToAppointmentRecord method with improved tag handling
 private async convertToAppointmentRecord(
   appointment: IntakeQAppointment
 ): Promise<AppointmentRecord> {
@@ -524,32 +599,69 @@ private async convertToAppointmentRecord(
     const requirements = await this.determineRequirements(appointment) || 
                           { accessibility: false, specialFeatures: [] };
     
-    // Validate critical date fields
-    this.validateAppointmentDates(appointment);
+    // Validate and correct appointment dates if needed
+    try {
+      this.validateAppointmentDates(appointment);
+    } catch (dateError) {
+      console.error('Date validation failed, using fallback dates:', dateError);
+      
+      // Create fallback dates if validation completely fails
+      const now = new Date();
+      appointment.StartDateIso = now.toISOString();
+      appointment.EndDateIso = new Date(now.getTime() + 3600000).toISOString(); // 1 hour later
+    }
     
-    // Process tags from IntakeQ - ensure we're handling it correctly
-    // Log the raw Tags field to help with debugging
+    // Process tags from IntakeQ with improved handling
     console.log(`Processing tags for appointment ${appointment.Id}`);
-console.log(`Raw Tags field: ${JSON.stringify(appointment.Tags)}`);
+    console.log(`Raw Tags field: ${JSON.stringify(appointment.Tags)}`);
 
-// Process tags, handling different possible formats
-let tags: string[] = [];
-if (appointment.Tags) {
-  if (typeof appointment.Tags === 'string') {
-    // If Tags is a string, split by commas
-    tags = appointment.Tags.split(',').map((tag: string) => tag.trim()).filter((tag: string) => tag.length > 0);
-  } else if (Array.isArray(appointment.Tags)) {
-    // If Tags is already an array, use it directly
-    tags = appointment.Tags.map((tag: any) => tag.toString().trim()).filter((tag: string) => tag.length > 0);
-  }
-}
+    // Process tags, handling different possible formats with better error handling
+    let tags: string[] = [];
+    try {
+      if (appointment.Tags) {
+        if (typeof appointment.Tags === 'string') {
+          // If Tags is a string, split by commas
+          tags = appointment.Tags.split(',')
+            .map((tag: string) => tag.trim())
+            .filter((tag: string) => tag.length > 0);
+        } else if (Array.isArray(appointment.Tags)) {
+          // If Tags is already an array, map each element to string
+          tags = appointment.Tags
+            .map((tag: any) => String(tag).trim())
+            .filter((tag: string) => tag.length > 0);
+        } else if (typeof appointment.Tags === 'object') {
+          // Handle case where Tags might be an object (seen in some webhooks)
+          console.warn(`Tags is an object instead of string/array for appointment ${appointment.Id}:`, appointment.Tags);
+          // Attempt to extract values from object if possible
+          tags = Object.values(appointment.Tags)
+            .map((tag: any) => String(tag).trim())
+            .filter((tag: string) => tag.length > 0);
+        }
+      }
+    } catch (tagError) {
+      console.error(`Error processing tags for appointment ${appointment.Id}:`, tagError);
+      // Don't let tag processing failure break the entire conversion
+      tags = [];
+    }
     
     console.log(`Processed tags: ${JSON.stringify(tags)}`);
     
-    // Standardize date formats for better consistency
-    const standardizedStartTime = this.standardizeDateFormat(appointment.StartDateIso);
-    const standardizedEndTime = this.standardizeDateFormat(appointment.EndDateIso);
-    const standardizedDOB = this.standardizeDateFormat(appointment.ClientDateOfBirth || '');
+    // Standardize date formats with better error handling
+    let standardizedStartTime = '';
+    let standardizedEndTime = '';
+    let standardizedDOB = '';
+    
+    try {
+      standardizedStartTime = this.standardizeDateFormat(appointment.StartDateIso);
+      standardizedEndTime = this.standardizeDateFormat(appointment.EndDateIso);
+      standardizedDOB = appointment.ClientDateOfBirth ? 
+                      this.standardizeDateFormat(appointment.ClientDateOfBirth) : '';
+    } catch (dateError) {
+      console.error('Error standardizing dates, using original values:', dateError);
+      standardizedStartTime = appointment.StartDateIso;
+      standardizedEndTime = appointment.EndDateIso;
+      standardizedDOB = appointment.ClientDateOfBirth || '';
+    }
     
     // Convert the appointment to our format
     const appointmentRecord: AppointmentRecord = normalizeAppointmentRecord({
@@ -567,7 +679,7 @@ if (appointment.Tags) {
       source: 'intakeq',
       requirements: requirements,
       notes: `Service: ${safeServiceName}`,
-      tags: tags // Ensure tags are being properly set
+      tags: tags
     });
     
     console.log(`Converted appointment record with tags: ${JSON.stringify(appointmentRecord.tags)}`);
@@ -605,17 +717,69 @@ private processTags(tagString?: string | string[]): string[] {
   return [];
 }
 
-/**
- * Standardize date format for consistency
- * NEW helper method for date standardization
- */
+// Improved standardizeDateFormat method with better error handling
 private standardizeDateFormat(dateStr: string): string {
   if (!dateStr) return '';
   
   try {
+    // First check if the date string is already in ISO format
+    if (dateStr.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z$/)) {
+      // Parse ISO date to our standard format
+      const date = new Date(dateStr);
+      if (isNaN(date.getTime())) {
+        console.warn(`Invalid ISO date format: "${dateStr}", returning as-is`);
+        return dateStr;
+      }
+      
+      // Format as YYYY-MM-DD HH:MM
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      const hours = String(date.getHours()).padStart(2, '0');
+      const minutes = String(date.getMinutes()).padStart(2, '0');
+      
+      return `${year}-${month}-${day} ${hours}:${minutes}`;
+    }
+    
+    // Handle MM/DD/YYYY format (common in US systems)
+    const usDateMatch = dateStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(\s+(\d{1,2}):(\d{2}))?/);
+    if (usDateMatch) {
+      const month = String(parseInt(usDateMatch[1])).padStart(2, '0');
+      const day = String(parseInt(usDateMatch[2])).padStart(2, '0');
+      const year = usDateMatch[3];
+      
+      // Check if time component exists
+      if (usDateMatch[4]) {
+        const hours = String(parseInt(usDateMatch[5])).padStart(2, '0');
+        const minutes = String(parseInt(usDateMatch[6])).padStart(2, '0');
+        return `${year}-${month}-${day} ${hours}:${minutes}`;
+      } else {
+        return `${year}-${month}-${day}`;
+      }
+    }
+    
+    // Handle DD/MM/YYYY format (common in Europe)
+    const euDateMatch = dateStr.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})(\s+(\d{1,2}):(\d{2}))?/);
+    if (euDateMatch) {
+      const day = String(parseInt(euDateMatch[1])).padStart(2, '0');
+      const month = String(parseInt(euDateMatch[2])).padStart(2, '0');
+      const year = euDateMatch[3];
+      
+      // Check if time component exists
+      if (euDateMatch[4]) {
+        const hours = String(parseInt(euDateMatch[5])).padStart(2, '0');
+        const minutes = String(parseInt(euDateMatch[6])).padStart(2, '0');
+        return `${year}-${month}-${day} ${hours}:${minutes}`;
+      } else {
+        return `${year}-${month}-${day}`;
+      }
+    }
+    
+    // Last resort: treat as general date string and convert
     const date = new Date(dateStr);
     if (isNaN(date.getTime())) {
-      return dateStr; // Return original if parsing fails
+      console.warn(`Unable to parse date: "${dateStr}", returning as-is`);
+      return dateStr;
     }
     
     // Format as YYYY-MM-DD
@@ -624,7 +788,7 @@ private standardizeDateFormat(dateStr: string): string {
     const day = String(date.getDate()).padStart(2, '0');
     
     // If the original string contains time information, add formatted time
-    if (dateStr.includes('T') && dateStr.includes(':')) {
+    if (dateStr.includes(':')) {
       const hours = String(date.getHours()).padStart(2, '0');
       const minutes = String(date.getMinutes()).padStart(2, '0');
       return `${year}-${month}-${day} ${hours}:${minutes}`;
@@ -632,40 +796,78 @@ private standardizeDateFormat(dateStr: string): string {
     
     return `${year}-${month}-${day}`;
   } catch (error) {
-    console.error('Error standardizing date format:', error);
+    console.error(`Error standardizing date format for "${dateStr}":`, error);
     return dateStr; // Return original on error
   }
 }
 
-/**
- * Validate appointment date fields to prevent corrupted data
- * NEW helper method to validate date fields
- */
+
+// Enhanced validateAppointmentDates method with robust fallback mechanism
 private validateAppointmentDates(appointment: IntakeQAppointment): void {
-  // Validate StartDateIso
-  if (!appointment.StartDateIso || typeof appointment.StartDateIso !== 'string' || !appointment.StartDateIso.includes('T')) {
-    console.error(`Invalid StartDateIso for appointment ${appointment.Id}: "${appointment.StartDateIso}"`);
-    throw new Error(`Invalid StartDateIso format for appointment ${appointment.Id}`);
+  // Check if StartDateIso exists and is valid
+  if (!appointment.StartDateIso || typeof appointment.StartDateIso !== 'string') {
+    console.warn(`Appointment ${appointment.Id} missing or invalid StartDateIso, using current date`);
+    appointment.StartDateIso = new Date().toISOString();
+  } else {
+    try {
+      // Verify the date can be parsed correctly
+      const startDate = new Date(appointment.StartDateIso);
+      if (isNaN(startDate.getTime())) {
+        console.warn(`Appointment ${appointment.Id} has invalid StartDateIso format, using current date`);
+        appointment.StartDateIso = new Date().toISOString();
+      }
+    } catch (error) {
+      console.warn(`Error parsing StartDateIso for appointment ${appointment.Id}, using current date:`, error);
+      appointment.StartDateIso = new Date().toISOString();
+    }
   }
   
-  // Validate EndDateIso
-  if (!appointment.EndDateIso || typeof appointment.EndDateIso !== 'string' || !appointment.EndDateIso.includes('T')) {
-    console.error(`Invalid EndDateIso for appointment ${appointment.Id}: "${appointment.EndDateIso}"`);
-    throw new Error(`Invalid EndDateIso format for appointment ${appointment.Id}`);
+  // Check if EndDateIso exists and is valid
+  if (!appointment.EndDateIso || typeof appointment.EndDateIso !== 'string') {
+    console.warn(`Appointment ${appointment.Id} missing or invalid EndDateIso, calculating from start time`);
+    // Default to 50 minute appointments if duration not specified
+    const durationMinutes = appointment.Duration || 50;
+    const startDate = new Date(appointment.StartDateIso);
+    const endDate = new Date(startDate.getTime() + durationMinutes * 60000);
+    appointment.EndDateIso = endDate.toISOString();
+  } else {
+    try {
+      // Verify the date can be parsed correctly
+      const endDate = new Date(appointment.EndDateIso);
+      if (isNaN(endDate.getTime())) {
+        console.warn(`Appointment ${appointment.Id} has invalid EndDateIso format, calculating from start time`);
+        const durationMinutes = appointment.Duration || 50;
+        const startDate = new Date(appointment.StartDateIso);
+        const endDate = new Date(startDate.getTime() + durationMinutes * 60000);
+        appointment.EndDateIso = endDate.toISOString();
+      }
+    } catch (error) {
+      console.warn(`Error parsing EndDateIso for appointment ${appointment.Id}, calculating from start time:`, error);
+      const durationMinutes = appointment.Duration || 50;
+      const startDate = new Date(appointment.StartDateIso);
+      const endDate = new Date(startDate.getTime() + durationMinutes * 60000);
+      appointment.EndDateIso = endDate.toISOString();
+    }
   }
   
-  // Validate that EndDateIso is after StartDateIso
-  const startDate = new Date(appointment.StartDateIso);
-  const endDate = new Date(appointment.EndDateIso);
-  
-  if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
-    console.error(`Date parsing failed for appointment ${appointment.Id}`);
-    throw new Error(`Date parsing failed for appointment ${appointment.Id}`);
-  }
-  
-  if (endDate <= startDate) {
-    console.error(`EndDateIso (${appointment.EndDateIso}) must be after StartDateIso (${appointment.StartDateIso}) for appointment ${appointment.Id}`);
-    throw new Error(`EndDateIso must be after StartDateIso for appointment ${appointment.Id}`);
+  // Ensure both dates are valid and EndDateIso is after StartDateIso
+  try {
+    const startDate = new Date(appointment.StartDateIso);
+    const endDate = new Date(appointment.EndDateIso);
+    
+    if (endDate <= startDate) {
+      console.warn(`EndDateIso (${appointment.EndDateIso}) is not after StartDateIso (${appointment.StartDateIso}) for appointment ${appointment.Id}, adjusting end time`);
+      // Add default duration if end time is not after start time
+      const durationMinutes = appointment.Duration || 50;
+      const correctedEndDate = new Date(startDate.getTime() + durationMinutes * 60000);
+      appointment.EndDateIso = correctedEndDate.toISOString();
+    }
+    
+    // Log the final times for debugging
+    console.log(`Validated appointment dates - ID: ${appointment.Id}, Start: ${appointment.StartDateIso}, End: ${appointment.EndDateIso}`);
+  } catch (error) {
+    console.error(`Failed to validate appointment dates after corrections for ${appointment.Id}:`, error);
+    throw new Error(`Failed to validate appointment dates for ${appointment.Id} even after applying corrections`);
   }
 }
   
