@@ -1815,7 +1815,7 @@ async updateClientAccessibilityInfo(accessibilityInfo: {
         hasSensoryNeeds: accessibilityInfo.hasSensoryNeeds,
         hasPhysicalNeeds: accessibilityInfo.hasPhysicalNeeds,
         roomConsistency: accessibilityInfo.roomConsistency,
-        requiredOffice: accessibilityInfo.requiredOffice // Added requiredOffice
+        requiredOffice: accessibilityInfo.requiredOffice // Added requiredOffice to log
       })
     });
     

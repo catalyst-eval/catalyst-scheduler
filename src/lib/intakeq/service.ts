@@ -272,7 +272,7 @@ export class IntakeQService {
     }
   }
   
-  /**
+/**
  * Get client information from IntakeQ API
  */
 async getClient(clientId: number): Promise<any | null> {
