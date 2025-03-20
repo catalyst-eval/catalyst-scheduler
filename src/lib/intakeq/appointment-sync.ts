@@ -114,54 +114,6 @@ async processAppointmentEvent(
 }
 
 /**
- * Handle new appointment - UPDATED to pass tags correctly
- */
-private async handleNewAppointment(
-  appointment: IntakeQAppointment
-): Promise<WebhookResponse> {
-  try {
-    console.log('Processing new appointment:', appointment.Id);
-    console.log('Appointment data:', JSON.stringify({
-      id: appointment.Id,
-      clientId: appointment.ClientId,
-      clientName: appointment.ClientName,
-      tags: appointment.Tags
-    }));
-    
-    // 1. Convert IntakeQ appointment to our AppointmentRecord format
-    const appointmentRecord = await this.convertToAppointmentRecord(appointment);
-    
-    // 2. If no tags were found in the webhook, try to fetch them from the API
-    if ((!appointmentRecord.tags || appointmentRecord.tags.length === 0) && 
-        process.env.ENABLE_CLIENT_TAG_FETCH === 'true') {
-      try {
-        const clientTags = await this.fetchClientTagsFromIntakeQ(appointment.ClientId);
-        if (clientTags && clientTags.length > 0) {
-          console.log(`Successfully fetched tags for client ${appointment.ClientId}:`, clientTags);
-          appointmentRecord.tags = clientTags;
-        }
-      } catch (tagError) {
-        console.error('Error fetching client tags, continuing without tags:', tagError);
-      }
-    }
-
-    return {
-      success: true,
-      details: {
-        appointmentId: appointment.Id,
-        officeId: 'TBD',
-        action: 'created',
-        deferredAssignment: true,
-        tags: appointmentRecord.tags // Include tags in the response
-      }
-    };
-  } catch (error) {
-    console.error('Error handling new appointment:', error);
-    throw error;
-  }
-}
-
-/**
  * Fetch client tags from IntakeQ API
  * NEW method to get tags when they're not in the webhook
  */
@@ -190,11 +142,9 @@ private async fetchClientTagsFromIntakeQ(clientId: string | number): Promise<str
       
       // Handle tags array or string
       if (Array.isArray(clientData.Tags)) {
-        return clientData.Tags.map((tag: string) => tag.trim()).filter((tag: string) => tag.length > 0);
+        return clientData.Tags.map((tag: any) => String(tag).trim()).filter((tag: string) => tag.length > 0);
       } else if (typeof clientData.Tags === 'string') {
-        return clientData.Tags.split(',')
-          .map((tag: string) => tag.trim())
-          .filter((tag: string) => tag.length > 0);
+        return clientData.Tags.split(',').map((tag: string) => tag.trim()).filter((tag: string) => tag.length > 0);
       }
     }
     
@@ -203,6 +153,80 @@ private async fetchClientTagsFromIntakeQ(clientId: string | number): Promise<str
   } catch (error) {
     console.error(`Error fetching client tags from IntakeQ for client ${clientId}:`, error);
     return [];
+  }
+}
+
+/**
+ * Handle new appointment - UPDATED to fetch client tags from API
+ */
+private async handleNewAppointment(
+  appointment: IntakeQAppointment
+): Promise<WebhookResponse> {
+  try {
+    console.log('Processing new appointment:', appointment.Id);
+    console.log('Appointment data:', JSON.stringify({
+      id: appointment.Id,
+      clientId: appointment.ClientId,
+      clientName: appointment.ClientName,
+      tags: appointment.Tags || 'none'
+    }));
+    
+    // 1. Convert IntakeQ appointment to our AppointmentRecord format
+    const appointmentRecord = await this.convertToAppointmentRecord(appointment);
+    
+    // 2. If no tags were found in the webhook, try to fetch them from the API
+    if ((!appointmentRecord.tags || appointmentRecord.tags.length === 0) && 
+        process.env.ENABLE_CLIENT_TAG_FETCH === 'true') {
+      try {
+        const clientTags = await this.fetchClientTagsFromIntakeQ(appointment.ClientId);
+        if (clientTags && clientTags.length > 0) {
+          console.log(`Successfully fetched tags for client ${appointment.ClientId}:`, clientTags);
+          appointmentRecord.tags = clientTags;
+        }
+      } catch (tagError) {
+        console.error('Error fetching client tags, continuing without tags:', tagError);
+      }
+    }
+    
+    // 3. Set office to TBD - DEFERRED ASSIGNMENT
+    appointmentRecord.assignedOfficeId = 'TBD';
+    appointmentRecord.currentOfficeId = 'TBD';
+    appointmentRecord.assignmentReason = 'To be determined during daily schedule generation';
+    
+    // Tags before saving - for debugging
+    console.log(`Tags before saving: ${JSON.stringify(appointmentRecord.tags)}`);
+    
+    // 4. Save appointment to Google Sheets
+    await this.sheetsService.addAppointment(appointmentRecord);
+    
+    // 5. Log success
+    await this.sheetsService.addAuditLog({
+      timestamp: new Date().toISOString(),
+      eventType: 'APPOINTMENT_CREATED' as AuditEventType,
+      description: `Added appointment ${appointment.Id}`,
+      user: 'SYSTEM',
+      systemNotes: JSON.stringify({
+        appointmentId: appointment.Id,
+        officeId: 'TBD',
+        clientId: appointment.ClientId,
+        deferredAssignment: true,
+        tags: appointmentRecord.tags // Include tags in the log
+      })
+    });
+
+    return {
+      success: true,
+      details: {
+        appointmentId: appointment.Id,
+        officeId: 'TBD',
+        action: 'created',
+        deferredAssignment: true,
+        tags: appointmentRecord.tags // Include tags in the response
+      }
+    };
+  } catch (error) {
+    console.error('Error handling new appointment:', error);
+    throw error;
   }
 }
 
