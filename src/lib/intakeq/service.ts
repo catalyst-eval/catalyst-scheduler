@@ -273,63 +273,63 @@ export class IntakeQService {
   }
   
   /**
-   * Get client information from IntakeQ API
-   */
-  async getClient(clientId: number): Promise<any | null> {
-    try {
-      // Check if API calls are disabled
-      if (this.DISABLE_API_CALLS) {
-        console.log(`API DISABLED: Skipping client data retrieval for client ${clientId}`);
-        return null;
-      }
-      console.log(`Fetching IntakeQ client: ${clientId}`);
-      
-      // Get a whitelisted IP
-      const whitelistedIP = this.getRandomWhitelistedIP();
-      
-      // Create headers with API key and whitelisted IP
-      const headers: Record<string, string> = {
-        'X-Auth-Key': this.apiKey,
-        'Accept': 'application/json'
-      };
-      
-      // Add the whitelisted IP to the X-Forwarded-For header if available
-      if (whitelistedIP) {
-        headers['X-Forwarded-For'] = whitelistedIP;
-      }
-      
-      const response = await axios.get(
-        `${this.baseUrl}/clients/${clientId}`,
-        {
-          headers: headers
-        }
-      );
-      
-      if (response.status !== 200 || !response.data) {
-        throw new Error(`IntakeQ API error: ${response.statusText}`);
-      }
-      
-      console.log(`Successfully fetched client ${clientId}`);
-      return response.data;
-    } catch (error) {
-      console.error(`Error fetching client ${clientId} from IntakeQ:`, error);
-      
-      // If we get a 404, return null instead of throwing
-      if (axios.isAxiosError(error) && error.response?.status === 404) {
-        console.log(`Client ${clientId} not found`);
-        return null;
-      }
-      
-      await this.sheetsService.addAuditLog({
-        timestamp: new Date().toISOString(),
-        eventType: AuditEventType.SYSTEM_ERROR,
-        description: `Error fetching client ${clientId} from IntakeQ`,
-        user: 'SYSTEM',
-        systemNotes: error instanceof Error ? error.message : 'Unknown error'
-      });
-      throw error;
+ * Get client information from IntakeQ API
+ */
+async getClient(clientId: number): Promise<any | null> {
+  try {
+    // Check if API calls are disabled
+    if (this.DISABLE_API_CALLS) {
+      console.log(`API DISABLED: Skipping client data retrieval for client ${clientId}`);
+      return null;
     }
+    console.log(`Fetching IntakeQ client: ${clientId}`);
+    
+    // Get a whitelisted IP
+    const whitelistedIP = this.getRandomWhitelistedIP();
+    
+    // Create headers with API key and whitelisted IP
+    const headers: Record<string, string> = {
+      'X-Auth-Key': this.apiKey,
+      'Accept': 'application/json'
+    };
+    
+    // Add the whitelisted IP to the X-Forwarded-For header if available
+    if (whitelistedIP) {
+      headers['X-Forwarded-For'] = whitelistedIP;
+    }
+    
+    const response = await axios.get(
+      `${this.baseUrl}/clients/${clientId}`,
+      {
+        headers: headers
+      }
+    );
+    
+    if (response.status !== 200 || !response.data) {
+      throw new Error(`IntakeQ API error: ${response.statusText}`);
+    }
+    
+    console.log(`Successfully fetched client ${clientId}`);
+    return response.data;
+  } catch (error) {
+    console.error(`Error fetching client ${clientId} from IntakeQ:`, error);
+    
+    // If we get a 404, return null instead of throwing
+    if (axios.isAxiosError(error) && error.response?.status === 404) {
+      console.log(`Client ${clientId} not found`);
+      return null;
+    }
+    
+    await this.sheetsService.addAuditLog({
+      timestamp: new Date().toISOString(),
+      eventType: AuditEventType.SYSTEM_ERROR,
+      description: `Error fetching client ${clientId} from IntakeQ`,
+      user: 'SYSTEM',
+      systemNotes: error instanceof Error ? error.message : 'Unknown error'
+    });
+    throw error;
   }
+}
 
   /**
    * Get full intake form data from IntakeQ API

@@ -79,6 +79,15 @@ async processWebhook(
   // Add timestamp to measure processing time
   const startTime = Date.now();
 
+  const payloadCopy = JSON.parse(JSON.stringify(payload));
+  if (payloadCopy.Appointment?.ClientEmail) {
+    payloadCopy.Appointment.ClientEmail = '[REDACTED]';
+  }
+  if (payloadCopy.Appointment?.ClientPhone) {
+    payloadCopy.Appointment.ClientPhone = '[REDACTED]';
+  }
+  console.log('Complete webhook payload structure:', JSON.stringify(payloadCopy, null, 2));  
+
   try {
     // Validate webhook payload
     const validationResult = this.validateWebhook(payload);

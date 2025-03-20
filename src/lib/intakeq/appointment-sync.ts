@@ -131,32 +131,19 @@ private async handleNewAppointment(
     // 1. Convert IntakeQ appointment to our AppointmentRecord format
     const appointmentRecord = await this.convertToAppointmentRecord(appointment);
     
-    // 2. Set office to TBD - DEFERRED ASSIGNMENT
-    // This is the key change - we no longer assign offices during webhook processing
-    appointmentRecord.assignedOfficeId = 'TBD';
-    appointmentRecord.currentOfficeId = 'TBD';
-    appointmentRecord.assignmentReason = 'To be determined during daily schedule generation';
-    
-    // Log the tags before saving
-    console.log(`Tags before saving: ${JSON.stringify(appointmentRecord.tags)}`);
-    
-    // 3. Save appointment to Google Sheets
-    await this.sheetsService.addAppointment(appointmentRecord);
-    
-    // 4. Log success
-    await this.sheetsService.addAuditLog({
-      timestamp: new Date().toISOString(),
-      eventType: 'APPOINTMENT_CREATED' as AuditEventType,
-      description: `Added appointment ${appointment.Id}`,
-      user: 'SYSTEM',
-      systemNotes: JSON.stringify({
-        appointmentId: appointment.Id,
-        officeId: 'TBD',
-        clientId: appointment.ClientId,
-        deferredAssignment: true,
-        tags: appointmentRecord.tags // Add tags to the log
-      })
-    });
+    // 2. If no tags were found in the webhook, try to fetch them from the API
+    if ((!appointmentRecord.tags || appointmentRecord.tags.length === 0) && 
+        process.env.ENABLE_CLIENT_TAG_FETCH === 'true') {
+      try {
+        const clientTags = await this.fetchClientTagsFromIntakeQ(appointment.ClientId);
+        if (clientTags && clientTags.length > 0) {
+          console.log(`Successfully fetched tags for client ${appointment.ClientId}:`, clientTags);
+          appointmentRecord.tags = clientTags;
+        }
+      } catch (tagError) {
+        console.error('Error fetching client tags, continuing without tags:', tagError);
+      }
+    }
 
     return {
       success: true,
@@ -171,6 +158,51 @@ private async handleNewAppointment(
   } catch (error) {
     console.error('Error handling new appointment:', error);
     throw error;
+  }
+}
+
+/**
+ * Fetch client tags from IntakeQ API
+ * NEW method to get tags when they're not in the webhook
+ */
+private async fetchClientTagsFromIntakeQ(clientId: string | number): Promise<string[]> {
+  try {
+    console.log(`Attempting to fetch tags for client ${clientId} from IntakeQ API`);
+    
+    // Check if API calls are disabled
+    if (process.env.DISABLE_API_CALLS === 'true') {
+      console.log(`API DISABLED: Cannot fetch client tags for client ${clientId}`);
+      return [];
+    }
+    
+    // Ensure we have the IntakeQ service
+    if (!this.intakeQService) {
+      console.log(`IntakeQ service not available, cannot fetch client tags`);
+      return [];
+    }
+    
+    // Use the existing IntakeQ service to get client data
+    const clientData = await this.intakeQService.getClient(clientId);
+    
+    // Check if client data contains tags
+    if (clientData && clientData.Tags) {
+      console.log(`Found tags for client ${clientId}:`, clientData.Tags);
+      
+      // Handle tags array or string
+      if (Array.isArray(clientData.Tags)) {
+        return clientData.Tags.map((tag: string) => tag.trim()).filter((tag: string) => tag.length > 0);
+      } else if (typeof clientData.Tags === 'string') {
+        return clientData.Tags.split(',')
+          .map((tag: string) => tag.trim())
+          .filter((tag: string) => tag.length > 0);
+      }
+    }
+    
+    console.log(`No tags found for client ${clientId}`);
+    return [];
+  } catch (error) {
+    console.error(`Error fetching client tags from IntakeQ for client ${clientId}:`, error);
+    return [];
   }
 }
 
@@ -474,19 +506,19 @@ private async convertToAppointmentRecord(
     // Process tags from IntakeQ - ensure we're handling it correctly
     // Log the raw Tags field to help with debugging
     console.log(`Processing tags for appointment ${appointment.Id}`);
-    console.log(`Raw Tags field: ${JSON.stringify(appointment.Tags)}`);
-    
-    // Process tags, handling different possible formats
-    let tags: string[] = [];
-    if (appointment.Tags) {
-      if (typeof appointment.Tags === 'string') {
-        // If Tags is a string, split by commas
-        tags = appointment.Tags.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0);
-      } else if (Array.isArray(appointment.Tags)) {
-        // If Tags is already an array, use it directly
-        tags = appointment.Tags.map(tag => tag.toString().trim()).filter(tag => tag.length > 0);
-      }
-    }
+console.log(`Raw Tags field: ${JSON.stringify(appointment.Tags)}`);
+
+// Process tags, handling different possible formats
+let tags: string[] = [];
+if (appointment.Tags) {
+  if (typeof appointment.Tags === 'string') {
+    // If Tags is a string, split by commas
+    tags = appointment.Tags.split(',').map((tag: string) => tag.trim()).filter((tag: string) => tag.length > 0);
+  } else if (Array.isArray(appointment.Tags)) {
+    // If Tags is already an array, use it directly
+    tags = appointment.Tags.map((tag: any) => tag.toString().trim()).filter((tag: string) => tag.length > 0);
+  }
+}
     
     console.log(`Processed tags: ${JSON.stringify(tags)}`);
     
