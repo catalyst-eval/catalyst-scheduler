@@ -221,22 +221,22 @@ export function formatDateRange(startTime: string, endTime: string): string {
 /**
  * Get a user-friendly date string in EST
  */
-export function getDisplayDate(date: string): string {
-  try {
-    // Parse the date and convert to EST
-    const estDate = toEST(date);
-    
-    // Format for display
-    return estDate.toLocaleDateString('en-US', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
-  } catch (error) {
-    console.error('Error in getDisplayDate:', error);
-    return 'Invalid Date';
-  }
+export function getDisplayDate(isoDateString: string): string {
+  // If it's just a date (YYYY-MM-DD), append T00:00:00 to ensure it's treated as midnight in EST
+  const dateString = isoDateString.includes('T') 
+    ? isoDateString 
+    : `${isoDateString}T00:00:00-05:00`; // -05:00 is EST
+  
+  // Create date object - this ensures we're working with the correct day
+  const date = new Date(dateString);
+  
+  // Format the date with the desired format
+  return date.toLocaleDateString('en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  });
 }
 
 /**
