@@ -77,101 +77,107 @@ export class DailyScheduleService {
   }
 
   /**
-   * Fetch and process schedule data for a specific date
-   */
-  async generateDailySchedule(date: string): Promise<DailyScheduleData> {
-    try {
-      console.log(`Generating daily schedule for ${date}`);
-      
-      // Validate the date parameter
-      if (!isValidISODate(date)) {
-        const today = getTodayEST();
-        console.warn(`Invalid date provided: ${date}, using today's date (${today}) instead`);
-        date = today;
-      }
-      
-      // 1. Get the date range for the target day
-      const { start, end } = getESTDayRange(date);
-      console.log(`Date range in EST: ${start} to ${end}`);
-      
-      // For debugging, explicitly log how we're querying for appointments
-      console.log(`Searching for appointments between ${new Date(start).toISOString()} and ${new Date(end).toISOString()}`);
-      
-      // 2. Get all appointments for the date with extra debug logging
-      let appointments = await this.sheetsService.getAppointments(start, end);
-      console.log(`Found ${appointments.length} appointments for ${date}`);
-      
-      // Log each appointment found to help debug
-      appointments.forEach(appt => {
-        console.log(`Found appointment: ${appt.appointmentId}, time: ${appt.startTime}, client: ${appt.clientName}`);
-      });
-      
-      // 3. Get all offices for reference
-      const offices = await this.sheetsService.getOffices();
-      console.log(`Found ${offices.length} offices`);
-      
-      // 4. Resolve office assignments from scratch, regardless of existing assignments
-      appointments = await this.resolveOfficeAssignments(appointments);
-      
-      // 5. Process appointments for display with improved office change tracking
-      const processedAppointments = this.processAppointments(appointments, offices);
-      
-      // 6. Detect conflicts using updated logic with assignedOfficeId
-      let conflicts = this.detectConflicts(processedAppointments);
-      
-      // 7. Group conflicts by clinician
-      const conflictsByClinicianMap = new Map<string, ScheduleConflict[]>();
-      
-      conflicts.forEach(conflict => {
-        if (conflict.clinicianIds) {
-          conflict.clinicianIds.forEach(clinicianName => {
-            if (!conflictsByClinicianMap.has(clinicianName)) {
-              conflictsByClinicianMap.set(clinicianName, []);
-            }
-            conflictsByClinicianMap.get(clinicianName)?.push(conflict);
-          });
-        }
-      });
-      
-      // 8. Log audit entry for schedule generation
-      await this.sheetsService.addAuditLog({
-        timestamp: new Date().toISOString(),
-        eventType: AuditEventType.DAILY_ASSIGNMENTS_UPDATED,
-        description: `Generated daily schedule for ${date}`,
-        user: 'SYSTEM',
-        systemNotes: JSON.stringify({
-          date,
-          displayDate: getDisplayDate(date),
-          appointmentCount: appointments.length,
-          assignedCount: appointments.filter(a => a.assignedOfficeId && a.assignedOfficeId !== 'TBD').length,
-          conflictCount: conflicts.length
-        })
-      });
-      
-      // 9. Return compiled data with clinician-specific conflicts
-      return {
-        date,
-        displayDate: getDisplayDate(date),
-        appointments: processedAppointments,
-        conflicts,
-        conflictsByClinicianMap: Object.fromEntries(conflictsByClinicianMap),
-        stats: this.calculateStats(processedAppointments)
-      };
-    } catch (error) {
-      console.error('Error generating daily schedule:', error);
-      
-      // Log error to audit system
-      await this.sheetsService.addAuditLog({
-        timestamp: new Date().toISOString(),
-        eventType: AuditEventType.SYSTEM_ERROR,
-        description: `Failed to generate daily schedule for ${date}`,
-        user: 'SYSTEM',
-        systemNotes: error instanceof Error ? error.message : 'Unknown error'
-      });
-      
-      throw error;
+ * Fetch and process schedule data for a specific date
+ */
+async generateDailySchedule(date: string): Promise<DailyScheduleData> {
+  try {
+    console.log(`Generating daily schedule for ${date}`);
+    
+    // Validate the date parameter
+    if (!isValidISODate(date)) {
+      const today = getTodayEST();
+      console.warn(`Invalid date provided: ${date}, using today's date (${today}) instead`);
+      date = today;
     }
+    
+    // 1. Get the date range for the target day
+    const { start, end } = getESTDayRange(date);
+    console.log(`Date range in EST: ${start} to ${end}`);
+    
+    // For debugging, explicitly log how we're querying for appointments
+    console.log(`Searching for appointments between ${new Date(start).toISOString()} and ${new Date(end).toISOString()}`);
+    
+    // 2. Get appointments from Active_Appointments if it's today, otherwise use normal flow
+    const isToday = date === getTodayEST();
+    let appointments;
+    
+    if (isToday) {
+      // Use Active_Appointments tab for today's appointments
+      console.log('Getting appointments from Active_Appointments tab');
+      appointments = await this.sheetsService.getActiveAppointments();
+      console.log(`Found ${appointments.length} appointments in Active_Appointments tab`);
+    } else {
+      // Use regular method for other dates
+      console.log('Getting appointments from main Appointments tab');
+      appointments = await this.sheetsService.getAppointments(start, end);
+      console.log(`Found ${appointments.length} appointments for ${date}`);
+    }
+    
+    // Log each appointment found to help debug
+    appointments.forEach(appt => {
+      console.log(`Found appointment: ${appt.appointmentId}, time: ${appt.startTime}, client: ${appt.clientName}`);
+    });
+    
+    // Process appointments using algorithm
+    appointments = await this.resolveOfficeAssignments(appointments);
+
+    // Process appointments with normalized names
+    const offices = await this.sheetsService.getOffices();
+    const processedAppointments = this.processAppointments(appointments, offices);
+    
+    // Detect conflicts
+    const conflicts = this.detectConflicts(processedAppointments);
+
+    // Group conflicts by clinician for easier display in the UI
+    const conflictsByClinicianMap: Record<string, ScheduleConflict[]> = {};
+    conflicts.forEach(conflict => {
+      if (conflict.clinicianIds) {
+        conflict.clinicianIds.forEach(clinicianName => {
+          if (!conflictsByClinicianMap[clinicianName]) {
+            conflictsByClinicianMap[clinicianName] = [];
+          }
+          conflictsByClinicianMap[clinicianName].push(conflict);
+        });
+      }
+    });
+
+    // Calculate statistics
+    const stats = this.calculateStats(processedAppointments);
+
+    // Assemble return data
+    const dailySchedule: DailyScheduleData = {
+      date,
+      displayDate: getDisplayDate(date),
+      appointments: processedAppointments,
+      conflicts,
+      conflictsByClinicianMap,
+      stats
+    };
+
+    console.log(`Generated daily schedule with ${processedAppointments.length} appointments and ${conflicts.length} conflicts`);
+
+    // Return the result - THIS IS CRITICAL
+    return dailySchedule;
+  } catch (error) {
+    console.error(`Error generating daily schedule for ${date}:`, error);
+    
+    // Return a minimal valid structure even in case of error
+    return {
+      date,
+      displayDate: getDisplayDate(date),
+      appointments: [],
+      conflicts: [],
+      stats: {
+        totalAppointments: 0,
+        inPersonCount: 0,
+        telehealthCount: 0,
+        groupCount: 0,
+        familyCount: 0,
+        officeUtilization: {}
+      }
+    };
   }
+}
 
   /**
  * Extract assigned office from notes and/or requiredOffice field
@@ -224,16 +230,10 @@ private extractAssignedOfficeFromNotes(notes: string, requiredOffice?: string): 
   return '';
 }
 
-  /**
- * Resolve office assignments using strict rule priority
- * This is the most critical method - it applies assignment rules in strict priority order
- * and disregards existing office assignments completely
- */
 /**
  * Resolve office assignments using strict rule priority
  * This is the most critical method - it applies assignment rules in strict priority order
  * and disregards existing office assignments completely
- * Updated to consider tags for priority 100 (specific office) and 90 (mobility)
  */
 private async resolveOfficeAssignments(appointments: AppointmentRecord[]): Promise<AppointmentRecord[]> {
   try {

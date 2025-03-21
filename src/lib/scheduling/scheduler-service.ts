@@ -93,39 +93,39 @@ export class SchedulerService {
   /**
  * Modified combinedDailyTask method that skips the appointment refresh
  */
-async combinedDailyTask(): Promise<boolean> {
-  try {
-    const date = getTodayEST();
-    console.log(`Running combined daily task for ${date}`);
-    
-    // Log task start
-    await this.logTaskWithRetry({
-      timestamp: new Date().toISOString(),
-      eventType: AuditEventType.INTEGRATION_UPDATED,
-      description: `Starting combined daily task for ${date}`,
-      user: 'SYSTEM'
-    });
-
-    let statusUpdateCount = 0;
-    
-    // Skip API-dependent tasks if disabled
-    if (process.env.DISABLE_API_CALLS !== 'true') {
-      // 1. Sync appointment statuses from IntakeQ
-      console.log('Step 1: Syncing appointment statuses');
-      statusUpdateCount = await this.syncAppointmentStatuses();
-      console.log(`Synced ${statusUpdateCount} appointment statuses`);
+  async combinedDailyTask(): Promise<boolean> {
+    try {
+      const date = getTodayEST();
+      console.log(`Running combined daily task for ${date}`);
       
-      // REMOVED: Step 2 "Refreshing appointments from IntakeQ" 
-      // This was causing the duplicate appointments issue at 2AM
-      console.log('Step 2: SKIPPED - Appointment refresh removed to prevent duplicates');
-    } else {
-      console.log('API DISABLED: Skipping appointment status sync steps');
-    }
-    
-    // 3. Process unassigned appointments
-    console.log('Step 3: Processing unassigned appointments');
-    const assignedCount = await this.processUnassignedAppointments();
-    console.log(`Processed ${assignedCount} unassigned appointments`);
+      // Log task start
+      await this.logTaskWithRetry({
+        timestamp: new Date().toISOString(),
+        eventType: AuditEventType.INTEGRATION_UPDATED,
+        description: `Starting combined daily task for ${date}`,
+        user: 'SYSTEM'
+      });
+  
+      let statusUpdateCount = 0;
+      
+      // Skip API-dependent tasks if disabled
+      if (process.env.DISABLE_API_CALLS !== 'true') {
+        // 1. Sync appointment statuses from IntakeQ
+        console.log('Step 1: Syncing appointment statuses');
+        statusUpdateCount = await this.syncAppointmentStatuses();
+        console.log(`Synced ${statusUpdateCount} appointment statuses`);
+        
+        // REMOVED: Step 2 "Refreshing appointments from IntakeQ" 
+        // This was causing the duplicate appointments issue at 2AM
+        console.log('Step 2: SKIPPED - Appointment refresh removed to prevent duplicates');
+      } else {
+        console.log('API DISABLED: Skipping appointment status sync steps');
+      }
+      
+      // 3. Process unassigned appointments - Use getActiveAppointments for efficiency
+      console.log('Step 3: Processing unassigned appointments');
+      const assignedCount = await this.processUnassignedAppointments();
+      console.log(`Processed ${assignedCount} unassigned appointments`);
     
     // 4. Resolve any scheduling conflicts
     console.log('Step 4: Resolving scheduling conflicts');
@@ -499,91 +499,102 @@ async cleanupDuplicateAppointments(): Promise<{
   }
 
   /**
-   * Process all appointments that need office assignment
-   */
-  async processUnassignedAppointments(): Promise<number> {
-    try {
-      console.log('Processing unassigned appointments');
-      
-      // 1. Get appointments that need assignment from Google Sheets
-      const unassignedAppointments = await this.getAppointmentsNeedingAssignment();
-      
-      if (unassignedAppointments.length === 0) {
-        console.log('No appointments need assignment');
-        return 0;
-      }
-      
-      console.log(`Found ${unassignedAppointments.length} appointments needing assignment`);
-      
-      // 2. Initialize the appointment sync handler
-      const appointmentSyncHandler = new AppointmentSyncHandler(this.sheetsService);
-      
-      // 3. Process each appointment (in batches to avoid API limits)
-      let processedCount = 0;
-      const batchSize = 10;
-      
-      for (let i = 0; i < unassignedAppointments.length; i += batchSize) {
-        const batch = unassignedAppointments.slice(i, i + batchSize);
-        
-        for (const appointment of batch) {
-          try {
-            // Convert to webhook format for processing
-            const webhookPayload = {
-              Type: 'AppointmentUpdated' as WebhookEventType,
-              ClientId: parseInt(appointment.clientId),
-              Appointment: this.convertToIntakeQFormat(appointment)
-            };
-            
-            // Process the appointment
-            const result = await appointmentSyncHandler.processAppointmentEvent(webhookPayload);
-            
-            if (result.success) {
-              processedCount++;
-              console.log(`Successfully assigned office for appointment ${appointment.appointmentId}`);
-            } else {
-              console.error(`Failed to assign office for appointment ${appointment.appointmentId}:`, result.error);
-            }
-          } catch (error) {
-            console.error(`Error processing appointment ${appointment.appointmentId}:`, error);
-          }
-        }
-        
-        // Add a delay between batches to avoid rate limits
-        if (i + batchSize < unassignedAppointments.length) {
-          await new Promise(resolve => setTimeout(resolve, 1000));
-        }
-      }
-      
-      console.log(`Processed ${processedCount} of ${unassignedAppointments.length} appointments`);
-      
-      // 4. Log success (with retry)
-      await this.logTaskWithRetry({
-        timestamp: new Date().toISOString(),
-        eventType: AuditEventType.DAILY_ASSIGNMENTS_UPDATED,
-        description: `Processed ${processedCount} unassigned appointments`,
-        user: 'SYSTEM',
-        systemNotes: JSON.stringify({
-          total: unassignedAppointments.length,
-          processed: processedCount
-        })
-      });
-      
-      return processedCount;
-    } catch (error) {
-      console.error('Error processing unassigned appointments:', error);
-      
-      // Log error with retry
-      await this.logTaskWithRetry({
-        timestamp: new Date().toISOString(),
-        eventType: AuditEventType.SYSTEM_ERROR,
-        description: 'Failed to process unassigned appointments',
-        user: 'SYSTEM',
-        systemNotes: error instanceof Error ? error.message : 'Unknown error'
-      });
-      
+ * Process all appointments that need office assignment from Active_Appointments
+ * More efficient version that uses Active_Appointments tab
+ */
+async processUnassignedAppointments(): Promise<number> {
+  try {
+    console.log('Processing unassigned appointments from Active_Appointments');
+    
+    // 1. Get all active appointments
+    const activeAppointments = await this.sheetsService.getActiveAppointments();
+    
+    // 2. Filter to just unassigned appointments
+    const unassignedAppointments = activeAppointments.filter(appt => 
+      // Include appointments with no office ID or TBD
+      (!appt.assignedOfficeId || appt.assignedOfficeId === 'TBD') &&
+      // Exclude cancelled or completed appointments
+      appt.status !== 'cancelled' && 
+      appt.status !== 'completed' &&
+      appt.status !== 'rescheduled'
+    );
+    
+    if (unassignedAppointments.length === 0) {
+      console.log('No appointments need assignment in Active_Appointments');
       return 0;
     }
+    
+    console.log(`Found ${unassignedAppointments.length} appointments needing assignment`);
+    
+    // 3. Initialize the appointment sync handler
+    const appointmentSyncHandler = new AppointmentSyncHandler(this.sheetsService);
+    
+    // 4. Process each appointment
+    let processedCount = 0;
+    const batchSize = 10;
+    
+    for (let i = 0; i < unassignedAppointments.length; i += batchSize) {
+      const batch = unassignedAppointments.slice(i, i + batchSize);
+      
+      for (const appointment of batch) {
+        try {
+          // Convert to webhook format for processing
+          const webhookPayload = {
+            Type: 'AppointmentUpdated' as WebhookEventType,
+            ClientId: parseInt(appointment.clientId),
+            Appointment: this.convertToIntakeQFormat(appointment)
+          };
+          
+          // Process the appointment
+          const result = await appointmentSyncHandler.processAppointmentEvent(webhookPayload);
+          
+          if (result.success) {
+            processedCount++;
+            console.log(`Successfully assigned office for appointment ${appointment.appointmentId}`);
+          } else {
+            console.error(`Failed to assign office for appointment ${appointment.appointmentId}:`, result.error);
+          }
+        } catch (error) {
+          console.error(`Error processing appointment ${appointment.appointmentId}:`, error);
+        }
+      }
+      
+      // Add a delay between batches to avoid rate limits
+      if (i + batchSize < unassignedAppointments.length) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+    }
+    
+    console.log(`Processed ${processedCount} of ${unassignedAppointments.length} appointments`);
+    
+    // 5. Log success (with retry)
+    await this.logTaskWithRetry({
+      timestamp: new Date().toISOString(),
+      eventType: AuditEventType.DAILY_ASSIGNMENTS_UPDATED,
+      description: `Processed ${processedCount} unassigned appointments`,
+      user: 'SYSTEM',
+      systemNotes: JSON.stringify({
+        total: unassignedAppointments.length,
+        processed: processedCount
+      })
+    });
+    
+    return processedCount;
+  } catch (error) {
+    console.error('Error processing unassigned appointments:', error);
+    
+    // Log error with retry
+    await this.logTaskWithRetry({
+      timestamp: new Date().toISOString(),
+      eventType: AuditEventType.SYSTEM_ERROR,
+      description: 'Failed to process unassigned appointments',
+      user: 'SYSTEM',
+      systemNotes: error instanceof Error ? error.message : 'Unknown error'
+    });
+    
+    return 0;
   }
+}
 
   /**
    * Generate and send the daily schedule report
