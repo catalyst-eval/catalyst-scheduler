@@ -106,17 +106,18 @@ export class EmailTemplates {
       color: #3498db;
     }
     .summary {
-      background-color: #e9f7ef;
-      padding: 12px;
-      margin-bottom: 15px;
-      border-left: 4px solid #27ae60;
-    }
+  background-color: #e9f7ef;
+  padding: 12px;
+  margin-bottom: 15px;
+  border-left: 4px solid #27ae60;
+  font-size: 0.85em; /* 2 points smaller */
+}
     .priority-table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-bottom: 15px;
-      font-size: 0.85em; /* 2 points smaller */
-    }
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 15px;
+  font-size: 0.75em; /* 4 points smaller (2 additional points) */
+}
     .priority-table th, .priority-table td {
       border: 1px solid #ddd;
       padding: 6px;
@@ -126,12 +127,12 @@ export class EmailTemplates {
       background-color: #e6e6e6;
     }
     .legend {
-      margin-top: 15px;
-      padding: 10px;
-      background-color: #f8f9fa;
-      border: 1px solid #eaeaea;
-      font-size: 0.9em;
-    }
+  margin-top: 15px;
+  padding: 10px;
+  background-color: #f8f9fa;
+  border: 1px solid #eaeaea;
+  font-size: 0.85em; /* 2 points smaller */
+}
     .legend ul {
       margin: 5px 0;
       padding-left: 20px;
