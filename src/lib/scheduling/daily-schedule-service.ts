@@ -79,39 +79,39 @@ export class DailyScheduleService {
   /**
  * Fetch and process schedule data for a specific date
  */
-async generateDailySchedule(date: string): Promise<DailyScheduleData> {
-  try {
-    console.log(`Generating daily schedule for ${date}`);
-    
-    // Validate the date parameter
-    if (!isValidISODate(date)) {
-      const today = getTodayEST();
-      console.warn(`Invalid date provided: ${date}, using today's date (${today}) instead`);
-      date = today;
-    }
-    
-    // 1. Get the date range for the target day
-    const { start, end } = getESTDayRange(date);
-    console.log(`Date range in EST: ${start} to ${end}`);
-    
-    // For debugging, explicitly log how we're querying for appointments
-    console.log(`Searching for appointments between ${new Date(start).toISOString()} and ${new Date(end).toISOString()}`);
-    
-    // 2. Get appointments from Active_Appointments if it's today, otherwise use normal flow
-    const isToday = date === getTodayEST();
-    let appointments;
-    
-    if (isToday) {
-      // Use Active_Appointments tab for today's appointments
-      console.log('Getting appointments from Active_Appointments tab');
-      appointments = await this.sheetsService.getActiveAppointments();
-      console.log(`Found ${appointments.length} appointments in Active_Appointments tab`);
-    } else {
-      // Use regular method for other dates
-      console.log('Getting appointments from main Appointments tab');
-      appointments = await this.sheetsService.getAppointments(start, end);
-      console.log(`Found ${appointments.length} appointments for ${date}`);
-    }
+  async generateDailySchedule(date: string): Promise<DailyScheduleData> {
+    try {
+      console.log(`Generating daily schedule for ${date}`);
+      
+      // Validate the date parameter
+      if (!isValidISODate(date)) {
+        const today = getTodayEST();
+        console.warn(`Invalid date provided: ${date}, using today's date (${today}) instead`);
+        date = today;
+      }
+      
+      // 1. Get the date range for the target day
+      const { start, end } = getESTDayRange(date);
+      console.log(`Date range in EST: ${start} to ${end}`);
+      
+      // For debugging, explicitly log how we're querying for appointments
+      console.log(`Searching for appointments between ${new Date(start).toISOString()} and ${new Date(end).toISOString()}`);
+      
+      // 2. Get appointments from Active_Appointments if it's today, otherwise use normal flow
+      const isToday = date === getTodayEST();
+      let appointments;
+      
+      if (isToday) {
+        // Use Active_Appointments tab for today's appointments
+        console.log('Getting appointments from Active_Appointments tab');
+        appointments = await this.sheetsService.getActiveAppointments();
+        console.log(`Found ${appointments.length} appointments in Active_Appointments tab`);
+      } else {
+        // Use regular method for other dates
+        console.log('Getting appointments from main Appointments tab');
+        appointments = await this.sheetsService.getAppointments(start, end);
+        console.log(`Found ${appointments.length} appointments for ${date}`);
+      }
     
     // Log each appointment found to help debug
     appointments.forEach(appt => {

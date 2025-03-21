@@ -106,132 +106,113 @@ export class SchedulerService {
         user: 'SYSTEM'
       });
   
-      let statusUpdateCount = 0;
-      
-      // Skip API-dependent tasks if disabled
-      if (process.env.DISABLE_API_CALLS !== 'true') {
-        // 1. Sync appointment statuses from IntakeQ
-        console.log('Step 1: Syncing appointment statuses');
-        statusUpdateCount = await this.syncAppointmentStatuses();
-        console.log(`Synced ${statusUpdateCount} appointment statuses`);
-        
-        // REMOVED: Step 2 "Refreshing appointments from IntakeQ" 
-        // This was causing the duplicate appointments issue at 2AM
-        console.log('Step 2: SKIPPED - Appointment refresh removed to prevent duplicates');
-      } else {
-        console.log('API DISABLED: Skipping appointment status sync steps');
-      }
+      // REMOVED: Status synchronization from IntakeQ
+      // Relying on webhooks for real-time updates instead
+      console.log('Step 1: Skipping API sync - using webhook-driven updates');
       
       // 3. Process unassigned appointments - Use getActiveAppointments for efficiency
-      console.log('Step 3: Processing unassigned appointments');
+      console.log('Step 2: Processing unassigned appointments');
       const assignedCount = await this.processUnassignedAppointments();
       console.log(`Processed ${assignedCount} unassigned appointments`);
     
-    // 4. Resolve any scheduling conflicts
-    console.log('Step 4: Resolving scheduling conflicts');
-    const resolvedCount = await this.dailyScheduleService.resolveSchedulingConflicts(date);
-    console.log(`Resolved ${resolvedCount} scheduling conflicts`);
-    
-    // Add a delay to ensure Google Sheets updates are reflected
-    console.log('Waiting for Google Sheets to update...');
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    // 5. Generate and send daily report
-    console.log('Step 5: Generating and sending daily report');
-    const emailSuccess = await this.generateAndSendDailyReport(date);
-    console.log(`Daily report ${emailSuccess ? 'sent successfully' : 'failed to send'}`);
-    
-    // Log task completion
-    await this.logTaskWithRetry({
-      timestamp: new Date().toISOString(),
-      eventType: AuditEventType.INTEGRATION_UPDATED,
-      description: `Completed combined daily task for ${date}`,
-      user: 'SYSTEM',
-      systemNotes: JSON.stringify({
-        date,
-        statusUpdates: statusUpdateCount,
-        appointmentsRefreshed: 0, // Set to 0 since refresh is skipped
-        unassignedProcessed: assignedCount,
-        conflictsResolved: resolvedCount,
-        emailSent: emailSuccess
-      })
-    });
-    
-    return emailSuccess;
-  } catch (error) {
-    console.error('Error in combined daily task:', error);
-    
-    // Log error
-    try {
+      // 4. Resolve any scheduling conflicts
+      console.log('Step 3: Resolving scheduling conflicts');
+      const resolvedCount = await this.dailyScheduleService.resolveSchedulingConflicts(date);
+      console.log(`Resolved ${resolvedCount} scheduling conflicts`);
+      
+      // Add a delay to ensure Google Sheets updates are reflected
+      console.log('Waiting for Google Sheets to update...');
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // 5. Generate and send daily report
+      console.log('Step 4: Generating and sending daily report');
+      const emailSuccess = await this.generateAndSendDailyReport(date);
+      console.log(`Daily report ${emailSuccess ? 'sent successfully' : 'failed to send'}`);
+      
+      // Log task completion
       await this.logTaskWithRetry({
         timestamp: new Date().toISOString(),
-        eventType: AuditEventType.SYSTEM_ERROR,
-        description: 'Error in combined daily task',
+        eventType: AuditEventType.INTEGRATION_UPDATED,
+        description: `Completed combined daily task for ${date}`,
         user: 'SYSTEM',
-        systemNotes: error instanceof Error ? error.message : 'Unknown error'
-      });
-    } catch (logError) {
-      console.error('Failed to log error:', logError);
-    }
-    
-    return false;
-  }
-}
-
-/**
- * Modified generateDailyScheduleOnDemand method that skips automatic refresh
- * This is the method called from the API endpoints
- */
-async generateDailyScheduleOnDemand(date?: string): Promise<any> {
-  const targetDate = date || getTodayEST();
-  console.log(`Generating daily schedule on-demand for ${targetDate}`);
-  
-  return new Promise<any>((resolve) => {
-    this.runWithLock(async () => {
-      try {
-        // MODIFIED: No automatic refresh when triggered on-demand
-        // Only refresh if explicitly requested via a flag parameter
-        console.log('Step 1: SKIPPED - Automatic appointment refresh removed to prevent duplicates');
-        console.log('Note: Appointments are updated via webhooks; no refresh needed');
-        const refreshCount = 0; // Skip refresh
-        
-        // 2. Process unassigned appointments
-        console.log('Step 2: Processing unassigned appointments');
-        const assignedCount = await this.processUnassignedAppointments();
-        console.log(`Processed ${assignedCount} unassigned appointments`);
-        
-        // 3. Resolve any scheduling conflicts
-        console.log('Step 3: Resolving scheduling conflicts');
-        const resolvedCount = await this.dailyScheduleService.resolveSchedulingConflicts(targetDate);
-        console.log(`Resolved ${resolvedCount} scheduling conflicts`);
-        
-        // Add a delay to ensure Google Sheets updates are reflected
-        console.log('Waiting for Google Sheets to update...');
-        await new Promise(innerResolve => setTimeout(innerResolve, 2000));
-        
-        // 4. Generate and send daily report
-        console.log('Step 4: Generating and sending daily report');
-        const emailSuccess = await this.generateAndSendDailyReport(targetDate);
-        console.log(`Daily report ${emailSuccess ? 'sent successfully' : 'failed to send'}`);
-        
-        resolve({
-          success: true,
-          date: targetDate,
-          appointmentsRefreshed: refreshCount,
-          appointmentsAssigned: assignedCount,
+        systemNotes: JSON.stringify({
+          date,
+          statusUpdates: 0, // No longer doing status updates via timer
+          appointmentsRefreshed: 0, // No longer refreshing via timer
+          unassignedProcessed: assignedCount,
           conflictsResolved: resolvedCount,
           emailSent: emailSuccess
+        })
+      });
+      
+      return emailSuccess;
+    } catch (error) {
+      console.error('Error in combined daily task:', error);
+      
+      // Log error
+      try {
+        await this.logTaskWithRetry({
+          timestamp: new Date().toISOString(),
+          eventType: AuditEventType.SYSTEM_ERROR,
+          description: 'Error in combined daily task',
+          user: 'SYSTEM',
+          systemNotes: error instanceof Error ? error.message : 'Unknown error'
         });
-      } catch (error) {
-        console.error('Error generating daily schedule on-demand:', error);
-        resolve({
-          success: false,
-          error: error instanceof Error ? error.message : 'Unknown error'
-        });
+      } catch (logError) {
+        console.error('Failed to log error:', logError);
       }
+      
+      return false;
+    }
+  }
+
+  async generateDailyScheduleOnDemand(date?: string): Promise<any> {
+    const targetDate = date || getTodayEST();
+    console.log(`Generating daily schedule on-demand for ${targetDate}`);
+    
+    return new Promise<any>((resolve) => {
+      this.runWithLock(async () => {
+        try {
+          // REMOVED: No automatic refresh of appointment data
+          console.log('Step 1: Skipping API sync - using webhook-driven updates');
+          
+          // 2. Process unassigned appointments
+          console.log('Step 2: Processing unassigned appointments');
+          const assignedCount = await this.processUnassignedAppointments();
+          console.log(`Processed ${assignedCount} unassigned appointments`);
+          
+          // 3. Resolve any scheduling conflicts
+          console.log('Step 3: Resolving scheduling conflicts');
+          const resolvedCount = await this.dailyScheduleService.resolveSchedulingConflicts(targetDate);
+          console.log(`Resolved ${resolvedCount} scheduling conflicts`);
+          
+          // Add a delay to ensure Google Sheets updates are reflected
+          console.log('Waiting for Google Sheets to update...');
+          await new Promise(innerResolve => setTimeout(innerResolve, 2000));
+          
+          // 4. Generate and send daily report
+          console.log('Step 4: Generating and sending daily report');
+          const emailSuccess = await this.generateAndSendDailyReport(targetDate);
+          console.log(`Daily report ${emailSuccess ? 'sent successfully' : 'failed to send'}`);
+          
+          resolve({
+            success: true,
+            date: targetDate,
+            appointmentsRefreshed: 0, // No longer refreshing via API call
+            appointmentsAssigned: assignedCount,
+            conflictsResolved: resolvedCount,
+            emailSent: emailSuccess
+          });
+        } catch (error) {
+          console.error('Error generating daily schedule on-demand:', error);
+          resolve({
+            success: false,
+            error: error instanceof Error ? error.message : 'Unknown error'
+          });
+        }
+      });
     });
-  });
-}
+  }
 
   /**
  * Weekly cleanup task that handles maintenance operations
@@ -674,172 +655,6 @@ async processUnassignedAppointments(): Promise<number> {
       }
       
       return false;
-    }
-  }
-
-  /**
-   * Sync appointment statuses from IntakeQ
-   */
-  async syncAppointmentStatuses(): Promise<number> {
-    try {
-      // Check for API disable flag
-      if (process.env.DISABLE_API_CALLS === 'true') {
-        console.log(`API DISABLED: Skipping appointment status sync`);
-        return 0;
-      }
-      console.log('Syncing appointment statuses from IntakeQ');
-      
-      // Get all appointments from the last 7 days
-      const sevenDaysAgo = new Date();
-      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-      
-      const startDate = sevenDaysAgo.toISOString().split('T')[0];
-      const endDate = new Date().toISOString().split('T')[0];
-      
-      // Initialize needed services
-      const intakeQService = new IntakeQService(this.sheetsService);
-      const appointmentSyncHandler = new AppointmentSyncHandler(this.sheetsService, intakeQService);
-      
-      // Get appointments from Google Sheets
-      const sheetAppointments = await this.sheetsService.getAllAppointments();
-      
-      // Filter to appointments in the date range
-      const recentAppointments = sheetAppointments.filter(appt => {
-        const apptDate = new Date(appt.startTime);
-        return apptDate >= sevenDaysAgo;
-      });
-      
-      console.log(`Found ${recentAppointments.length} recent appointments to check`);
-      
-      let updatedCount = 0;
-      
-      // Process in batches to avoid rate limits
-      const datesToProcess = this.generateDateRange(startDate, endDate);
-      const batchSize = 3; // Process 3 days at a time
-      
-      for (let i = 0; i < datesToProcess.length; i += batchSize) {
-        const batchDates = datesToProcess.slice(i, i + batchSize);
-        
-        for (const dateString of batchDates) {
-          try {
-            console.log(`Checking status updates for ${dateString}`);
-            const intakeQAppointments = await intakeQService.getAppointments(dateString, dateString);
-            
-            // Update status for each appointment
-            for (const intakeQAppt of intakeQAppointments) {
-              try {
-                const matchingAppt = recentAppointments.find(
-                  appt => appt.appointmentId === intakeQAppt.Id
-                );
-                
-                if (matchingAppt) {
-                  // Need to access the private method through any type assertion
-                  const newStatus = (appointmentSyncHandler as any).mapIntakeQStatus(intakeQAppt.Status);
-                  
-                  if (matchingAppt.status !== newStatus) {
-                    // Status has changed, update it
-                    const updatedAppointment = {
-                      ...matchingAppt,
-                      status: newStatus,
-                      lastUpdated: new Date().toISOString()
-                    };
-                    
-                    await this.sheetsService.updateAppointment(updatedAppointment);
-                    updatedCount++;
-                    
-                    console.log(`Updated status for appointment ${matchingAppt.appointmentId} from ${matchingAppt.status} to ${newStatus}`);
-                  }
-                }
-              } catch (apptError) {
-                console.error(`Error updating status for appointment ${intakeQAppt.Id}:`, apptError);
-              }
-            }
-            
-            // Small delay to avoid rate limits
-            if (i + batchSize < datesToProcess.length) {
-              await new Promise(resolve => setTimeout(resolve, 1000));
-            }
-          } catch (dateError) {
-            console.error(`Error processing date ${dateString}:`, dateError);
-          }
-        }
-      }
-      
-      // Log results (with retry)
-      console.log(`Status sync complete: ${updatedCount} appointments updated`);
-      
-      await this.logTaskWithRetry({
-        timestamp: new Date().toISOString(),
-        eventType: AuditEventType.DAILY_ASSIGNMENTS_UPDATED,
-        description: `Synced appointment statuses`,
-        user: 'SYSTEM',
-        systemNotes: JSON.stringify({
-          appointmentsProcessed: recentAppointments.length,
-          appointmentsUpdated: updatedCount
-        })
-      });
-      
-      return updatedCount;
-    } catch (error) {
-      console.error('Error syncing appointment statuses:', error);
-      
-      // Log error with retry
-      await this.logTaskWithRetry({
-        timestamp: new Date().toISOString(),
-        eventType: AuditEventType.SYSTEM_ERROR,
-        description: 'Failed to sync appointment statuses',
-        user: 'SYSTEM',
-        systemNotes: error instanceof Error ? error.message : 'Unknown error'
-      });
-      
-      return 0;
-    }
-  }
-
-  /**
-   * Refresh appointments from IntakeQ for a specific date
-   */
-  async refreshAppointmentsFromIntakeQ(targetDate?: string): Promise<number> {
-    try {
-      // Check for API disable flag
-      if (process.env.DISABLE_API_CALLS === 'true') {
-        console.log(`API DISABLED: Skipping appointments refresh for date ${targetDate || 'today'}`);
-        return 0;
-      }
-      // Use today's date if no target date provided
-      const date = targetDate || new Date().toISOString().split('T')[0];
-      console.log(`Refreshing appointments from IntakeQ for ${date}`);
-      
-      // Call the refresh function
-      const count = await this.dailyScheduleService.refreshAppointmentsFromIntakeQ(date);
-      
-      // Log result (with retry)
-      await this.logTaskWithRetry({
-        timestamp: new Date().toISOString(),
-        eventType: AuditEventType.DAILY_ASSIGNMENTS_UPDATED,
-        description: `IntakeQ appointment refresh for ${date} completed`,
-        user: 'SYSTEM',
-        systemNotes: JSON.stringify({
-          date,
-          appointmentsProcessed: count,
-          success: true
-        })
-      });
-      
-      return count;
-    } catch (error) {
-      console.error('Error refreshing appointments from IntakeQ:', error);
-      
-      // Log error with retry
-      await this.logTaskWithRetry({
-        timestamp: new Date().toISOString(),
-        eventType: AuditEventType.SYSTEM_ERROR,
-        description: 'Failed to refresh appointments from IntakeQ',
-        user: 'SYSTEM',
-        systemNotes: error instanceof Error ? error.message : 'Unknown error'
-      });
-      
-      return 0;
     }
   }
 
