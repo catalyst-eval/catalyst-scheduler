@@ -22,6 +22,18 @@ export class EmailTemplates {
     // Sort clinicians by last name
     const clinicianGroups = this.groupAppointmentsByClinicianLastName(processedAppointments);
     
+    // Define clinician colors
+    const clinicianColors = {
+      'Bailey Serrano': '#4C9AFF', // Light Blue
+      'Tyler Seabolt': '#57D9A3',  // Light Green
+      'Samantha Barnhart': '#FF8F73', // Light Red
+      'Julia Warren': '#E774BB',   // Fuschia
+      'Mikah Jones': '#B8ACF6',    // Light Purple
+      'Carlisle': '#FFC2D1',       // Light Pink
+      'Cullen': '#79E2F2',         // Seafoam Green
+      'Jessica': '#F5CD47'         // Light Yellow
+    };
+    
     // Generate the HTML email
     const htmlBody = `
 <!DOCTYPE html>
@@ -39,108 +51,72 @@ export class EmailTemplates {
     .header { 
       background-color: #4b6cb7; 
       color: white; 
-      padding: 20px;
+      padding: 10px; /* 50% reduction from 20px */
       border-radius: 5px 5px 0 0;
+    }
+    .header h1 {
+      font-size: 1.5em; /* 25% reduction from 2em */
+      margin: 0;
     }
     .content { 
       padding: 20px; 
       background-color: #f9f9f9;
     }
-    table { 
-      width: 100%; 
-      border-collapse: collapse; 
-      margin-bottom: 20px;
-      border: 1px solid #ddd;
+    h2 {
+      margin-top: 8px; /* 20% reduction from 10px */
+      margin-bottom: 8px;
     }
-    th { 
-      background-color: #e6e6e6; 
-      padding: 10px; 
-      text-align: left;
-      border: 1px solid #ddd;
+    .appointment-row {
+      padding: 8px;
+      border-bottom: 1px solid #ddd;
+      margin-bottom: 5px;
     }
-    td { 
-      padding: 10px; 
-      border: 1px solid #ddd; 
-    }
-    tr:nth-child(even) { 
-      background-color: #f2f2f2; 
-    }
-    .conflicts { 
-      background-color: #fff0f0; 
-      border-left: 4px solid #ff6b6b; 
-      padding: 15px;
-      margin-bottom: 20px;
-    }
-    .high { 
-      color: #d63031; 
-      font-weight: bold;
-    }
-    .medium { 
-      color: #e17055; 
-    }
-    .low { 
-      color: #fdcb6e; 
-    }
-    .stats { 
-      background-color: #e9f7ef; 
-      padding: 15px;
-      margin-bottom: 20px;
-      border-left: 4px solid #27ae60;
+    .appointment-row:nth-child(even) {
+      background-color: #f2f2f2;
     }
     .clinician-section {
-      margin-bottom: 30px;
+      margin-bottom: 20px;
     }
     .clinician-name {
-      font-size: 1.2em;
+      font-size: 1.1em;
       font-weight: bold;
-      margin-bottom: 10px;
-      padding: 8px;
+      margin-bottom: 8px;
+      padding: 6px;
       background-color: #f0f8ff;
       border-left: 4px solid #4b6cb7;
-    }
-    .special-requirements {
-      background-color: #f5f6fa;
-      border-left: 4px solid #3498db;
-      padding: 8px;
-      margin-top: 5px;
-      font-size: 0.9em;
     }
     .office-change {
       color: #e74c3c;
       font-weight: bold;
     }
-    .office-change-note {
-      background-color: #fef2f2;
-      border-left: 4px solid #e74c3c;
-      padding: 8px;
-      margin-top: 5px;
-      font-size: 0.9em;
+    .telehealth {
+      color: #3498db;
     }
-    .assignment-reason {
-      background-color: #ecf0f1;
-      border-left: 4px solid #7f8c8d;
-      padding: 8px;
-      margin-top: 5px;
-      font-size: 0.9em;
-      font-style: italic;
+    .summary {
+      background-color: #e9f7ef;
+      padding: 12px;
+      margin-bottom: 15px;
+      border-left: 4px solid #27ae60;
     }
-    .clinician-conflicts {
-      background-color: #fff0f0;
-      border-left: 4px solid #ff6b6b;
-      padding: 10px;
-      margin: 8px 0;
-      font-size: 0.9em;
+    .priority-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 15px;
+    }
+    .priority-table th, .priority-table td {
+      border: 1px solid #ddd;
+      padding: 6px;
+      text-align: left;
+    }
+    .priority-table th {
+      background-color: #e6e6e6;
     }
     .footer { 
       font-size: 12px; 
       color: #666; 
-      padding: 20px; 
+      padding: 15px; 
       text-align: center;
       border-top: 1px solid #ddd;
-    }
-    .telehealth {
-      color: #3498db;
-      font-style: italic;
     }
   </style>
 </head>
@@ -149,27 +125,36 @@ export class EmailTemplates {
     <h1>Daily Schedule: ${displayDate}</h1>
   </div>
   <div class="content">
-    <h2>Appointments</h2>
-    ${this.renderClinicianGroups(clinicianGroups, data)}
+    ${this.renderClinicianGroups(clinicianGroups, clinicianColors)}
     
-    <h2>Schedule Overview</h2>
-    <div class="stats">
-      <h3>Summary</h3>
-      <p>Total appointments: <strong>${stats.totalAppointments}</strong></p>
-      <ul>
-        <li>In-person sessions: ${stats.inPersonCount}</li>
-        <li>Telehealth sessions: ${stats.telehealthCount}</li>
-        <li>Group sessions: ${stats.groupCount}</li>
-        <li>Family sessions: ${stats.familyCount}</li>
-      </ul>
-      
-      <h3>Office Utilization</h3>
-      <ul>
-        ${Object.entries(stats.officeUtilization)
-          .map(([officeId, count]) => `<li>Office ${officeId}: ${count} appointment(s)</li>`)
-          .join('')}
-      </ul>
+    <div class="summary">
+      <strong>Summary - ${stats.totalAppointments} Total Appointments</strong>
     </div>
+    
+    <table class="priority-table">
+      <thead>
+        <tr>
+          <th>Priority</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>100</td><td>Client-Specific Requirements</td></tr>
+        <tr><td>90</td><td>Accessibility Requirements</td></tr>
+        <tr><td>80</td><td>Young Children (≤10 years)</td></tr>
+        <tr><td>75</td><td>Older Children and Teens (11-17 years)</td></tr>
+        <tr><td>70</td><td>Adult Client Assignments</td></tr>
+        <tr><td>65</td><td>Clinician's Primary Office</td></tr>
+        <tr><td>62</td><td>Clinician's Preferred Office</td></tr>
+        <tr><td>55</td><td>In-Person Priority</td></tr>
+        <tr><td>40</td><td>Telehealth to Preferred Office</td></tr>
+        <tr><td>35</td><td>Special Features Match</td></tr>
+        <tr><td>30</td><td>Alternative Clinician Office</td></tr>
+        <tr><td>20</td><td>Available Office</td></tr>
+        <tr><td>15</td><td>Break Room Last Resort</td></tr>
+        <tr><td>10</td><td>Default Telehealth</td></tr>
+      </tbody>
+    </table>
   </div>
   <div class="footer">
     <p>This report was automatically generated by Catalyst Scheduler on ${new Date().toLocaleString()}</p>
@@ -287,61 +272,30 @@ export class EmailTemplates {
    */
   private static renderClinicianGroups(
     clinicianGroups: { clinicianName: string; appointments: ProcessedAppointment[]; lastName: string }[],
-    data: DailyScheduleData
+    clinicianColors: {[key: string]: string}
   ): string {
     if (clinicianGroups.length === 0) {
       return '<p>No appointments scheduled for today.</p>';
     }
     
     return clinicianGroups.map(group => {
-      // Get conflicts for this clinician
-      const clinicianConflicts = data.conflictsByClinicianMap?.[group.clinicianName] || [];
+      // Get color for this clinician
+      const color = clinicianColors[group.clinicianName] || '#4b6cb7';
       
       return `
         <div class="clinician-section">
-          <div class="clinician-name">${group.clinicianName}</div>
+          <div class="clinician-name" style="border-left-color: ${color}">
+            <span style="color: ${color}">${group.clinicianName}</span>
+          </div>
           
-          ${clinicianConflicts.length > 0 ? this.renderClinicianConflicts(clinicianConflicts) : ''}
-          
-          <table>
-            <thead>
-              <tr>
-                <th>Time</th>
-                <th>Client</th>
-                <th>Office</th>
-                <th>Type</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${group.appointments.map(appt => this.renderAppointmentRow(appt)).join('')}
-            </tbody>
-          </table>
+          ${group.appointments.map(appt => this.renderAppointmentRow(appt)).join('')}
         </div>
       `;
     }).join('');
   }
   
   /**
-   * Render conflicts specific to a clinician
-   */
-  private static renderClinicianConflicts(conflicts: ScheduleConflict[]): string {
-    return `
-      <div class="clinician-conflicts">
-        <strong>⚠️ Scheduling Notes:</strong>
-        <ul>
-          ${conflicts.map(conflict => `
-            <li class="${conflict.severity}">
-              ${conflict.description}
-              ${conflict.resolutionSuggestion ? `<br><em>${conflict.resolutionSuggestion}</em>` : ''}
-            </li>
-          `).join('')}
-        </ul>
-      </div>
-    `;
-  }
-  
-  /**
-   * Generate HTML for an appointment row with enhanced office information
+   * Generate HTML for an appointment row with simplified format
    */
   private static renderAppointmentRow(appt: ProcessedAppointment): string {
     // Ensure formatted time is valid
@@ -349,45 +303,51 @@ export class EmailTemplates {
       appt.formattedTime : 
       this.formatTimeString(appt.startTime) + ' - ' + this.formatTimeString(appt.endTime);
     
-    // Display special requirements if any
-    const requirementsHtml = appt.hasSpecialRequirements 
-      ? `<div class="special-requirements">
-           ${appt.requirements?.accessibility ? '<div>♿ Accessibility needed</div>' : ''}
-           ${appt.requirements?.specialFeatures?.length 
-             ? `<div>🔍 Special features: ${appt.requirements.specialFeatures.join(', ')}</div>` 
-             : ''}
-           ${appt.notes ? `<div>📝 ${appt.notes}</div>` : ''}
-         </div>`
-      : '';
+    // Format time to remove duplicate AM/PM
+    const cleanFormattedTime = this.cleanupTimeFormat(formattedTime);
     
-    // Handle office change highlighting
-    const officeChangeHtml = appt.requiresOfficeChange 
-      ? `<div class="office-change-note">
-           ⚠️ <span class="office-change">Office change required</span> from ${appt.previousOffice}
-         </div>`
-      : '';
+    // Get priority number from assignment reason
+    const priorityMatch = appt.assignmentReason?.match(/\(Priority (\d+)\)/);
+    const priorityNumber = priorityMatch ? priorityMatch[1] : '';
     
-    // Display assignment reason if available
-    const assignmentReasonHtml = appt.assignmentReason
-      ? `<div class="assignment-reason">
-           ℹ️ ${appt.assignmentReason}
-         </div>`
-      : '';
+    // Handle office display with priority in parentheses
+    const officeDisplay = `Office ${appt.officeDisplay} (${priorityNumber})`;
     
-    // Add office-change class to the office cell if needed
-    const officeClass = appt.requiresOfficeChange ? ' class="office-change"' : '';
+    // Handle office change warning
+    const officeChangeWarning = appt.requiresOfficeChange 
+      ? `<span class="office-change">❗ ${officeDisplay}</span>` 
+      : officeDisplay;
     
-    // Add special class for telehealth sessions
-    const sessionTypeClass = appt.sessionType === 'telehealth' ? ' class="telehealth"' : '';
+    // Determine session type class
+    const sessionTypeClass = appt.sessionType === 'telehealth' ? 'class="telehealth"' : '';
     
     return `
-      <tr>
-        <td>${formattedTime}</td>
-        <td>${appt.clientName}${requirementsHtml}</td>
-        <td${officeClass}>${appt.officeDisplay}${officeChangeHtml}${assignmentReasonHtml}</td>
-        <td${sessionTypeClass}>${this.formatSessionType(appt.sessionType)}</td>
-      </tr>
+      <div class="appointment-row">
+        ${cleanFormattedTime}, ${appt.clientName}, ${officeChangeWarning}, <span ${sessionTypeClass}>${this.formatSessionType(appt.sessionType)}</span>
+      </div>
     `;
+  }
+  
+  /**
+   * Clean up time format to only show AM/PM once
+   */
+  private static cleanupTimeFormat(timeString: string): string {
+    // Expected format: "8:00 AM - 8:50 AM" or similar
+    const parts = timeString.split(' - ');
+    if (parts.length !== 2) return timeString;
+    
+    const startTime = parts[0].trim();
+    const endTime = parts[1].trim();
+    
+    // Check if both have AM or both have PM
+    if ((startTime.endsWith('AM') && endTime.endsWith('AM')) || 
+        (startTime.endsWith('PM') && endTime.endsWith('PM'))) {
+      // Remove AM/PM from first part
+      const startWithoutAmPm = startTime.replace(/(AM|PM)$/, '').trim();
+      return `${startWithoutAmPm} - ${endTime}`;
+    }
+    
+    return timeString;
   }
   
   /**
@@ -415,63 +375,38 @@ export class EmailTemplates {
     data: DailyScheduleData,
     clinicianGroups: { clinicianName: string; appointments: ProcessedAppointment[]; lastName: string }[]
   ): string {
-    const { displayDate, conflicts, stats } = data;
+    const { displayDate, stats } = data;
     
     let text = `DAILY SCHEDULE: ${displayDate}\n\n`;
     
     // Appointments section
-    text += `APPOINTMENTS\n\n`;
-    
     if (clinicianGroups.length === 0) {
       text += `No appointments scheduled for today.\n\n`;
     } else {
       clinicianGroups.forEach(group => {
-        text += `**${group.clinicianName}**\n`;
-        
-        // Add clinician-specific conflicts
-        const clinicianConflicts = data.conflictsByClinicianMap?.[group.clinicianName] || [];
-        if (clinicianConflicts.length > 0) {
-          text += `\nScheduling Notes:\n`;
-          clinicianConflicts.forEach(conflict => {
-            text += `* ${conflict.description}\n`;
-            if (conflict.resolutionSuggestion) {
-              text += `  - ${conflict.resolutionSuggestion}\n`;
-            }
-          });
-          text += `\n`;
-        }
+        text += `${group.clinicianName}\n`;
+        text += `${'-'.repeat(group.clinicianName.length)}\n`;
         
         group.appointments.forEach(appt => {
           // Ensure formatted time is valid
           const formattedTime = appt.formattedTime && !appt.formattedTime.includes('Invalid Date') ? 
             appt.formattedTime : 
             this.formatTimeString(appt.startTime) + ' - ' + this.formatTimeString(appt.endTime);
+          
+          // Get priority number from assignment reason
+          const priorityMatch = appt.assignmentReason?.match(/\(Priority (\d+)\)/);
+          const priorityNumber = priorityMatch ? priorityMatch[1] : '';
             
-          text += `${formattedTime} | ${appt.clientName} | ${appt.officeDisplay}`;
+          // Clean up time format
+          const cleanFormattedTime = this.cleanupTimeFormat(formattedTime);
+          
+          text += `${cleanFormattedTime}, ${appt.clientName}, Office ${appt.officeDisplay} (${priorityNumber})`;
           
           if (appt.requiresOfficeChange) {
-            text += ` (OFFICE CHANGE from ${appt.previousOffice})`;
+            text += ` !OFFICE CHANGE REQUIRED!`;
           }
           
-          text += ` | ${this.formatSessionType(appt.sessionType)}\n`;
-          
-          if (appt.assignmentReason) {
-            text += `ℹ️ ${appt.assignmentReason}\n`;
-          }
-          
-          if (appt.hasSpecialRequirements) {
-            if (appt.requirements?.accessibility) {
-              text += `  * Accessibility needed\n`;
-            }
-            if (appt.requirements?.specialFeatures?.length) {
-              text += `  * Special features: ${appt.requirements.specialFeatures.join(', ')}\n`;
-            }
-            if (appt.notes) {
-              text += `  * Notes: ${appt.notes}\n`;
-            }
-          }
-          
-          text += `\n`;
+          text += `, ${this.formatSessionType(appt.sessionType)}\n`;
         });
         
         text += `\n`;
@@ -479,19 +414,24 @@ export class EmailTemplates {
     }
     
     // Summary section
-    text += `SCHEDULE OVERVIEW\n\n`;
-    text += `Summary\n`;
-    text += `Total appointments: **${stats.totalAppointments}**\n`;
-    text += `* In-person sessions: ${stats.inPersonCount}\n`;
-    text += `* Telehealth sessions: ${stats.telehealthCount}\n`;
-    text += `* Group sessions: ${stats.groupCount}\n`;
-    text += `* Family sessions: ${stats.familyCount}\n\n`;
+    text += `Summary - ${stats.totalAppointments} Total Appointments\n\n`;
     
-    // Office utilization
-    text += `Office Utilization\n`;
-    Object.entries(stats.officeUtilization).forEach(([officeId, count]) => {
-      text += `* Office ${officeId}: ${count} appointment(s)\n`;
-    });
+    // Priority Levels
+    text += `PRIORITY LEVELS REFERENCE\n`;
+    text += `100 - Client-Specific Requirements\n`;
+    text += `90 - Accessibility Requirements\n`;
+    text += `80 - Young Children (≤10 years)\n`;
+    text += `75 - Older Children and Teens (11-17 years)\n`;
+    text += `70 - Adult Client Assignments\n`;
+    text += `65 - Clinician's Primary Office\n`;
+    text += `62 - Clinician's Preferred Office\n`;
+    text += `55 - In-Person Priority\n`;
+    text += `40 - Telehealth to Preferred Office\n`;
+    text += `35 - Special Features Match\n`;
+    text += `30 - Alternative Clinician Office\n`;
+    text += `20 - Available Office\n`;
+    text += `15 - Break Room Last Resort\n`;
+    text += `10 - Default Telehealth\n`;
     
     return text;
   }
