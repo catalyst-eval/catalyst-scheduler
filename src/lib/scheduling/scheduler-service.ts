@@ -14,6 +14,7 @@ import {
   getESTDayRange,
   getDisplayDate 
 } from '../util/date-helpers';
+import { RowMonitorService } from '../util/row-monitor';
 
 export class SchedulerService {
   private dailyScheduleService: DailyScheduleService;
@@ -22,6 +23,7 @@ export class SchedulerService {
   private scheduledTasks: cron.ScheduledTask[] = [];
   private isTaskRunning = false; // Lock to prevent multiple tasks from running simultaneously
   private taskQueue: (() => Promise<void>)[] = []; // Queue for tasks when lock is active
+  private rowMonitorService: RowMonitorService | null = null;
   
   constructor() {
     // Initialize services
@@ -70,6 +72,11 @@ export class SchedulerService {
     console.log('Daily task scheduled for 6:00 AM');
   }
 
+  public setRowMonitorService(rowMonitorService: RowMonitorService): void {
+    this.rowMonitorService = rowMonitorService;
+    console.log('Row monitor service has been set in scheduler');
+  }
+
   /**
    * Schedule weekly cleanup task
    */
@@ -105,7 +112,7 @@ export class SchedulerService {
         description: `Starting combined daily task for ${date}`,
         user: 'SYSTEM'
       });
-  
+    
       // REMOVED: Status synchronization from IntakeQ
       // Relying on webhooks for real-time updates instead
       console.log('Step 1: Skipping API sync - using webhook-driven updates');
@@ -114,7 +121,7 @@ export class SchedulerService {
       console.log('Step 2: Processing unassigned appointments');
       const assignedCount = await this.processUnassignedAppointments();
       console.log(`Processed ${assignedCount} unassigned appointments`);
-    
+      
       // 4. Resolve any scheduling conflicts
       console.log('Step 3: Resolving scheduling conflicts');
       const resolvedCount = await this.dailyScheduleService.resolveSchedulingConflicts(date);
@@ -129,6 +136,15 @@ export class SchedulerService {
       const emailSuccess = await this.generateAndSendDailyReport(date);
       console.log(`Daily report ${emailSuccess ? 'sent successfully' : 'failed to send'}`);
       
+      // NEW STEP: Run row monitoring check
+      console.log('Step 5: Running row monitoring check');
+      if (this.rowMonitorService) {
+        await this.rowMonitorService.runScheduledMonitoring();
+        console.log('Row monitoring check completed');
+      } else {
+        console.log('Row monitoring service not set, skipping check');
+      }
+      
       // Log task completion
       await this.logTaskWithRetry({
         timestamp: new Date().toISOString(),
@@ -141,7 +157,8 @@ export class SchedulerService {
           appointmentsRefreshed: 0, // No longer refreshing via timer
           unassignedProcessed: assignedCount,
           conflictsResolved: resolvedCount,
-          emailSent: emailSuccess
+          emailSent: emailSuccess,
+          rowMonitoringRun: !!this.rowMonitorService
         })
       });
       

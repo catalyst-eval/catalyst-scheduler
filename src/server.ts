@@ -46,6 +46,13 @@ initializeServices(sheetsService)
     app.locals.sheetsService = sheetsService;
     app.locals.errorRecovery = services.errorRecovery;
     app.locals.rowMonitor = services.rowMonitor;
+    
+    // Connect row monitor to scheduler
+    if (services.rowMonitor && schedulerService) {
+      schedulerService.setRowMonitorService(services.rowMonitor);
+      logger.info('Row monitor service connected to scheduler');
+    }
+    
     logger.info('Enhanced services successfully initialized');
   })
   .catch((error: unknown) => {

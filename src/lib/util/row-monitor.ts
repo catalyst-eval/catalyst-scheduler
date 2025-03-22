@@ -44,31 +44,34 @@ export class RowMonitorService {
     private readonly monitorIntervalMs = 3600000 // 1 hour
   ) {}
 
-  /**
-   * Start row count monitoring
-   */
   public startMonitoring(): void {
     if (this.monitorIntervalId !== null) {
       return; // Already started
     }
     
-    logger.info('Starting row count monitoring service');
+    logger.info('Starting row count monitoring service - ONE-TIME MODE');
     
-    // Take initial snapshot
+    // Take initial snapshot only
     this.takeSnapshot()
       .catch((error: unknown) => {
         const typedError = error instanceof Error ? error : new Error(String(error));
         logger.error('Error taking initial row count snapshot', typedError);
       });
     
-    // Schedule periodic monitoring
-    this.monitorIntervalId = setInterval(() => {
-      this.checkRowCounts()
-        .catch((error: unknown) => {
-          const typedError = error instanceof Error ? error : new Error(String(error));
-          logger.error('Error checking row counts', typedError);
-        });
-    }, this.monitorIntervalMs);
+    // DO NOT start an interval - will be called by scheduler instead
+  }
+  
+  // ADD A NEW METHOD for scheduler to call:
+  public async runScheduledMonitoring(): Promise<void> {
+    logger.info('Running scheduled row count monitoring check');
+    try {
+      await this.checkRowCounts();
+      logger.info('Scheduled row count monitoring completed');
+    } catch (error: unknown) {
+      const typedError = error instanceof Error ? error : new Error(String(error));
+      logger.error('Error in scheduled row count monitoring', typedError);
+      throw typedError; // Let the scheduler handle the error
+    }
   }
 
   /**
