@@ -153,6 +153,74 @@ export class GoogleSheetsService implements IGoogleSheetsService {
   }
 
   /**
+ * Executes a series of operations in a transaction-like manner
+ * If any operation fails, attempts to revert changes
+ */
+async executeTransaction<T>(
+  operations: () => Promise<T>,
+  rollback: () => Promise<void>,
+  description: string
+): Promise<T> {
+  let result: T;
+  let success = false;
+  
+  try {
+    // Log transaction start
+    await this.addAuditLog({
+      timestamp: new Date().toISOString(),
+      eventType: 'TRANSACTION_STARTED',
+      description: `Starting transaction: ${description}`,
+      user: 'SYSTEM'
+    });
+    
+    // Execute the operations
+    result = await operations();
+    success = true;
+    
+    // Log transaction success
+    await this.addAuditLog({
+      timestamp: new Date().toISOString(),
+      eventType: 'TRANSACTION_COMPLETED',
+      description: `Completed transaction: ${description}`,
+      user: 'SYSTEM'
+    });
+    
+    return result;
+  } catch (error) {
+    // Log transaction failure
+    await this.addAuditLog({
+      timestamp: new Date().toISOString(),
+      eventType: 'TRANSACTION_FAILED',
+      description: `Failed transaction: ${description}`,
+      user: 'SYSTEM',
+      systemNotes: error instanceof Error ? error.message : 'Unknown error'
+    });
+    
+    // Attempt rollback
+    try {
+      await rollback();
+      
+      await this.addAuditLog({
+        timestamp: new Date().toISOString(),
+        eventType: 'TRANSACTION_ROLLED_BACK',
+        description: `Rolled back transaction: ${description}`,
+        user: 'SYSTEM'
+      });
+    } catch (rollbackError) {
+      await this.addAuditLog({
+        timestamp: new Date().toISOString(),
+        eventType: 'CRITICAL_ERROR',
+        description: `Failed to rollback transaction: ${description}`,
+        user: 'SYSTEM',
+        systemNotes: rollbackError instanceof Error ? rollbackError.message : 'Unknown rollback error'
+      });
+    }
+    
+    throw error;
+  }
+}
+
+  /**
    * Get all client accessibility records
    * UPDATED: Now includes the requiredOffice field (column P)
    */
@@ -268,92 +336,93 @@ async updateWebhookStatus(webhookId: string, status: 'processing' | 'completed' 
 }
 
   /**
-   * Read data from a Google Sheet
-   */
-  private async readSheet(range: string) {
-    const cacheKey = `sheet:${range}`;
+ * Read data from a Google Sheet
+ * Now accepts an optional TTL parameter
+ */
+private async readSheet(range: string, ttl: number = 60000): Promise<any[]> {
+  const cacheKey = `sheet:${range}`;
+  
+  try {
+    return await this.cache.getOrFetch(
+      cacheKey,
+      async () => {
+        console.log(`Reading sheet range: ${range}`);
+        
+        // Parse the range into sheet name and cell range
+        const exclamationIndex = range.indexOf('!');
+        
+        if (exclamationIndex === -1) {
+          throw new Error(`Invalid range format: ${range}`);
+        }
+        
+        const sheetName = range.substring(0, exclamationIndex);
+        const cellRange = range.substring(exclamationIndex + 1);
+        
+        // Check if the sheet name matches our constants
+        const matchesConstants = Object.values(SHEET_NAMES).includes(sheetName);
+        if (!matchesConstants) {
+          console.warn(`Sheet name ${sheetName} doesn't match any constant in SHEET_NAMES. This may cause issues.`);
+        }
+        
+        // Make API request with proper error handling
+        try {
+          const response = await this.sheets.spreadsheets.values.get({
+            spreadsheetId: this.spreadsheetId,
+            range: range, // Google's API will handle the encoding
+          });
+          
+          console.log(`Successfully read sheet range: ${range} - Retrieved ${response.data.values?.length || 0} rows`);
+          return response.data.values || [];
+        } catch (apiError: unknown) {
+          console.error(`Google Sheets API error for range ${range}:`, apiError);
+          
+          // If missing sheet, provide helpful error
+          if (apiError && typeof apiError === 'object' && 'message' in apiError && 
+              typeof apiError.message === 'string' && apiError.message.includes('Unable to parse range')) {
+            console.error('This may be due to missing sheet or name format mismatch.');
+            console.error('Attempted to read from sheet name:', sheetName);
+            
+            // Try to get all sheet names for debugging
+            try {
+              const metaResponse = await this.sheets.spreadsheets.get({
+                spreadsheetId: this.spreadsheetId
+              });
+              
+              const availableSheets = metaResponse.data.sheets
+                ? metaResponse.data.sheets.map((s: any) => s.properties.title)
+                : [];
+              
+              console.error('Available sheets:', availableSheets);
+              console.error('Check for naming mismatches - expected sheet names with underscores.');
+            } catch (metaError) {
+              console.error('Failed to get sheet metadata:', metaError);
+            }
+          }
+          
+          throw apiError;
+        }
+      },
+      ttl // Use the provided TTL
+    );
+  } catch (error) {
+    console.error(`Error reading sheet ${range}:`, error);
     
     try {
-      return await this.cache.getOrFetch(
-        cacheKey,
-        async () => {
-          console.log(`Reading sheet range: ${range}`);
-          
-          // Parse the range into sheet name and cell range
-          const exclamationIndex = range.indexOf('!');
-          
-          if (exclamationIndex === -1) {
-            throw new Error(`Invalid range format: ${range}`);
-          }
-          
-          const sheetName = range.substring(0, exclamationIndex);
-          const cellRange = range.substring(exclamationIndex + 1);
-          
-          // Check if the sheet name matches our constants
-          const matchesConstants = Object.values(SHEET_NAMES).includes(sheetName);
-          if (!matchesConstants) {
-            console.warn(`Sheet name ${sheetName} doesn't match any constant in SHEET_NAMES. This may cause issues.`);
-          }
-          
-          // Make API request with proper error handling
-          try {
-            const response = await this.sheets.spreadsheets.values.get({
-              spreadsheetId: this.spreadsheetId,
-              range: range, // Google's API will handle the encoding
-            });
-            
-            console.log(`Successfully read sheet range: ${range} - Retrieved ${response.data.values?.length || 0} rows`);
-            return response.data.values || [];
-          } catch (apiError: unknown) {
-            console.error(`Google Sheets API error for range ${range}:`, apiError);
-            
-            // If missing sheet, provide helpful error
-            if (apiError && typeof apiError === 'object' && 'message' in apiError && 
-                typeof apiError.message === 'string' && apiError.message.includes('Unable to parse range')) {
-              console.error('This may be due to missing sheet or name format mismatch.');
-              console.error('Attempted to read from sheet name:', sheetName);
-              
-              // Try to get all sheet names for debugging
-              try {
-                const metaResponse = await this.sheets.spreadsheets.get({
-                  spreadsheetId: this.spreadsheetId
-                });
-                
-                const availableSheets = metaResponse.data.sheets
-                  ? metaResponse.data.sheets.map((s: any) => s.properties.title)
-                  : [];
-                
-                console.error('Available sheets:', availableSheets);
-                console.error('Check for naming mismatches - expected sheet names with underscores.');
-              } catch (metaError) {
-                console.error('Failed to get sheet metadata:', metaError);
-              }
-            }
-            
-            throw apiError;
-          }
-        },
-        60000 // 1 minute cache TTL
-      );
-    } catch (error) {
-      console.error(`Error reading sheet ${range}:`, error);
-      
-      try {
-        // Attempt to log the error, but don't throw if logging fails
-        await this.logErrorDirectly({
-          timestamp: new Date().toISOString(),
-          eventType: 'SYSTEM_ERROR',
-          description: `Failed to read sheet ${range}`,
-          user: 'SYSTEM',
-          systemNotes: error instanceof Error ? error.message : JSON.stringify(error)
-        });
-      } catch (logError) {
-        console.error('Failed to log error to audit log:', logError);
-      }
-      
-      throw new Error(`Failed to read sheet ${range}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      // Attempt to log the error, but don't throw if logging fails
+      await this.logErrorDirectly({
+        timestamp: new Date().toISOString(),
+        eventType: 'SYSTEM_ERROR',
+        description: `Failed to read sheet ${range}`,
+        user: 'SYSTEM',
+        systemNotes: error instanceof Error ? error.message : JSON.stringify(error)
+      });
+    } catch (logError) {
+      console.error('Failed to log error to audit log:', logError);
     }
+    
+    throw new Error(`Failed to read sheet ${range}: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
+}
 
   /**
    * Append rows to a Google Sheet
@@ -457,16 +526,26 @@ async updateWebhookStatus(webhookId: string, status: 'processing' | 'completed' 
   }
 
   async getOffices(): Promise<SheetOffice[]> {
+    const cacheKey = 'config:offices';
+    
+    // Check memory cache first for faster access
+    const memoryCache = this.cache.getFromMemory<SheetOffice[]>(cacheKey);
+    if (memoryCache) {
+      console.log(`Retrieved ${memoryCache.length} offices from memory cache`);
+      return memoryCache;
+    }
+    
     console.log(`Reading offices from ${SHEET_NAMES.OFFICES}!A2:M`);
     try {
-      const values = await this.readSheet(`${SHEET_NAMES.OFFICES}!A2:M`);
+      // Use longer TTL for configuration data (5 minutes)
+      const values = await this.readSheet(`${SHEET_NAMES.OFFICES}!A2:M`, 300000);
       
-      console.log(`Retrieved ${values?.length || 0} office records`);
+      console.log(`Retrieved ${values?.length || 0} office records from sheet`);
       if (values?.length === 0) {
         console.warn('No office records found in sheet!');
       }
       
-      return values?.map((row: SheetRow) => {
+      const offices = values?.map((row: SheetRow) => {
         const office = {
           officeId: row[0],
           name: row[1],
@@ -483,9 +562,13 @@ async updateWebhookStatus(webhookId: string, status: 'processing' | 'completed' 
           notes: row[12]
         };
         
-        console.log(`Mapped office: ${office.officeId}, Name: ${office.name}, Status: ${office.inService ? 'Active' : 'Inactive'}`);
         return office;
       }) ?? [];
+      
+      // Store in memory cache for faster future access
+      this.cache.setInMemory(cacheKey, offices);
+      
+      return offices;
     } catch (error) {
       console.error(`Error retrieving offices:`, error);
       return [];
@@ -1242,149 +1325,242 @@ async addAppointment(appt: AppointmentRecord): Promise<void> {
 
 /**
  * Update an appointment in both Appointments and Active_Appointments tabs
+ * Enhanced with transaction-like semantics
  */
 async updateAppointment(appointment: AppointmentRecord): Promise<void> {
+  // Keep a copy of the original appointment for potential rollback
+  let originalAppointment: AppointmentRecord | null = null;
+  
   try {
     // Normalize to ensure we have all required fields
     const normalizedAppointment = normalizeAppointmentRecord(appointment);
     
-    // Ensure both old and new field values are set
-    const currentOfficeId = standardizeOfficeId(
-      normalizedAppointment.currentOfficeId || normalizedAppointment.officeId || 'TBD'
-    );
+    // Fetch the original appointment for potential rollback
+    try {
+      originalAppointment = await this.getAppointment(normalizedAppointment.appointmentId);
+    } catch (fetchError) {
+      console.warn(`Could not fetch original appointment for potential rollback: ${fetchError}`);
+      // Continue without rollback capability
+    }
     
-    const assignedOfficeId = standardizeOfficeId(
-      normalizedAppointment.assignedOfficeId || normalizedAppointment.suggestedOfficeId || currentOfficeId || 'TBD'
-    );
+    // Execute as transaction
+    await this.executeTransaction(
+      async () => {
+        // Ensure both old and new field values are set
+        const currentOfficeId = standardizeOfficeId(
+          normalizedAppointment.currentOfficeId || normalizedAppointment.officeId || 'TBD'
+        );
+        
+        const assignedOfficeId = standardizeOfficeId(
+          normalizedAppointment.assignedOfficeId || normalizedAppointment.suggestedOfficeId || currentOfficeId || 'TBD'
+        );
 
-    // Prepare requirements JSON with error handling
-    let requirementsJson = '{"accessibility":false,"specialFeatures":[]}';
-    try {
-      if (normalizedAppointment.requirements) {
-        requirementsJson = JSON.stringify(normalizedAppointment.requirements);
-      }
-    } catch (jsonError) {
-      console.error('Error stringifying requirements, using default:', jsonError);
-    }
-
-    // Format tags as comma-separated string
-    const tagsString = normalizedAppointment.tags && normalizedAppointment.tags.length > 0 ? 
-      normalizedAppointment.tags.join(',') : '';
-
-    // Prepare row data - CORRECTED column ordering matching sheet structure
-    const rowData = [
-      normalizedAppointment.appointmentId,                     // Column A: appointmentId
-      normalizedAppointment.clientId,                          // Column B: clientId
-      normalizedAppointment.clientName,                        // Column C: clientName
-      normalizedAppointment.clientDateOfBirth || '',           // Column D: clientDateOfBirth
-      normalizedAppointment.clinicianId,                       // Column E: clinicianId
-      normalizedAppointment.clinicianName,                     // Column F: clinicianName
-      currentOfficeId,                                         // Column G: currentOfficeId
-      normalizedAppointment.sessionType,                       // Column H: sessionType
-      normalizedAppointment.startTime,                         // Column I: startTime
-      normalizedAppointment.endTime,                           // Column J: endTime
-      normalizedAppointment.status,                            // Column K: status
-      normalizedAppointment.source,                            // Column L: source
-      normalizedAppointment.lastUpdated || new Date().toISOString(), // Column M: lastUpdated
-      requirementsJson,                                        // Column N: requirements
-      normalizedAppointment.notes || '',                       // Column O: notes
-      assignedOfficeId,                                        // Column P: assignedOfficeId
-      normalizedAppointment.assignmentReason || '',            // Column Q: assignmentReason
-      tagsString                                               // Column R: tags
-    ];
-
-    // 1. First update in the main Appointments sheet
-    // Find the appointment row
-    const values = await this.readSheet(`${SHEET_NAMES.APPOINTMENTS}!A:A`);
-    const appointmentRow = values?.findIndex((row: SheetRow) => row[0] === normalizedAppointment.appointmentId);
-
-    if (!values || appointmentRow === undefined || appointmentRow < 0) {
-      throw new Error(`Appointment ${normalizedAppointment.appointmentId} not found in main Appointments sheet`);
-    }
-
-    await this.sheets.spreadsheets.values.update({
-      spreadsheetId: this.spreadsheetId,
-      range: `${SHEET_NAMES.APPOINTMENTS}!A${appointmentRow + 2}:R${appointmentRow + 2}`,
-      valueInputOption: 'RAW',
-      requestBody: {
-        values: [rowData]
-      }
-    });
-
-    // 2. Try to update in Active_Appointments sheet if it exists and if the appointment is for today
-    try {
-      // Check if Active_Appointments sheet exists
-      const activeValues = await this.readSheet(`${SHEET_NAMES.ACTIVE_APPOINTMENTS}!A:A`);
-      const activeAppointmentRow = activeValues?.findIndex((row: SheetRow) => row[0] === normalizedAppointment.appointmentId);
-      
-      // Check if the appointment is for today
-      const isForToday = this.isAppointmentForToday(normalizedAppointment);
-      
-      if (isForToday) {
-        if (activeValues && activeAppointmentRow !== undefined && activeAppointmentRow >= 0) {
-          // Update existing row in Active_Appointments
-          await this.sheets.spreadsheets.values.update({
-            spreadsheetId: this.spreadsheetId,
-            range: `${SHEET_NAMES.ACTIVE_APPOINTMENTS}!A${activeAppointmentRow + 2}:R${activeAppointmentRow + 2}`,
-            valueInputOption: 'RAW',
-            requestBody: {
-              values: [rowData]
-            }
-          });
-          console.log(`Updated appointment ${normalizedAppointment.appointmentId} in Active_Appointments at row ${activeAppointmentRow + 2}`);
-        } else if (activeValues) {
-          // Add new row to Active_Appointments
-          await this.appendRows(`${SHEET_NAMES.ACTIVE_APPOINTMENTS}!A:R`, [rowData]);
-          console.log(`Added appointment ${normalizedAppointment.appointmentId} to Active_Appointments`);
-        }
-      } else if (activeValues && activeAppointmentRow !== undefined && activeAppointmentRow >= 0) {
-        // Remove from Active_Appointments if it's not for today and is present
+        // Prepare requirements JSON with error handling
+        let requirementsJson = '{"accessibility":false,"specialFeatures":[]}';
         try {
-          // Get spreadsheet metadata to find correct sheet ID
-          const spreadsheet = await this.sheets.spreadsheets.get({
-            spreadsheetId: this.spreadsheetId
-          });
+          if (normalizedAppointment.requirements) {
+            requirementsJson = JSON.stringify(normalizedAppointment.requirements);
+          }
+        } catch (jsonError) {
+          console.error('Error stringifying requirements, using default:', jsonError);
+        }
+
+        // Format tags as comma-separated string
+        const tagsString = normalizedAppointment.tags && normalizedAppointment.tags.length > 0 ? 
+          normalizedAppointment.tags.join(',') : '';
+
+        // Prepare row data - CORRECTED column ordering matching sheet structure
+        const rowData = [
+          normalizedAppointment.appointmentId,                     // Column A: appointmentId
+          normalizedAppointment.clientId,                          // Column B: clientId
+          normalizedAppointment.clientName,                        // Column C: clientName
+          normalizedAppointment.clientDateOfBirth || '',           // Column D: clientDateOfBirth
+          normalizedAppointment.clinicianId,                       // Column E: clinicianId
+          normalizedAppointment.clinicianName,                     // Column F: clinicianName
+          currentOfficeId,                                         // Column G: currentOfficeId
+          normalizedAppointment.sessionType,                       // Column H: sessionType
+          normalizedAppointment.startTime,                         // Column I: startTime
+          normalizedAppointment.endTime,                           // Column J: endTime
+          normalizedAppointment.status,                            // Column K: status
+          normalizedAppointment.source,                            // Column L: source
+          normalizedAppointment.lastUpdated || new Date().toISOString(), // Column M: lastUpdated
+          requirementsJson,                                        // Column N: requirements
+          normalizedAppointment.notes || '',                       // Column O: notes
+          assignedOfficeId,                                        // Column P: assignedOfficeId
+          normalizedAppointment.assignmentReason || '',            // Column Q: assignmentReason
+          tagsString                                               // Column R: tags
+        ];
+
+        // 1. First update in the main Appointments sheet
+        // Find the appointment row
+        const values = await this.readSheet(`${SHEET_NAMES.APPOINTMENTS}!A:A`);
+        const appointmentRow = values?.findIndex((row: SheetRow) => row[0] === normalizedAppointment.appointmentId);
+
+        if (!values || appointmentRow === undefined || appointmentRow < 0) {
+          throw new Error(`Appointment ${normalizedAppointment.appointmentId} not found in main Appointments sheet`);
+        }
+
+        await this.sheets.spreadsheets.values.update({
+          spreadsheetId: this.spreadsheetId,
+          range: `${SHEET_NAMES.APPOINTMENTS}!A${appointmentRow + 2}:R${appointmentRow + 2}`,
+          valueInputOption: 'RAW',
+          requestBody: {
+            values: [rowData]
+          }
+        });
+
+        // 2. Try to update in Active_Appointments sheet if it exists and if the appointment is for today
+        try {
+          // Check if Active_Appointments sheet exists
+          const activeValues = await this.readSheet(`${SHEET_NAMES.ACTIVE_APPOINTMENTS}!A:A`);
+          const activeAppointmentRow = activeValues?.findIndex((row: SheetRow) => row[0] === normalizedAppointment.appointmentId);
           
-          // Find the Active_Appointments sheet
-          const activeSheet = spreadsheet.data.sheets?.find(
-            sheet => sheet.properties?.title === SHEET_NAMES.ACTIVE_APPOINTMENTS
+          // Check if the appointment is for today
+          const isForToday = this.isAppointmentForToday(normalizedAppointment);
+          
+          if (isForToday) {
+            if (activeValues && activeAppointmentRow !== undefined && activeAppointmentRow >= 0) {
+              // Update existing row in Active_Appointments
+              await this.sheets.spreadsheets.values.update({
+                spreadsheetId: this.spreadsheetId,
+                range: `${SHEET_NAMES.ACTIVE_APPOINTMENTS}!A${activeAppointmentRow + 2}:R${activeAppointmentRow + 2}`,
+                valueInputOption: 'RAW',
+                requestBody: {
+                  values: [rowData]
+                }
+              });
+              console.log(`Updated appointment ${normalizedAppointment.appointmentId} in Active_Appointments at row ${activeAppointmentRow + 2}`);
+            } else if (activeValues) {
+              // Add new row to Active_Appointments
+              await this.appendRows(`${SHEET_NAMES.ACTIVE_APPOINTMENTS}!A:R`, [rowData]);
+              console.log(`Added appointment ${normalizedAppointment.appointmentId} to Active_Appointments`);
+            }
+          } else if (activeValues && activeAppointmentRow !== undefined && activeAppointmentRow >= 0) {
+            // Remove from Active_Appointments if it's not for today and is present
+            try {
+              // Get spreadsheet metadata to find correct sheet ID
+              const spreadsheet = await this.sheets.spreadsheets.get({
+                spreadsheetId: this.spreadsheetId
+              });
+              
+              // Find the Active_Appointments sheet
+              const activeSheet = spreadsheet.data.sheets?.find(
+                sheet => sheet.properties?.title === SHEET_NAMES.ACTIVE_APPOINTMENTS
+              );
+              
+              if (activeSheet && activeSheet.properties?.sheetId !== undefined) {
+                // Delete the row
+                await this.sheets.spreadsheets.batchUpdate({
+                  spreadsheetId: this.spreadsheetId,
+                  requestBody: {
+                    requests: [{
+                      deleteDimension: {
+                        range: {
+                          sheetId: activeSheet.properties.sheetId,
+                          dimension: 'ROWS',
+                          startIndex: activeAppointmentRow + 1, // +1 for header
+                          endIndex: activeAppointmentRow + 2    // +1 for exclusive range
+                        }
+                      }
+                    }]
+                  }
+                });
+                console.log(`Removed appointment ${normalizedAppointment.appointmentId} from Active_Appointments as it's not for today`);
+              }
+            } catch (deleteError) {
+              console.warn(`Could not delete row from Active_Appointments:`, deleteError);
+            }
+          }
+        } catch (activeSheetError) {
+          // Active_Appointments sheet might not exist yet, or other error occurred
+          console.warn(`Error working with Active_Appointments sheet:`, activeSheetError);
+        }
+        
+        // Return true for successful operation (for transaction)
+        return true;
+      },
+      async () => {
+        // Rollback logic - restore original appointment if available
+        if (originalAppointment) {
+          console.log(`Rolling back appointment update for ${appointment.appointmentId}`);
+          
+          // Ensure original appointment has all required fields
+          const normalizedOriginal = normalizeAppointmentRecord(originalAppointment);
+          
+          // Prepare row data from original appointment
+          const currentOfficeId = standardizeOfficeId(
+            normalizedOriginal.currentOfficeId || normalizedOriginal.officeId || 'TBD'
           );
           
-          if (activeSheet && activeSheet.properties?.sheetId !== undefined) {
-            // Delete the row
-            await this.sheets.spreadsheets.batchUpdate({
+          const assignedOfficeId = standardizeOfficeId(
+            normalizedOriginal.assignedOfficeId || normalizedOriginal.suggestedOfficeId || currentOfficeId || 'TBD'
+          );
+          
+          // Prepare requirements JSON
+          let requirementsJson = '{"accessibility":false,"specialFeatures":[]}';
+          try {
+            if (normalizedOriginal.requirements) {
+              requirementsJson = JSON.stringify(normalizedOriginal.requirements);
+            }
+          } catch (jsonError) {
+            console.error('Error stringifying requirements during rollback, using default:', jsonError);
+          }
+          
+          // Format tags
+          const tagsString = normalizedOriginal.tags && normalizedOriginal.tags.length > 0 ? 
+            normalizedOriginal.tags.join(',') : '';
+          
+          // Create row data for rollback
+          const rollbackRowData = [
+            normalizedOriginal.appointmentId,
+            normalizedOriginal.clientId,
+            normalizedOriginal.clientName,
+            normalizedOriginal.clientDateOfBirth || '',
+            normalizedOriginal.clinicianId,
+            normalizedOriginal.clinicianName,
+            currentOfficeId,
+            normalizedOriginal.sessionType,
+            normalizedOriginal.startTime,
+            normalizedOriginal.endTime,
+            normalizedOriginal.status,
+            normalizedOriginal.source,
+            new Date().toISOString(), // Updated timestamp for rollback
+            requirementsJson,
+            (normalizedOriginal.notes || '') + '\n[ROLLBACK: Transaction failed]',
+            assignedOfficeId,
+            normalizedOriginal.assignmentReason || '',
+            tagsString
+          ];
+          
+          // Find the appointment row
+          const values = await this.readSheet(`${SHEET_NAMES.APPOINTMENTS}!A:A`);
+          const appointmentRow = values?.findIndex((row: SheetRow) => row[0] === normalizedOriginal.appointmentId);
+          
+          if (values && appointmentRow !== undefined && appointmentRow >= 0) {
+            // Update with original data
+            await this.sheets.spreadsheets.values.update({
               spreadsheetId: this.spreadsheetId,
+              range: `${SHEET_NAMES.APPOINTMENTS}!A${appointmentRow + 2}:R${appointmentRow + 2}`,
+              valueInputOption: 'RAW',
               requestBody: {
-                requests: [{
-                  deleteDimension: {
-                    range: {
-                      sheetId: activeSheet.properties.sheetId,
-                      dimension: 'ROWS',
-                      startIndex: activeAppointmentRow + 1, // +1 for header
-                      endIndex: activeAppointmentRow + 2    // +1 for exclusive range
-                    }
-                  }
-                }]
+                values: [rollbackRowData]
               }
             });
-            console.log(`Removed appointment ${normalizedAppointment.appointmentId} from Active_Appointments as it's not for today`);
+            
+            console.log(`Successfully rolled back appointment ${normalizedOriginal.appointmentId}`);
           }
-        } catch (deleteError) {
-          console.warn(`Could not delete row from Active_Appointments:`, deleteError);
         }
-      }
-    } catch (activeSheetError) {
-      // Active_Appointments sheet might not exist yet, or other error occurred
-      console.warn(`Error working with Active_Appointments sheet:`, activeSheetError);
-    }
+      },
+      `Update appointment ${normalizedAppointment.appointmentId}`
+    );
 
     await this.addAuditLog({
       timestamp: new Date().toISOString(),
       eventType: AuditEventType.APPOINTMENT_UPDATED,
       description: `Updated appointment ${appointment.appointmentId}`,
       user: 'SYSTEM',
-      previousValue: JSON.stringify(values[appointmentRow]),
-      newValue: JSON.stringify(rowData)
+      previousValue: originalAppointment ? JSON.stringify(originalAppointment) : '',
+      newValue: JSON.stringify(normalizedAppointment)
     });
 
     // Clear cache for both sheets

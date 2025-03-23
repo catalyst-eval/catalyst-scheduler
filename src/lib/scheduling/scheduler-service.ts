@@ -3,7 +3,7 @@
 import cron from 'node-cron';
 import { DailyScheduleService } from './daily-schedule-service';
 import { EmailService } from '../email/service';
-import { EmailTemplates } from '../email/templates';  // Added this import
+import { EmailTemplates } from '../email/templates';
 import { GoogleSheetsService, AuditEventType } from '../google/sheets';
 import { AppointmentSyncHandler } from '../intakeq/appointment-sync';
 import { IntakeQService } from '../intakeq/service';
@@ -16,14 +16,42 @@ import {
 } from '../util/date-helpers';
 import { RowMonitorService } from '../util/row-monitor';
 
+// Task types enum for centralized scheduling
+export enum ScheduledTaskType {
+  DAILY_REPORT = 'DAILY_REPORT',
+  WEEKLY_CLEANUP = 'WEEKLY_CLEANUP',
+  ROW_MONITORING = 'ROW_MONITORING',
+  DUPLICATE_CLEANUP = 'DUPLICATE_CLEANUP',
+  OFFICE_ASSIGNMENT = 'OFFICE_ASSIGNMENT'
+}
+
+// Task definition interface
+interface ScheduledTask {
+  type: ScheduledTaskType;
+  schedule: string; // cron expression
+  description: string;
+  lastRun?: Date;
+  enabled: boolean;
+  handler: () => Promise<void>;
+}
+
 export class SchedulerService {
+  // Core services
   private dailyScheduleService: DailyScheduleService;
   private emailService: EmailService;
   private sheetsService: GoogleSheetsService;
-  private scheduledTasks: cron.ScheduledTask[] = [];
+  
+  // Task management
+  private scheduledTasks: Map<ScheduledTaskType, {
+    task: ScheduledTask,
+    cronJob: cron.ScheduledTask
+  }> = new Map();
   private isTaskRunning = false; // Lock to prevent multiple tasks from running simultaneously
   private taskQueue: (() => Promise<void>)[] = []; // Queue for tasks when lock is active
+  
+  // Dependent services
   private rowMonitorService: RowMonitorService | null = null;
+  private appointmentSyncHandler: AppointmentSyncHandler | null = null;
   
   constructor() {
     // Initialize services
@@ -39,12 +67,56 @@ export class SchedulerService {
     try {
       console.log('Initializing scheduler service');
       
-      // Schedule daily report - 6:00 AM EST every day
-      // This single task now handles all daily processing
-      this.scheduleDailyTask();
+      // Register all scheduled tasks
+      this.registerScheduledTask({
+        type: ScheduledTaskType.DAILY_REPORT,
+        schedule: '0 6 * * *', // 6:00 AM daily
+        description: 'Generate and send daily schedule report',
+        enabled: true,
+        handler: async () => {
+          await this.combinedDailyTask();
+          // Void return, ignores the boolean
+        }
+      });
       
-      // Schedule weekly data cleanup - 3:30 AM EST on Sundays only
-      this.scheduleWeeklyCleanupTask();
+      this.registerScheduledTask({
+        type: ScheduledTaskType.WEEKLY_CLEANUP,
+        schedule: '30 3 * * 0', // 3:30 AM on Sundays
+        description: 'Perform weekly data cleanup',
+        enabled: true,
+        handler: () => this.weeklyCleanupTask()
+      });
+      
+      this.registerScheduledTask({
+        type: ScheduledTaskType.ROW_MONITORING,
+        schedule: '15 5 * * *', // 5:15 AM daily
+        description: 'Monitor row counts for changes',
+        enabled: true,
+        handler: () => this.rowMonitorService ? this.rowMonitorService.runScheduledMonitoring() : Promise.resolve()
+      });
+      
+      this.registerScheduledTask({
+        type: ScheduledTaskType.DUPLICATE_CLEANUP,
+        schedule: '45 5 * * *', // 5:45 AM daily
+        description: 'Clean up duplicate appointments',
+        enabled: true,
+        handler: async () => {
+          await this.cleanupDuplicateAppointments();
+          // Return void, not the result object
+        }
+      });
+      
+      
+      this.registerScheduledTask({
+        type: ScheduledTaskType.OFFICE_ASSIGNMENT,
+        schedule: '30 5 * * *', // 5:30 AM daily
+        description: 'Process unassigned appointments',
+        enabled: true,
+        handler: async () => {
+          await this.processUnassignedAppointments();
+          // Return void, not number
+        }
+      });
       
       console.log('Scheduler service initialized successfully');
     } catch (error) {
@@ -53,43 +125,66 @@ export class SchedulerService {
   }
 
   /**
-   * Schedule the daily task that handles all daily processing
+   * Register a scheduled task and set up its cron job
    */
-  private scheduleDailyTask(): void {
-    // Schedule for 6:00 AM EST
-    const task = cron.schedule('0 6 * * *', () => {
-      console.log('Executing daily task');
-      this.runWithLock(async () => {
-        try {
-          await this.combinedDailyTask();
-        } catch (error) {
-          console.error('Error in daily task:', error);
-        }
+  private registerScheduledTask(task: ScheduledTask): void {
+    try {
+      console.log(`Registering scheduled task: ${task.type} (${task.description})`);
+      
+      const cronJob = cron.schedule(task.schedule, () => {
+        console.log(`Executing scheduled task: ${task.type}`);
+        task.lastRun = new Date();
+        
+        this.runWithLock(async () => {
+          try {
+            await task.handler();
+          } catch (error) {
+            console.error(`Error in scheduled task ${task.type}:`, error);
+          }
+        });
       });
-    });
-    
-    this.scheduledTasks.push(task);
-    console.log('Daily task scheduled for 6:00 AM');
+      
+      this.scheduledTasks.set(task.type, { task, cronJob });
+      console.log(`Scheduled task ${task.type} registered for "${task.schedule}"`);
+    } catch (error) {
+      console.error(`Error registering scheduled task ${task.type}:`, error);
+    }
   }
 
   /**
-   * Schedule the weekly cleanup task
+   * Manual trigger for a specific task type
    */
-  private scheduleWeeklyCleanupTask(): void {
-    // Schedule for 3:30 AM EST on Sundays (day 0)
-    const task = cron.schedule('30 3 * * 0', () => {
-      console.log('Executing weekly cleanup task');
+  async runTaskManually(taskType: ScheduledTaskType): Promise<any> {
+    const taskEntry = this.scheduledTasks.get(taskType);
+    
+    if (!taskEntry) {
+      throw new Error(`Task ${taskType} not found`);
+    }
+    
+    return new Promise<any>((resolve) => {
       this.runWithLock(async () => {
         try {
-          await this.weeklyCleanupTask();
+          taskEntry.task.lastRun = new Date();
+          await taskEntry.task.handler();
+          resolve({ success: true, taskType });
         } catch (error) {
-          console.error('Error in weekly cleanup task:', error);
+          console.error(`Error in manual task execution ${taskType}:`, error);
+          resolve({ 
+            success: false, 
+            taskType,
+            error: error instanceof Error ? error.message : 'Unknown error' 
+          });
         }
       });
     });
-    
-    this.scheduledTasks.push(task);
-    console.log('Weekly cleanup task scheduled for 3:30 AM Sundays');
+  }
+
+  /**
+   * Set appointment sync handler for webhook processing
+   */
+  public setAppointmentSyncHandler(appointmentSyncHandler: AppointmentSyncHandler): void {
+    this.appointmentSyncHandler = appointmentSyncHandler;
+    console.log('Appointment sync handler has been set in scheduler');
   }
 
   /**
@@ -101,9 +196,28 @@ export class SchedulerService {
   }
 
   /**
+   * List all registered tasks with their status
+   */
+  getTasksStatus(): any[] {
+    const taskList = [];
+    
+    for (const [type, entry] of this.scheduledTasks.entries()) {
+      taskList.push({
+        type: entry.task.type,
+        description: entry.task.description,
+        schedule: entry.task.schedule,
+        enabled: entry.task.enabled,
+        lastRun: entry.task.lastRun ? entry.task.lastRun.toISOString() : null
+      });
+    }
+    
+    return taskList;
+  }
+
+  /**
    * Combined daily task for all daily processing
    */
-  async combinedDailyTask(): Promise<boolean> {
+  async combinedDailyTask(): Promise<void> {
     try {
       const date = getTodayEST();
       console.log(`Running combined daily task for ${date}`);
@@ -122,7 +236,7 @@ export class SchedulerService {
       
       // 3. Process unassigned appointments - Use getActiveAppointments for efficiency
       console.log('Step 2: Processing unassigned appointments');
-      const assignedCount = await this.processUnassignedAppointments();
+      const assignedCount = await this.processAppointmentAssignments();
       console.log(`Processed ${assignedCount} unassigned appointments`);
       
       // 4. Resolve any scheduling conflicts
@@ -164,8 +278,6 @@ export class SchedulerService {
           rowMonitoringRun: !!this.rowMonitorService
         })
       });
-      
-      return emailSuccess;
     } catch (error) {
       console.error('Error in combined daily task:', error);
       
@@ -181,8 +293,6 @@ export class SchedulerService {
       } catch (logError) {
         console.error('Failed to log error:', logError);
       }
-      
-      return false;
     }
   }
 
@@ -225,7 +335,7 @@ export class SchedulerService {
 
       // 2.5. Check and clean up duplicate appointments
       console.log('Step 3: Checking for duplicate appointments');
-      const duplicateResult = await this.cleanupDuplicateAppointments();
+      const duplicateResult = await this.performDuplicateCleanup();
       console.log(`Found ${duplicateResult.detected} appointments with duplicates, removed ${duplicateResult.removed}`);
       
       // 3. Refresh the two-week window
@@ -267,8 +377,9 @@ export class SchedulerService {
 
   /**
    * Detect and remove duplicate appointment entries
+   * This is the internal implementation that returns result data
    */
-  async cleanupDuplicateAppointments(): Promise<{
+  private async performDuplicateCleanup(): Promise<{
     detected: number;
     removed: number;
   }> {
@@ -391,6 +502,18 @@ export class SchedulerService {
     }
   }
 
+  /**
+   * Public method for cleaning up duplicates that returns void
+   */
+  async cleanupDuplicateAppointments(): Promise<void> {
+    try {
+      const result = await this.performDuplicateCleanup();
+      console.log(`Duplicate cleanup complete: ${result.detected} detected, ${result.removed} removed`);
+    } catch (error) {
+      console.error('Error in cleanupDuplicateAppointments:', error);
+    }
+  }
+
   async generateDailyScheduleOnDemand(date?: string): Promise<any> {
     const targetDate = date || getTodayEST();
     console.log(`Generating daily schedule on-demand for ${targetDate}`);
@@ -403,7 +526,7 @@ export class SchedulerService {
           
           // 2. Process unassigned appointments
           console.log('Step 2: Processing unassigned appointments');
-          const assignedCount = await this.processUnassignedAppointments();
+          const assignedCount = await this.processAppointmentAssignments();
           console.log(`Processed ${assignedCount} unassigned appointments`);
           
           // 3. Resolve any scheduling conflicts
@@ -500,99 +623,59 @@ export class SchedulerService {
   }
 
   /**
-   * Process all appointments that need office assignment from Active_Appointments
-   * More efficient version that uses Active_Appointments tab
+   * Process unassigned appointments
    */
-  async processUnassignedAppointments(): Promise<number> {
+  async processUnassignedAppointments(): Promise<void> {
     try {
-      console.log('Processing unassigned appointments from Active_Appointments');
-      
-      // 1. Get all active appointments
-      const activeAppointments = await this.sheetsService.getActiveAppointments();
-      
-      // 2. Filter to just unassigned appointments
-      const unassignedAppointments = activeAppointments.filter(appt => 
-        // Include appointments with no office ID or TBD
-        (!appt.assignedOfficeId || appt.assignedOfficeId === 'TBD') &&
-        // Exclude cancelled or completed appointments
-        appt.status !== 'cancelled' && 
-        appt.status !== 'completed' &&
-        appt.status !== 'rescheduled'
-      );
+      const count = await this.processAppointmentAssignments();
+      console.log(`Processed ${count} unassigned appointments`);
+    } catch (error) {
+      console.error('Error processing unassigned appointments:', error);
+    }
+  }
+
+  private async processAppointmentAssignments(): Promise<number> {
+    try {
+      // Get the appointments that need assignment
+      const unassignedAppointments = await this.getAppointmentsNeedingAssignment();
       
       if (unassignedAppointments.length === 0) {
-        console.log('No appointments need assignment in Active_Appointments');
+        console.log('No appointments need assignment');
         return 0;
       }
       
-      console.log(`Found ${unassignedAppointments.length} appointments needing assignment`);
+      console.log(`Found ${unassignedAppointments.length} appointments that need assignment`);
       
-      // 3. Initialize the appointment sync handler
-      const appointmentSyncHandler = new AppointmentSyncHandler(this.sheetsService);
+      // Since resolveOfficeAssignments is private, we'll use the public generateDailySchedule method
+      // This will run the office assignment logic as part of generating the schedule
+      const today = getTodayEST();
+      await this.dailyScheduleService.generateDailySchedule(today);
       
-      // 4. Process each appointment
-      let processedCount = 0;
-      const batchSize = 10;
+      // After generating the schedule, the assignments should be updated in the database
+      // Count how many appointments were successfully assigned
+      let assignedCount = 0;
       
-      for (let i = 0; i < unassignedAppointments.length; i += batchSize) {
-        const batch = unassignedAppointments.slice(i, i + batchSize);
-        
-        for (const appointment of batch) {
-          try {
-            // Convert to webhook format for processing
-            const webhookPayload = {
-              Type: 'AppointmentUpdated' as WebhookEventType,
-              ClientId: parseInt(appointment.clientId),
-              Appointment: this.convertToIntakeQFormat(appointment)
-            };
-            
-            // Process the appointment
-            const result = await appointmentSyncHandler.processAppointmentEvent(webhookPayload);
-            
-            if (result.success) {
-              processedCount++;
-              console.log(`Successfully assigned office for appointment ${appointment.appointmentId}`);
-            } else {
-              console.error(`Failed to assign office for appointment ${appointment.appointmentId}:`, result.error);
-            }
-          } catch (error) {
-            console.error(`Error processing appointment ${appointment.appointmentId}:`, error);
+      // Check which appointments now have assignments
+      for (const appointment of unassignedAppointments) {
+        try {
+          // Fetch the current state of the appointment from the database
+          const updatedAppointment = await this.sheetsService.getAppointment(appointment.appointmentId);
+          
+          // Check if it now has an office assignment
+          if (updatedAppointment && 
+              updatedAppointment.assignedOfficeId && 
+              updatedAppointment.assignedOfficeId !== 'TBD') {
+            assignedCount++;
           }
-        }
-        
-        // Add a delay between batches to avoid rate limits
-        if (i + batchSize < unassignedAppointments.length) {
-          await new Promise(resolve => setTimeout(resolve, 1000));
+        } catch (error) {
+          console.error(`Error checking assignment for appointment ${appointment.appointmentId}:`, error);
         }
       }
       
-      console.log(`Processed ${processedCount} of ${unassignedAppointments.length} appointments`);
-      
-      // 5. Log success (with retry)
-      await this.logTaskWithRetry({
-        timestamp: new Date().toISOString(),
-        eventType: AuditEventType.DAILY_ASSIGNMENTS_UPDATED,
-        description: `Processed ${processedCount} unassigned appointments`,
-        user: 'SYSTEM',
-        systemNotes: JSON.stringify({
-          total: unassignedAppointments.length,
-          processed: processedCount
-        })
-      });
-      
-      return processedCount;
+      console.log(`Successfully assigned ${assignedCount} appointments`);
+      return assignedCount;
     } catch (error) {
-      console.error('Error processing unassigned appointments:', error);
-      
-      // Log error with retry
-      await this.logTaskWithRetry({
-        timestamp: new Date().toISOString(),
-        eventType: AuditEventType.SYSTEM_ERROR,
-        description: 'Failed to process unassigned appointments',
-        user: 'SYSTEM',
-        systemNotes: error instanceof Error ? error.message : 'Unknown error'
-      });
-      
+      console.error('Error in processAppointmentAssignments:', error);
       return 0;
     }
   }
@@ -1113,7 +1196,16 @@ export class SchedulerService {
    */
   stop(): void {
     console.log('Stopping scheduler service');
-    this.scheduledTasks.forEach(task => task.stop());
-    this.scheduledTasks = [];
+    
+    // Iterate through the Map and stop each cronJob
+    for (const [type, entry] of this.scheduledTasks.entries()) {
+      if (entry.cronJob && typeof entry.cronJob.stop === 'function') {
+        entry.cronJob.stop();
+        console.log(`Stopped task: ${type}`);
+      }
+    }
+    
+    // Clear the Map (don't reassign it)
+    this.scheduledTasks.clear();
   }
 }

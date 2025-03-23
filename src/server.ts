@@ -10,6 +10,8 @@ import { initializeServices, EnhancedServices } from './lib/util/service-initial
 import { logger } from './lib/util/logger';
 import diagnosticsRoutes from './routes/maintenance/diagnostics';
 import testingRoutes from './routes/testing/office-assignments';
+import { AppointmentSyncHandler } from './lib/intakeq/appointment-sync';
+import { RowMonitorService } from './lib/util/row-monitor';
 
 // Load environment variables
 dotenv.config();
@@ -28,30 +30,44 @@ logger.info('ENV check on startup:', {
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Create application services
+// Initialize services in correct order
 const sheetsService = new GoogleSheetsService();
-
-// Initialize scheduler service
-const schedulerService = new SchedulerService();
 
 // Basic JSON parser for all routes
 app.use(express.json());
 app.use('/api/scheduling', schedulingRoutes);
 app.use('/api/testing', testingRoutes);
 
+// Initialize scheduler and make it available app-wide
+const schedulerService = new SchedulerService();
+app.locals.scheduler = schedulerService;
+app.locals.sheetsService = sheetsService;
+
 // Initialize enhanced services
 initializeServices(sheetsService)
   .then((services: EnhancedServices) => {
     // Make services available application-wide
-    app.locals.sheetsService = sheetsService;
     app.locals.errorRecovery = services.errorRecovery;
     app.locals.rowMonitor = services.rowMonitor;
     
-    // Connect row monitor to scheduler
-    if (services.rowMonitor && schedulerService) {
+    // Set up AppointmentSyncHandler with sheets service
+    const appointmentSyncHandler = new AppointmentSyncHandler(sheetsService);
+    app.locals.appointmentSyncHandler = appointmentSyncHandler;
+    
+    // Connect dependent services to scheduler
+    if (services.rowMonitor) {
       schedulerService.setRowMonitorService(services.rowMonitor);
       logger.info('Row monitor service connected to scheduler');
     }
+    
+    if (appointmentSyncHandler) {
+      schedulerService.setAppointmentSyncHandler(appointmentSyncHandler);
+      logger.info('Appointment sync handler connected to scheduler');
+    }
+    
+    // Only after all dependencies are registered, initialize the scheduler
+    schedulerService.initialize();
+    logger.info('Scheduler service initialized with all dependencies');
     
     logger.info('Enhanced services successfully initialized');
   })
@@ -70,7 +86,8 @@ app.get('/health', (req: Request, res: Response) => {
     schedulerActive: true,
     enhancedServices: {
       errorRecovery: !!app.locals.errorRecovery,
-      rowMonitor: !!app.locals.rowMonitor
+      rowMonitor: !!app.locals.rowMonitor,
+      appointmentSyncHandler: !!app.locals.appointmentSyncHandler
     }
   });
 });
@@ -83,10 +100,6 @@ app.use('/api/diagnostics', diagnosticsRoutes);
 const server = app.listen(PORT, () => {
   logger.info(`Server running on port ${PORT} in ${process.env.NODE_ENV || 'development'} mode`);
   logger.info(`Webhook endpoint available at http://localhost:${PORT}/api/webhooks/intakeq`);
-  
-  // Initialize scheduler after server starts
-  schedulerService.initialize();
-  logger.info('Scheduler service initialized');
 });
 
 // Handle graceful shutdown

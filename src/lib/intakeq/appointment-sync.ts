@@ -28,9 +28,41 @@ export class AppointmentSyncHandler {
     private readonly intakeQService?: any // Optional service for API calls
   ) {}
 
+  private activeLocks: Map<string, {timestamp: number, operation: string}> = new Map();
+  private readonly lockTimeout = 30000; // 30 seconds
+  
+  private async acquireLock(appointmentId: string, operation: string): Promise<boolean> {
+    // Check if appointment is already being processed
+    const existingLock = this.activeLocks.get(appointmentId);
+    
+    if (existingLock) {
+      // Check if lock is stale (older than timeout)
+      if (Date.now() - existingLock.timestamp > this.lockTimeout) {
+        console.warn(`Stale lock detected for appointment ${appointmentId}, operation: ${existingLock.operation}`);
+        // Release the stale lock
+        this.activeLocks.delete(appointmentId);
+      } else {
+        console.log(`Appointment ${appointmentId} is already being processed by operation: ${existingLock.operation}`);
+        return false;
+      }
+    }
+    
+    // Acquire the lock
+    this.activeLocks.set(appointmentId, {
+      timestamp: Date.now(),
+      operation
+    });
+    
+    return true;
+  }
+  
+  private releaseLock(appointmentId: string): void {
+    this.activeLocks.delete(appointmentId);
+  }
+
 /**
  * Process appointment webhook events
- * Enhanced with robust error handling and payload validation
+ * Enhanced with robust error handling, payload validation, and locking
  */
 async processAppointmentEvent(
   payload: IntakeQWebhookPayload
@@ -52,13 +84,37 @@ async processAppointmentEvent(
     };
   }
 
+  const eventType = payload.Type || payload.EventType || 'Unknown';
+  const appointmentId = payload.Appointment.Id || 'unknown';
+  const processTime = new Date().toISOString();
+  
+  // Generate a unique webhook ID
+  const webhookId = `${eventType}_${appointmentId}_${Date.now()}`;
+  
   try {
-    const eventType = payload.Type || payload.EventType || 'Unknown';
-    const appointmentId = payload.Appointment.Id || 'unknown';
-    const processTime = new Date().toISOString();
+    // Check if this webhook has already been processed (idempotency check)
+    const alreadyProcessed = await this.sheetsService.isWebhookProcessed(webhookId);
+    if (alreadyProcessed) {
+      console.log(`Webhook ${webhookId} for appointment ${appointmentId} already processed, skipping`);
+      return {
+        success: true,
+        details: {
+          appointmentId,
+          webhookId,
+          status: 'already_processed'
+        }
+      };
+    }
     
-    // Debug logging to inspect payload structure
+    // Log webhook receipt
     console.log(`Processing ${eventType} event for appointment ${appointmentId}`);
+    
+    // Log start of processing
+    await this.sheetsService.logWebhook(webhookId, 'processing', {
+      type: eventType,
+      entityId: appointmentId,
+      processTime
+    });
     
     // Create a safe copy without sensitive info for logging
     const safePayload = JSON.parse(JSON.stringify(payload));
@@ -68,90 +124,135 @@ async processAppointmentEvent(
     }
     console.log(`WEBHOOK PAYLOAD STRUCTURE for ${eventType}:`, JSON.stringify(safePayload, null, 2));
     
-    // Additional validation of appointment object structure
-    if (payload.Appointment) {
-      console.log(`Appointment fields: ${Object.keys(payload.Appointment).join(', ')}`);
-      console.log(`StartDateIso type: ${typeof payload.Appointment.StartDateIso}, value: ${payload.Appointment.StartDateIso}`);
-      console.log(`EndDateIso type: ${typeof payload.Appointment.EndDateIso}, value: ${payload.Appointment.EndDateIso}`);
-      console.log(`Status field: ${payload.Appointment.Status}`);
+    // Try to acquire lock for this appointment
+    const lockAcquired = await this.acquireLock(appointmentId, eventType);
+    if (!lockAcquired) {
+      console.log(`Could not acquire lock for appointment ${appointmentId}, will retry later`);
       
-      // Check for status value mistakenly in date fields
-      if (payload.Appointment.EndDateIso === "scheduled" || 
-          payload.Appointment.EndDateIso === "confirmed" || 
-          payload.Appointment.EndDateIso === "cancelled" || 
-          payload.Appointment.EndDateIso === "canceled") {
-        console.warn(`FIELD MISMATCH DETECTED: EndDateIso contains status value "${payload.Appointment.EndDateIso}"`);
-        payload.Appointment.EndDateIso = "";  // Clear it so we can recover
-      }
+      // Update webhook status
+      await this.sheetsService.updateWebhookStatus(webhookId, 'failed', {
+        error: 'Appointment is currently being processed by another operation',
+        retryable: true
+      });
       
-      if (payload.Appointment.StartDateIso === "scheduled" || 
-          payload.Appointment.StartDateIso === "confirmed" || 
-          payload.Appointment.StartDateIso === "cancelled" || 
-          payload.Appointment.StartDateIso === "canceled") {
-        console.warn(`FIELD MISMATCH DETECTED: StartDateIso contains status value "${payload.Appointment.StartDateIso}"`);
-        payload.Appointment.StartDateIso = "";  // Clear it so we can recover
-      }
-    }
-    
-    // Log webhook receipt with error handling
-    try {
-      await this.retryWithBackoff(() => this.sheetsService.addAuditLog({
-        timestamp: processTime,
-        eventType: 'WEBHOOK_RECEIVED',
-        description: `Received ${eventType} webhook for appointment ${appointmentId}`,
-        user: 'INTAKEQ_WEBHOOK',
-        systemNotes: JSON.stringify({
-          appointmentId: appointmentId,
-          type: eventType,
-          clientId: payload.ClientId,
-          processTime: processTime
-        })
-      }), 3);
-    } catch (logError) {
-      console.warn('Failed to log webhook receipt, continuing processing:', logError);
-    }
-
-    // For efficiency and duplicate prevention, check if this is an existing appointment before processing
-    let existingAppointment = null;
-    try {
-      existingAppointment = await this.sheetsService.getAppointment(appointmentId);
-      if (existingAppointment) {
-        console.log(`Found existing appointment ${appointmentId} in database`);
-      }
-    } catch (getError) {
-      console.warn(`Error checking if appointment ${appointmentId} exists:`, getError);
-      // Continue processing - the error handling in the specific handlers will manage this
-    }
-
-    // Special case: 'Created' event for an existing appointment
-    if (eventType.includes('Created') && existingAppointment) {
-      console.log(`Received 'Created' event for existing appointment ${appointmentId}, handling as update instead`);
-      return await this.handleAppointmentUpdate(payload.Appointment);
-    }
-
-    // Handle appointment events based on type
-    if (eventType.includes('Created')) {
-      return await this.handleNewAppointment(payload.Appointment);
-    } 
-    else if (eventType.includes('Updated') || 
-             eventType.includes('Rescheduled') || 
-             eventType.includes('Confirmed')) {
-      return await this.handleAppointmentUpdate(payload.Appointment);
-    }
-    else if (eventType.includes('Cancelled') || eventType.includes('Canceled')) {
-      return await this.handleAppointmentCancellation(payload.Appointment);
-    }
-    else if (eventType.includes('Deleted')) {
-      return await this.handleAppointmentDeletion(payload.Appointment);
-    }
-    else {
-      // Unsupported event type
-      console.warn(`Unsupported webhook event type: ${eventType}`);
       return {
         success: false,
-        error: `Unsupported event type: ${eventType}`,
-        retryable: false
+        error: `Appointment ${appointmentId} is currently being processed`,
+        retryable: true
       };
+    }
+    
+    try {
+      // Additional validation of appointment object structure
+      if (payload.Appointment) {
+        console.log(`Appointment fields: ${Object.keys(payload.Appointment).join(', ')}`);
+        console.log(`StartDateIso type: ${typeof payload.Appointment.StartDateIso}, value: ${payload.Appointment.StartDateIso}`);
+        console.log(`EndDateIso type: ${typeof payload.Appointment.EndDateIso}, value: ${payload.Appointment.EndDateIso}`);
+        console.log(`Status field: ${payload.Appointment.Status}`);
+        
+        // Check for status value mistakenly in date fields
+        if (payload.Appointment.EndDateIso === "scheduled" || 
+            payload.Appointment.EndDateIso === "confirmed" || 
+            payload.Appointment.EndDateIso === "cancelled" || 
+            payload.Appointment.EndDateIso === "canceled") {
+          console.warn(`FIELD MISMATCH DETECTED: EndDateIso contains status value "${payload.Appointment.EndDateIso}"`);
+          payload.Appointment.EndDateIso = "";  // Clear it so we can recover
+        }
+        
+        if (payload.Appointment.StartDateIso === "scheduled" || 
+            payload.Appointment.StartDateIso === "confirmed" || 
+            payload.Appointment.StartDateIso === "cancelled" || 
+            payload.Appointment.StartDateIso === "canceled") {
+          console.warn(`FIELD MISMATCH DETECTED: StartDateIso contains status value "${payload.Appointment.StartDateIso}"`);
+          payload.Appointment.StartDateIso = "";  // Clear it so we can recover
+        }
+      }
+      
+      // Log webhook receipt with error handling
+      try {
+        await this.retryWithBackoff(() => this.sheetsService.addAuditLog({
+          timestamp: processTime,
+          eventType: 'WEBHOOK_RECEIVED',
+          description: `Received ${eventType} webhook for appointment ${appointmentId}`,
+          user: 'INTAKEQ_WEBHOOK',
+          systemNotes: JSON.stringify({
+            appointmentId: appointmentId,
+            type: eventType,
+            clientId: payload.ClientId,
+            processTime: processTime
+          })
+        }), 3);
+      } catch (logError) {
+        console.warn('Failed to log webhook receipt, continuing processing:', logError);
+      }
+
+      // For efficiency and duplicate prevention, check if this is an existing appointment before processing
+      let existingAppointment = null;
+      try {
+        existingAppointment = await this.sheetsService.getAppointment(appointmentId);
+        if (existingAppointment) {
+          console.log(`Found existing appointment ${appointmentId} in database`);
+        }
+      } catch (getError) {
+        console.warn(`Error checking if appointment ${appointmentId} exists:`, getError);
+        // Continue processing - the error handling in the specific handlers will manage this
+      }
+
+      // Special case: 'Created' event for an existing appointment
+      if (eventType.includes('Created') && existingAppointment) {
+        console.log(`Received 'Created' event for existing appointment ${appointmentId}, handling as update instead`);
+        const result = await this.handleAppointmentUpdate(payload.Appointment);
+        
+        // Mark webhook as completed
+        await this.sheetsService.updateWebhookStatus(webhookId, 'completed', {
+          result: result.success ? 'success' : 'error',
+          details: result.details
+        });
+        
+        return result;
+      }
+
+      // Handle appointment events based on type
+      let result: WebhookResponse;
+      if (eventType.includes('Created')) {
+        result = await this.handleNewAppointment(payload.Appointment);
+      } 
+      else if (eventType.includes('Updated') || 
+              eventType.includes('Rescheduled') || 
+              eventType.includes('Confirmed')) {
+        result = await this.handleAppointmentUpdate(payload.Appointment);
+      }
+      else if (eventType.includes('Cancelled') || eventType.includes('Canceled')) {
+        result = await this.handleAppointmentCancellation(payload.Appointment);
+      }
+      else if (eventType.includes('Deleted')) {
+        result = await this.handleAppointmentDeletion(payload.Appointment);
+      }
+      else {
+        // Unsupported event type
+        console.warn(`Unsupported webhook event type: ${eventType}`);
+        result = {
+          success: false,
+          error: `Unsupported event type: ${eventType}`,
+          retryable: false
+        };
+      }
+      
+      // Mark webhook as completed or failed
+      if (result.success) {
+        await this.sheetsService.updateWebhookStatus(webhookId, 'completed', { details: result.details });
+      } else {
+        await this.sheetsService.updateWebhookStatus(webhookId, 'failed', { 
+          error: result.error,
+          retryable: result.retryable,
+          details: result.details
+        });
+      }
+      
+      return result;
+    } finally {
+      // Always release the lock when done
+      this.releaseLock(appointmentId);
     }
   } catch (error) {
     console.error('Appointment processing error:', error);
@@ -175,6 +276,11 @@ async processAppointmentEvent(
           systemNotes: error instanceof Error ? error.message : 'Unknown error'
         });
       }
+      
+      // Update webhook status
+      await this.sheetsService.updateWebhookStatus(webhookId, 'failed', {
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
     } catch (logError) {
       console.error('Failed to log processing error:', logError);
     }
