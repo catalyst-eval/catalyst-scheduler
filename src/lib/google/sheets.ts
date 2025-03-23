@@ -66,6 +66,9 @@ export interface IGoogleSheetsService {
     clientEmail: string;
     formResponses: Record<string, any>;
   }): Promise<void>;
+  isWebhookProcessed(webhookId: string): Promise<boolean>;
+  logWebhook(webhookId: string, status: 'processing' | 'completed' | 'failed', details?: any): Promise<void>;
+  updateWebhookStatus(webhookId: string, status: 'processing' | 'completed' | 'failed', details?: any): Promise<void>;
 }
 
 export enum AuditEventType {
@@ -96,7 +99,8 @@ const SHEET_NAMES = {
   INTEGRATION_SETTINGS: 'Integration_Settings',
   APPOINTMENTS: 'Appointments',
   ACTIVE_APPOINTMENTS: 'Active_Appointments', // New tab for today's appointments
-  AUDIT_LOG: 'Audit_Log'
+  AUDIT_LOG: 'Audit_Log',
+  WEBHOOK_LOG: 'Webhook_Log'
 };
 
 export class GoogleSheetsService implements IGoogleSheetsService {
@@ -184,6 +188,84 @@ export class GoogleSheetsService implements IGoogleSheetsService {
       return [];
     }
   }
+
+  /**
+ * Check if a webhook has already been processed
+ */
+async isWebhookProcessed(webhookId: string): Promise<boolean> {
+  try {
+    const values = await this.readSheet(`${SHEET_NAMES.WEBHOOK_LOG}!A:E`);
+    if (!values) return false;
+    
+    // Check if webhook ID exists and is marked as completed
+    const matchingRow = values.find(row => row[0] === webhookId && row[4] === 'completed');
+    return !!matchingRow;
+  } catch (error) {
+    console.error(`Error checking webhook ${webhookId} status:`, error);
+    // In case of error, assume not processed to ensure it gets handled
+    return false;
+  }
+}
+
+/**
+ * Log a new webhook entry
+ */
+async logWebhook(webhookId: string, status: 'processing' | 'completed' | 'failed', details: any = {}): Promise<void> {
+  try {
+    const rowData = [
+      webhookId,
+      new Date().toISOString(),
+      details.type || '',
+      details.entityId || '',
+      status,
+      details.retryCount || 0,
+      status === 'completed' ? new Date().toISOString() : '',
+      status === 'failed' ? JSON.stringify(details.error || '') : ''
+    ];
+
+    await this.appendRows(`${SHEET_NAMES.WEBHOOK_LOG}!A:H`, [rowData]);
+  } catch (error) {
+    console.error(`Error logging webhook ${webhookId}:`, error);
+    // Not throwing to avoid disrupting main flow
+  }
+}
+
+/**
+ * Update the status of an existing webhook entry
+ */
+async updateWebhookStatus(webhookId: string, status: 'processing' | 'completed' | 'failed', details: any = {}): Promise<void> {
+  try {
+    // Find the webhook row
+    const values = await this.readSheet(`${SHEET_NAMES.WEBHOOK_LOG}!A:A`);
+    if (!values) return;
+    
+    const rowIndex = values.findIndex(row => row[0] === webhookId);
+    if (rowIndex === -1) {
+      // If not found, log it as a new entry
+      return this.logWebhook(webhookId, status, details);
+    }
+    
+    // Update status and related fields
+    const updateData = [
+      status,
+      details.retryCount || 0,
+      status === 'completed' ? new Date().toISOString() : '',
+      status === 'failed' ? JSON.stringify(details.error || '') : ''
+    ];
+    
+    await this.sheets.spreadsheets.values.update({
+      spreadsheetId: this.spreadsheetId,
+      range: `${SHEET_NAMES.WEBHOOK_LOG}!E${rowIndex + 2}:H${rowIndex + 2}`,
+      valueInputOption: 'RAW',
+      requestBody: {
+        values: [updateData]
+      }
+    });
+  } catch (error) {
+    console.error(`Error updating webhook ${webhookId} status:`, error);
+    // Not throwing to avoid disrupting main flow
+  }
+}
 
   /**
    * Read data from a Google Sheet

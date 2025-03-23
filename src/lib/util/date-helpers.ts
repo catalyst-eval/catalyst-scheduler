@@ -79,6 +79,112 @@ export function formatESTTime(isoDateString: string): string {
 }
 
 /**
+ * Standard date format for internal storage
+ * @param date Date to format
+ * @returns ISO 8601 string
+ */
+export function standardizeDate(date: Date | string): string {
+  if (!date) return '';
+  
+  try {
+    const dateObj = typeof date === 'string' ? new Date(date) : date;
+    return dateObj.toISOString();
+  } catch (error) {
+    console.error('Error standardizing date:', error);
+    // Return original string if it's a string, or empty string
+    return typeof date === 'string' ? date : '';
+  }
+}
+
+/**
+ * Format date for display
+ * @param date Date to format
+ * @returns Formatted date string (YYYY-MM-DD HH:MM)
+ */
+export function formatDateForDisplay(date: Date | string): string {
+  if (!date) return '';
+  
+  try {
+    const dateObj = typeof date === 'string' ? new Date(date) : date;
+    
+    const year = dateObj.getFullYear();
+    const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+    const day = String(dateObj.getDate()).padStart(2, '0');
+    const hours = String(dateObj.getHours()).padStart(2, '0');
+    const minutes = String(dateObj.getMinutes()).padStart(2, '0');
+    
+    return `${year}-${month}-${day} ${hours}:${minutes}`;
+  } catch (error) {
+    console.error('Error formatting date for display:', error);
+    // Return original string if it's a string, or empty string
+    return typeof date === 'string' ? date : '';
+  }
+}
+
+/**
+ * Parse a date string in any format to a Date object
+ * @param dateStr Date string in any format
+ * @returns Date object
+ */
+export function parseAnyDate(dateStr: string): Date | null {
+  if (!dateStr) return null;
+  
+  try {
+    // Check for ISO format with T
+    if (dateStr.includes('T')) {
+      return new Date(dateStr);
+    }
+    
+    // Check for simple YYYY-MM-DD HH:MM format
+    if (dateStr.includes('-') && dateStr.includes(':')) {
+      const [datePart, timePart] = dateStr.split(' ');
+      if (datePart && timePart) {
+        const [year, month, day] = datePart.split('-').map(Number);
+        const [hours, minutes] = timePart.split(':').map(Number);
+        
+        return new Date(year, month - 1, day, hours, minutes);
+      }
+    }
+    
+    // Fallback to standard Date parsing
+    const date = new Date(dateStr);
+    if (!isNaN(date.getTime())) {
+      return date;
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Error parsing date:', error);
+    return null;
+  }
+}
+
+/**
+ * Compare two dates and check if they represent the same time
+ * (accounts for different format strings that represent the same moment)
+ */
+export function areSameDates(date1: string | Date, date2: string | Date): boolean {
+  try {
+    const d1 = typeof date1 === 'string' ? parseAnyDate(date1) : date1;
+    const d2 = typeof date2 === 'string' ? parseAnyDate(date2) : date2;
+    
+    if (!d1 || !d2) return false;
+    
+    return d1.getTime() === d2.getTime();
+  } catch (error) {
+    console.error('Error comparing dates:', error);
+    return false;
+  }
+}
+
+/**
+ * Check if a date string is valid by attempting to parse it
+ */
+export function isValidDateString(dateStr: string): boolean {
+  return parseAnyDate(dateStr) !== null;
+}
+
+/**
  * Normalize a date string to ensure consistent format and timezone
  */
 export function normalizeDateString(dateString: string): string {

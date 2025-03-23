@@ -180,6 +180,34 @@ async processWebhook(
   }
 }
 
+/**
+ * Generate a unique idempotency key based on payload content
+ */
+private generateIdempotencyKey(payload: any): string {
+  // Create a unique identifier based on payload content
+  const type = payload.Type || payload.EventType || 'Unknown';
+  let entityId = '';
+  
+  if (payload.Appointment?.Id) {
+    entityId = `appointment-${payload.Appointment.Id}`;
+  } else if (payload.IntakeId || payload.formId) {
+    entityId = `form-${payload.IntakeId || payload.formId}`;
+  }
+  
+  // Add timestamp from payload if available
+  const timestamp = payload.DateCreated || '';
+  
+  // Create a hash of the content for uniqueness
+  const contentString = JSON.stringify(payload);
+  const contentHash = require('crypto')
+    .createHash('md5')
+    .update(contentString)
+    .digest('hex')
+    .substring(0, 8); // Just use first 8 chars for brevity
+  
+  return `${type}-${entityId}-${timestamp}-${contentHash}`;
+}
+
   /**
  * Process intake form submission webhooks
  */

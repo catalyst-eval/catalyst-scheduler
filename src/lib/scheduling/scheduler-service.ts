@@ -72,16 +72,11 @@ export class SchedulerService {
     console.log('Daily task scheduled for 6:00 AM');
   }
 
-  public setRowMonitorService(rowMonitorService: RowMonitorService): void {
-    this.rowMonitorService = rowMonitorService;
-    console.log('Row monitor service has been set in scheduler');
-  }
-
   /**
-   * Schedule weekly cleanup task
+   * Schedule the weekly cleanup task
    */
   private scheduleWeeklyCleanupTask(): void {
-    // Schedule for 3:30 AM EST on Sundays
+    // Schedule for 3:30 AM EST on Sundays (day 0)
     const task = cron.schedule('30 3 * * 0', () => {
       console.log('Executing weekly cleanup task');
       this.runWithLock(async () => {
@@ -94,12 +89,20 @@ export class SchedulerService {
     });
     
     this.scheduledTasks.push(task);
-    console.log('Weekly cleanup task scheduled for 3:30 AM on Sundays');
+    console.log('Weekly cleanup task scheduled for 3:30 AM Sundays');
   }
 
   /**
- * Modified combinedDailyTask method that skips the appointment refresh
- */
+   * Set row monitor service
+   */
+  public setRowMonitorService(rowMonitorService: RowMonitorService): void {
+    this.rowMonitorService = rowMonitorService;
+    console.log('Row monitor service has been set in scheduler');
+  }
+
+  /**
+   * Combined daily task for all daily processing
+   */
   async combinedDailyTask(): Promise<boolean> {
     try {
       const date = getTodayEST();
@@ -183,6 +186,211 @@ export class SchedulerService {
     }
   }
 
+  /**
+   * Weekly cleanup task that handles maintenance operations
+   * Updated to include client accessibility data cleanup
+   */
+  async weeklyCleanupTask(): Promise<void> {
+    try {
+      console.log('Running weekly cleanup task');
+      
+      // Log task start
+      await this.logTaskWithRetry({
+        timestamp: new Date().toISOString(),
+        eventType: AuditEventType.INTEGRATION_UPDATED,
+        description: 'Starting weekly cleanup task',
+        user: 'SYSTEM'
+      });
+      
+      // 1. Clean up old appointments
+      console.log('Step 1: Cleaning up old appointments');
+      const deletedCount = await this.cleanupOldAppointments();
+      console.log(`Cleaned up ${deletedCount} old appointments`);
+      
+      // 2. Clean up empty rows
+      console.log('Step 2: Cleaning up empty rows');
+      const { removed, errors } = await this.cleanEmptyRows();
+      console.log(`Removed ${removed} empty rows with ${errors} errors`);
+      
+      // NEW: Clean up default client accessibility records
+      console.log('Step 2.5: Cleaning up default client accessibility records');
+      let accessibilityRemoved = 0;
+      try {
+        // Cast to any to access the new method
+        accessibilityRemoved = await (this.sheetsService as any).cleanupDefaultClientAccessibility();
+        console.log(`Cleaned up ${accessibilityRemoved} default client accessibility records`);
+      } catch (cleanupError) {
+        console.error('Error cleaning up default client accessibility records:', cleanupError);
+      }
+
+      // 2.5. Check and clean up duplicate appointments
+      console.log('Step 3: Checking for duplicate appointments');
+      const duplicateResult = await this.cleanupDuplicateAppointments();
+      console.log(`Found ${duplicateResult.detected} appointments with duplicates, removed ${duplicateResult.removed}`);
+      
+      // 3. Refresh the two-week window
+      console.log('Step 4: Refreshing two-week window');
+      const windowResult = await this.refreshTwoWeekWindow();
+      console.log(`Two-week window refresh: ${windowResult.removed} removed, ${windowResult.preserved} preserved`);
+      
+      // Log task completion
+      await this.logTaskWithRetry({
+        timestamp: new Date().toISOString(),
+        eventType: AuditEventType.INTEGRATION_UPDATED,
+        description: 'Completed weekly cleanup task',
+        user: 'SYSTEM',
+        systemNotes: JSON.stringify({
+          appointmentsDeleted: deletedCount,
+          emptyRowsRemoved: removed,
+          accessibilityRecordsRemoved: accessibilityRemoved,
+          duplicatesRemoved: duplicateResult.removed,
+          windowRefresh: windowResult
+        })
+      });
+    } catch (error) {
+      console.error('Error in weekly cleanup task:', error);
+      
+      // Log error
+      try {
+        await this.logTaskWithRetry({
+          timestamp: new Date().toISOString(),
+          eventType: AuditEventType.SYSTEM_ERROR,
+          description: 'Error in weekly cleanup task',
+          user: 'SYSTEM',
+          systemNotes: error instanceof Error ? error.message : 'Unknown error'
+        });
+      } catch (logError) {
+        console.error('Failed to log error:', logError);
+      }
+    }
+  }
+
+  /**
+   * Detect and remove duplicate appointment entries
+   */
+  async cleanupDuplicateAppointments(): Promise<{
+    detected: number;
+    removed: number;
+  }> {
+    try {
+      console.log('Checking for duplicate appointment entries');
+      
+      // Get all appointments
+      const allAppointments = await this.sheetsService.getAllAppointments();
+      
+      // Track appointment IDs and which ones are duplicates
+      const appointmentIds = new Map<string, number[]>(); // appointmentId -> array of row indices
+      const duplicates: {appointmentId: string, indices: number[]}[] = [];
+      
+      // Find duplicates
+      allAppointments.forEach((appt, index) => {
+        if (!appt.appointmentId) return; // Skip if no ID
+        
+        if (!appointmentIds.has(appt.appointmentId)) {
+          appointmentIds.set(appt.appointmentId, [index]);
+        } else {
+          const indices = appointmentIds.get(appt.appointmentId) || [];
+          indices.push(index);
+          appointmentIds.set(appt.appointmentId, indices);
+          
+          // If this is the first duplicate found for this ID, add to duplicates list
+          if (indices.length === 2) {
+            duplicates.push({
+              appointmentId: appt.appointmentId,
+              indices: [...indices]
+            });
+          } else if (indices.length > 2) {
+            // Update existing duplicate entry
+            const dupEntry = duplicates.find(d => d.appointmentId === appt.appointmentId);
+            if (dupEntry) {
+              dupEntry.indices.push(index);
+            }
+          }
+        }
+      });
+      
+      console.log(`Found ${duplicates.length} appointments with duplicates`);
+      
+      if (duplicates.length === 0) {
+        return { detected: 0, removed: 0 };
+      }
+      
+      // Log the duplicates found
+      await this.logTaskWithRetry({
+        timestamp: new Date().toISOString(),
+        eventType: AuditEventType.INTEGRATION_UPDATED,
+        description: `Detected ${duplicates.length} duplicate appointments`,
+        user: 'SYSTEM',
+        systemNotes: JSON.stringify({
+          duplicateIds: duplicates.map(d => d.appointmentId)
+        })
+      });
+      
+      // Remove duplicates (keeping the most recently updated one)
+      let removedCount = 0;
+      
+      for (const duplicate of duplicates) {
+        try {
+          // Get full appointment objects for each duplicate
+          const duplicateAppointments = duplicate.indices.map(idx => allAppointments[idx]);
+          
+          // Sort by lastUpdated (most recent first)
+          duplicateAppointments.sort((a, b) => {
+            const dateA = new Date(a.lastUpdated || '');
+            const dateB = new Date(b.lastUpdated || '');
+            return dateB.getTime() - dateA.getTime();
+          });
+          
+          // Keep the most recent one, delete the others
+          const keepAppointment = duplicateAppointments[0];
+          const deleteAppointments = duplicateAppointments.slice(1);
+          
+          console.log(`Keeping appointment ${keepAppointment.appointmentId} from ${keepAppointment.lastUpdated}`);
+          
+          // Delete duplicates
+          for (const deleteAppt of deleteAppointments) {
+            await this.sheetsService.deleteAppointment(deleteAppt.appointmentId);
+            removedCount++;
+            
+            console.log(`Removed duplicate appointment ${deleteAppt.appointmentId} from ${deleteAppt.lastUpdated}`);
+          }
+        } catch (error) {
+          console.error(`Error removing duplicates for appointment ${duplicate.appointmentId}:`, error);
+        }
+      }
+      
+      // Log completion
+      await this.logTaskWithRetry({
+        timestamp: new Date().toISOString(),
+        eventType: AuditEventType.INTEGRATION_UPDATED,
+        description: `Removed ${removedCount} duplicate appointments`,
+        user: 'SYSTEM',
+        systemNotes: JSON.stringify({
+          detected: duplicates.length,
+          removed: removedCount
+        })
+      });
+      
+      return {
+        detected: duplicates.length,
+        removed: removedCount
+      };
+    } catch (error) {
+      console.error('Error cleaning up duplicate appointments:', error);
+      
+      // Log error with retry
+      await this.logTaskWithRetry({
+        timestamp: new Date().toISOString(),
+        eventType: AuditEventType.SYSTEM_ERROR,
+        description: 'Failed to clean up duplicate appointments',
+        user: 'SYSTEM',
+        systemNotes: error instanceof Error ? error.message : 'Unknown error'
+      });
+      
+      return { detected: 0, removed: 0 };
+    }
+  }
+
   async generateDailyScheduleOnDemand(date?: string): Promise<any> {
     const targetDate = date || getTodayEST();
     console.log(`Generating daily schedule on-demand for ${targetDate}`);
@@ -230,211 +438,6 @@ export class SchedulerService {
       });
     });
   }
-
-  /**
- * Weekly cleanup task that handles maintenance operations
- * Updated to include client accessibility data cleanup
- */
-async weeklyCleanupTask(): Promise<void> {
-  try {
-    console.log('Running weekly cleanup task');
-    
-    // Log task start
-    await this.logTaskWithRetry({
-      timestamp: new Date().toISOString(),
-      eventType: AuditEventType.INTEGRATION_UPDATED,
-      description: 'Starting weekly cleanup task',
-      user: 'SYSTEM'
-    });
-    
-    // 1. Clean up old appointments
-    console.log('Step 1: Cleaning up old appointments');
-    const deletedCount = await this.cleanupOldAppointments();
-    console.log(`Cleaned up ${deletedCount} old appointments`);
-    
-    // 2. Clean up empty rows
-    console.log('Step 2: Cleaning up empty rows');
-    const { removed, errors } = await this.cleanEmptyRows();
-    console.log(`Removed ${removed} empty rows with ${errors} errors`);
-    
-    // NEW: Clean up default client accessibility records
-    console.log('Step 2.5: Cleaning up default client accessibility records');
-    let accessibilityRemoved = 0;
-    try {
-      // Cast to any to access the new method
-      accessibilityRemoved = await (this.sheetsService as any).cleanupDefaultClientAccessibility();
-      console.log(`Cleaned up ${accessibilityRemoved} default client accessibility records`);
-    } catch (cleanupError) {
-      console.error('Error cleaning up default client accessibility records:', cleanupError);
-    }
-
-    // 2.5. Check and clean up duplicate appointments
-    console.log('Step 3: Checking for duplicate appointments');
-    const duplicateResult = await this.cleanupDuplicateAppointments();
-    console.log(`Found ${duplicateResult.detected} appointments with duplicates, removed ${duplicateResult.removed}`);
-    
-    // 3. Refresh the two-week window
-    console.log('Step 4: Refreshing two-week window');
-    const windowResult = await this.refreshTwoWeekWindow();
-    console.log(`Two-week window refresh: ${windowResult.removed} removed, ${windowResult.preserved} preserved`);
-    
-    // Log task completion
-    await this.logTaskWithRetry({
-      timestamp: new Date().toISOString(),
-      eventType: AuditEventType.INTEGRATION_UPDATED,
-      description: 'Completed weekly cleanup task',
-      user: 'SYSTEM',
-      systemNotes: JSON.stringify({
-        appointmentsDeleted: deletedCount,
-        emptyRowsRemoved: removed,
-        accessibilityRecordsRemoved: accessibilityRemoved,
-        duplicatesRemoved: duplicateResult.removed,
-        windowRefresh: windowResult
-      })
-    });
-  } catch (error) {
-    console.error('Error in weekly cleanup task:', error);
-    
-    // Log error
-    try {
-      await this.logTaskWithRetry({
-        timestamp: new Date().toISOString(),
-        eventType: AuditEventType.SYSTEM_ERROR,
-        description: 'Error in weekly cleanup task',
-        user: 'SYSTEM',
-        systemNotes: error instanceof Error ? error.message : 'Unknown error'
-      });
-    } catch (logError) {
-      console.error('Failed to log error:', logError);
-    }
-  }
-}
-
-  /**
- * Detect and remove duplicate appointment entries
- */
-async cleanupDuplicateAppointments(): Promise<{
-  detected: number;
-  removed: number;
-}> {
-  try {
-    console.log('Checking for duplicate appointment entries');
-    
-    // Get all appointments
-    const allAppointments = await this.sheetsService.getAllAppointments();
-    
-    // Track appointment IDs and which ones are duplicates
-    const appointmentIds = new Map<string, number[]>(); // appointmentId -> array of row indices
-    const duplicates: {appointmentId: string, indices: number[]}[] = [];
-    
-    // Find duplicates
-    allAppointments.forEach((appt, index) => {
-      if (!appt.appointmentId) return; // Skip if no ID
-      
-      if (!appointmentIds.has(appt.appointmentId)) {
-        appointmentIds.set(appt.appointmentId, [index]);
-      } else {
-        const indices = appointmentIds.get(appt.appointmentId) || [];
-        indices.push(index);
-        appointmentIds.set(appt.appointmentId, indices);
-        
-        // If this is the first duplicate found for this ID, add to duplicates list
-        if (indices.length === 2) {
-          duplicates.push({
-            appointmentId: appt.appointmentId,
-            indices: [...indices]
-          });
-        } else if (indices.length > 2) {
-          // Update existing duplicate entry
-          const dupEntry = duplicates.find(d => d.appointmentId === appt.appointmentId);
-          if (dupEntry) {
-            dupEntry.indices.push(index);
-          }
-        }
-      }
-    });
-    
-    console.log(`Found ${duplicates.length} appointments with duplicates`);
-    
-    if (duplicates.length === 0) {
-      return { detected: 0, removed: 0 };
-    }
-    
-    // Log the duplicates found
-    await this.logTaskWithRetry({
-      timestamp: new Date().toISOString(),
-      eventType: AuditEventType.INTEGRATION_UPDATED,
-      description: `Detected ${duplicates.length} duplicate appointments`,
-      user: 'SYSTEM',
-      systemNotes: JSON.stringify({
-        duplicateIds: duplicates.map(d => d.appointmentId)
-      })
-    });
-    
-    // Remove duplicates (keeping the most recently updated one)
-    let removedCount = 0;
-    
-    for (const duplicate of duplicates) {
-      try {
-        // Get full appointment objects for each duplicate
-        const duplicateAppointments = duplicate.indices.map(idx => allAppointments[idx]);
-        
-        // Sort by lastUpdated (most recent first)
-        duplicateAppointments.sort((a, b) => {
-          const dateA = new Date(a.lastUpdated || '');
-          const dateB = new Date(b.lastUpdated || '');
-          return dateB.getTime() - dateA.getTime();
-        });
-        
-        // Keep the most recent one, delete the others
-        const keepAppointment = duplicateAppointments[0];
-        const deleteAppointments = duplicateAppointments.slice(1);
-        
-        console.log(`Keeping appointment ${keepAppointment.appointmentId} from ${keepAppointment.lastUpdated}`);
-        
-        // Delete duplicates
-        for (const deleteAppt of deleteAppointments) {
-          await this.sheetsService.deleteAppointment(deleteAppt.appointmentId);
-          removedCount++;
-          
-          console.log(`Removed duplicate appointment ${deleteAppt.appointmentId} from ${deleteAppt.lastUpdated}`);
-        }
-      } catch (error) {
-        console.error(`Error removing duplicates for appointment ${duplicate.appointmentId}:`, error);
-      }
-    }
-    
-    // Log completion
-    await this.logTaskWithRetry({
-      timestamp: new Date().toISOString(),
-      eventType: AuditEventType.INTEGRATION_UPDATED,
-      description: `Removed ${removedCount} duplicate appointments`,
-      user: 'SYSTEM',
-      systemNotes: JSON.stringify({
-        detected: duplicates.length,
-        removed: removedCount
-      })
-    });
-    
-    return {
-      detected: duplicates.length,
-      removed: removedCount
-    };
-  } catch (error) {
-    console.error('Error cleaning up duplicate appointments:', error);
-    
-    // Log error with retry
-    await this.logTaskWithRetry({
-      timestamp: new Date().toISOString(),
-      eventType: AuditEventType.SYSTEM_ERROR,
-      description: 'Failed to clean up duplicate appointments',
-      user: 'SYSTEM',
-      systemNotes: error instanceof Error ? error.message : 'Unknown error'
-    });
-    
-    return { detected: 0, removed: 0 };
-  }
-}
 
   /**
    * Get appointments that need assignment
@@ -497,102 +500,102 @@ async cleanupDuplicateAppointments(): Promise<{
   }
 
   /**
- * Process all appointments that need office assignment from Active_Appointments
- * More efficient version that uses Active_Appointments tab
- */
-async processUnassignedAppointments(): Promise<number> {
-  try {
-    console.log('Processing unassigned appointments from Active_Appointments');
-    
-    // 1. Get all active appointments
-    const activeAppointments = await this.sheetsService.getActiveAppointments();
-    
-    // 2. Filter to just unassigned appointments
-    const unassignedAppointments = activeAppointments.filter(appt => 
-      // Include appointments with no office ID or TBD
-      (!appt.assignedOfficeId || appt.assignedOfficeId === 'TBD') &&
-      // Exclude cancelled or completed appointments
-      appt.status !== 'cancelled' && 
-      appt.status !== 'completed' &&
-      appt.status !== 'rescheduled'
-    );
-    
-    if (unassignedAppointments.length === 0) {
-      console.log('No appointments need assignment in Active_Appointments');
-      return 0;
-    }
-    
-    console.log(`Found ${unassignedAppointments.length} appointments needing assignment`);
-    
-    // 3. Initialize the appointment sync handler
-    const appointmentSyncHandler = new AppointmentSyncHandler(this.sheetsService);
-    
-    // 4. Process each appointment
-    let processedCount = 0;
-    const batchSize = 10;
-    
-    for (let i = 0; i < unassignedAppointments.length; i += batchSize) {
-      const batch = unassignedAppointments.slice(i, i + batchSize);
+   * Process all appointments that need office assignment from Active_Appointments
+   * More efficient version that uses Active_Appointments tab
+   */
+  async processUnassignedAppointments(): Promise<number> {
+    try {
+      console.log('Processing unassigned appointments from Active_Appointments');
       
-      for (const appointment of batch) {
-        try {
-          // Convert to webhook format for processing
-          const webhookPayload = {
-            Type: 'AppointmentUpdated' as WebhookEventType,
-            ClientId: parseInt(appointment.clientId),
-            Appointment: this.convertToIntakeQFormat(appointment)
-          };
-          
-          // Process the appointment
-          const result = await appointmentSyncHandler.processAppointmentEvent(webhookPayload);
-          
-          if (result.success) {
-            processedCount++;
-            console.log(`Successfully assigned office for appointment ${appointment.appointmentId}`);
-          } else {
-            console.error(`Failed to assign office for appointment ${appointment.appointmentId}:`, result.error);
+      // 1. Get all active appointments
+      const activeAppointments = await this.sheetsService.getActiveAppointments();
+      
+      // 2. Filter to just unassigned appointments
+      const unassignedAppointments = activeAppointments.filter(appt => 
+        // Include appointments with no office ID or TBD
+        (!appt.assignedOfficeId || appt.assignedOfficeId === 'TBD') &&
+        // Exclude cancelled or completed appointments
+        appt.status !== 'cancelled' && 
+        appt.status !== 'completed' &&
+        appt.status !== 'rescheduled'
+      );
+      
+      if (unassignedAppointments.length === 0) {
+        console.log('No appointments need assignment in Active_Appointments');
+        return 0;
+      }
+      
+      console.log(`Found ${unassignedAppointments.length} appointments needing assignment`);
+      
+      // 3. Initialize the appointment sync handler
+      const appointmentSyncHandler = new AppointmentSyncHandler(this.sheetsService);
+      
+      // 4. Process each appointment
+      let processedCount = 0;
+      const batchSize = 10;
+      
+      for (let i = 0; i < unassignedAppointments.length; i += batchSize) {
+        const batch = unassignedAppointments.slice(i, i + batchSize);
+        
+        for (const appointment of batch) {
+          try {
+            // Convert to webhook format for processing
+            const webhookPayload = {
+              Type: 'AppointmentUpdated' as WebhookEventType,
+              ClientId: parseInt(appointment.clientId),
+              Appointment: this.convertToIntakeQFormat(appointment)
+            };
+            
+            // Process the appointment
+            const result = await appointmentSyncHandler.processAppointmentEvent(webhookPayload);
+            
+            if (result.success) {
+              processedCount++;
+              console.log(`Successfully assigned office for appointment ${appointment.appointmentId}`);
+            } else {
+              console.error(`Failed to assign office for appointment ${appointment.appointmentId}:`, result.error);
+            }
+          } catch (error) {
+            console.error(`Error processing appointment ${appointment.appointmentId}:`, error);
           }
-        } catch (error) {
-          console.error(`Error processing appointment ${appointment.appointmentId}:`, error);
+        }
+        
+        // Add a delay between batches to avoid rate limits
+        if (i + batchSize < unassignedAppointments.length) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
         }
       }
       
-      // Add a delay between batches to avoid rate limits
-      if (i + batchSize < unassignedAppointments.length) {
-        await new Promise(resolve => setTimeout(resolve, 1000));
-      }
+      console.log(`Processed ${processedCount} of ${unassignedAppointments.length} appointments`);
+      
+      // 5. Log success (with retry)
+      await this.logTaskWithRetry({
+        timestamp: new Date().toISOString(),
+        eventType: AuditEventType.DAILY_ASSIGNMENTS_UPDATED,
+        description: `Processed ${processedCount} unassigned appointments`,
+        user: 'SYSTEM',
+        systemNotes: JSON.stringify({
+          total: unassignedAppointments.length,
+          processed: processedCount
+        })
+      });
+      
+      return processedCount;
+    } catch (error) {
+      console.error('Error processing unassigned appointments:', error);
+      
+      // Log error with retry
+      await this.logTaskWithRetry({
+        timestamp: new Date().toISOString(),
+        eventType: AuditEventType.SYSTEM_ERROR,
+        description: 'Failed to process unassigned appointments',
+        user: 'SYSTEM',
+        systemNotes: error instanceof Error ? error.message : 'Unknown error'
+      });
+      
+      return 0;
     }
-    
-    console.log(`Processed ${processedCount} of ${unassignedAppointments.length} appointments`);
-    
-    // 5. Log success (with retry)
-    await this.logTaskWithRetry({
-      timestamp: new Date().toISOString(),
-      eventType: AuditEventType.DAILY_ASSIGNMENTS_UPDATED,
-      description: `Processed ${processedCount} unassigned appointments`,
-      user: 'SYSTEM',
-      systemNotes: JSON.stringify({
-        total: unassignedAppointments.length,
-        processed: processedCount
-      })
-    });
-    
-    return processedCount;
-  } catch (error) {
-    console.error('Error processing unassigned appointments:', error);
-    
-    // Log error with retry
-    await this.logTaskWithRetry({
-      timestamp: new Date().toISOString(),
-      eventType: AuditEventType.SYSTEM_ERROR,
-      description: 'Failed to process unassigned appointments',
-      user: 'SYSTEM',
-      systemNotes: error instanceof Error ? error.message : 'Unknown error'
-    });
-    
-    return 0;
   }
-}
 
   /**
    * Generate and send the daily schedule report

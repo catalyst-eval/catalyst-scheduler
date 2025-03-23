@@ -44,7 +44,10 @@ export class RowMonitorService {
     private readonly monitorIntervalMs = 3600000 // 1 hour
   ) {}
 
-  public startMonitoring(): void {
+  /**
+ * Start row count monitoring
+ */
+public startMonitoring(): void {
     if (this.monitorIntervalId !== null) {
       return; // Already started
     }
@@ -61,7 +64,9 @@ export class RowMonitorService {
     // DO NOT start an interval - will be called by scheduler instead
   }
   
-  // ADD A NEW METHOD for scheduler to call:
+  /**
+   * Run scheduled row count monitoring
+   */
   public async runScheduledMonitoring(): Promise<void> {
     logger.info('Running scheduled row count monitoring check');
     try {

@@ -18,42 +18,43 @@ export interface EnhancedServices {
  * Initialize all utility services
  * This provides a single point to start up all the enhancement services
  */
+// Modify initializeServices to set row monitoring correctly
 export async function initializeServices(sheetsService: IGoogleSheetsService): Promise<EnhancedServices> {
-    logger.info('Initializing enhanced services');
+  logger.info('Initializing enhanced services');
+  
+  // Create services
+  const errorRecovery = new ErrorRecoveryService(sheetsService);
+  const rowMonitor = new RowMonitorService(sheetsService);
+  
+  try {
+    // Run sheet verification at startup
+    logger.info('Running sheet structure verification');
+    const verificationResult = await runSheetVerification();
     
-    // Create services
-    const errorRecovery = new ErrorRecoveryService(sheetsService);
-    const rowMonitor = new RowMonitorService(sheetsService);
-    
-    try {
-      // Run sheet verification at startup
-      logger.info('Running sheet structure verification');
-      const verificationResult = await runSheetVerification();
-      
-      if (!verificationResult.verified) {
-        logger.warn('Sheet structure verification failed - see logs for details');
-      }
-      
-      // Start error recovery service
-      logger.info('Starting error recovery service');
-      errorRecovery.startRecovery();
-      
-      // Initialize row monitoring but DO NOT start automatic monitoring
-      logger.info('Initializing row monitoring service (scheduled mode)');
-      rowMonitor.startMonitoring(); // This will now only take an initial snapshot without intervals
-      
-      logger.info('Enhanced services successfully initialized');
-      
-      return {
-        errorRecovery,
-        rowMonitor
-      };
-    } catch (error: unknown) {
-      const typedError = error instanceof Error ? error : new Error(String(error));
-      logger.error('Error initializing enhanced services', typedError);
-      throw typedError;
+    if (!verificationResult.verified) {
+      logger.warn('Sheet structure verification failed - see logs for details');
     }
+    
+    // Start error recovery service
+    logger.info('Starting error recovery service');
+    errorRecovery.startRecovery();
+    
+    // Initialize row monitoring but DO NOT start automatic monitoring
+    logger.info('Initializing row monitoring service (scheduled mode)');
+    rowMonitor.startMonitoring(); // This will now only take an initial snapshot without intervals
+    
+    logger.info('Enhanced services successfully initialized');
+    
+    return {
+      errorRecovery,
+      rowMonitor
+    };
+  } catch (error: unknown) {
+    const typedError = error instanceof Error ? error : new Error(String(error));
+    logger.error('Error initializing enhanced services', typedError);
+    throw typedError;
   }
+}
 
 /**
  * Enhanced wrapper for deleteAppointment that includes verification and recovery
