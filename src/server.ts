@@ -6,7 +6,7 @@ import { validateIntakeQWebhook } from './middleware/verify-signature';
 import { SchedulerService } from './lib/scheduling/scheduler-service';
 import schedulingRoutes from './routes/scheduling';
 import { GoogleSheetsService } from './lib/google/sheets';
-import { initializeServices, EnhancedServices } from './lib/util/service-initializer';
+import { initializeServices, ServiceContainer } from './lib/util/service-initializer';
 import { logger } from './lib/util/logger';
 import diagnosticsRoutes from './routes/maintenance/diagnostics';
 import testingRoutes from './routes/testing/office-assignments';
@@ -30,9 +30,6 @@ logger.info('ENV check on startup:', {
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Initialize services in correct order
-const sheetsService = new GoogleSheetsService();
-
 // Basic JSON parser for all routes
 app.use(express.json());
 app.use('/api/scheduling', schedulingRoutes);
@@ -41,40 +38,48 @@ app.use('/api/testing', testingRoutes);
 // Initialize scheduler and make it available app-wide
 const schedulerService = new SchedulerService();
 app.locals.scheduler = schedulerService;
-app.locals.sheetsService = sheetsService;
 
-// Initialize enhanced services
-initializeServices(sheetsService)
-  .then((services: EnhancedServices) => {
-    // Make services available application-wide
-    app.locals.errorRecovery = services.errorRecovery;
-    app.locals.rowMonitor = services.rowMonitor;
-    
-    // Set up AppointmentSyncHandler with sheets service
-    const appointmentSyncHandler = new AppointmentSyncHandler(sheetsService);
-    app.locals.appointmentSyncHandler = appointmentSyncHandler;
-    
-    // Connect dependent services to scheduler
-    if (services.rowMonitor) {
-      schedulerService.setRowMonitorService(services.rowMonitor);
-      logger.info('Row monitor service connected to scheduler');
-    }
-    
-    if (appointmentSyncHandler) {
-      schedulerService.setAppointmentSyncHandler(appointmentSyncHandler);
-      logger.info('Appointment sync handler connected to scheduler');
-    }
-    
-    // Only after all dependencies are registered, initialize the scheduler
-    schedulerService.initialize();
-    logger.info('Scheduler service initialized with all dependencies');
-    
-    logger.info('Enhanced services successfully initialized');
-  })
-  .catch((error: unknown) => {
-    const typedError = error instanceof Error ? error : new Error(String(error));
-    logger.error('Failed to initialize enhanced services', typedError);
-  });
+// Initialize services
+const initializePromise = initializeServices({
+  enableErrorRecovery: true,
+  enableRowMonitoring: false,
+  initializeScheduler: true
+});
+
+// Global services placeholder, will be populated when initializePromise resolves
+let services: ServiceContainer;
+
+// Set services in app.locals after they're initialized
+initializePromise.then(initializedServices => {
+  services = initializedServices;
+  app.locals.sheetsService = services.sheetsService;
+  app.locals.errorRecovery = services.errorRecovery;
+  app.locals.rowMonitor = services.rowMonitor;
+  app.locals.appointmentSyncHandler = services.appointmentSyncHandler;
+  app.locals.webhookHandler = services.webhookHandler;
+  app.locals.bulkImportService = services.bulkImportService;
+  
+  // Connect dependent services to scheduler
+  if (services.rowMonitor) {
+    schedulerService.setRowMonitorService(services.rowMonitor);
+    logger.info('Row monitor service connected to scheduler');
+  }
+  
+  if (services.appointmentSyncHandler) {
+    schedulerService.setAppointmentSyncHandler(services.appointmentSyncHandler);
+    logger.info('Appointment sync handler connected to scheduler');
+  }
+  
+  // Only after all dependencies are registered, initialize the scheduler
+  schedulerService.initialize();
+  logger.info('Scheduler service initialized with all dependencies');
+  
+  logger.info('Services successfully initialized');
+}).catch((error: unknown) => {
+  // Safely handle error
+  const errorMessage = error instanceof Error ? error.message : String(error);
+  logger.error('Failed to initialize services', { message: errorMessage });
+});
 
 // Simple health check endpoint
 app.get('/health', (req: Request, res: Response) => {
