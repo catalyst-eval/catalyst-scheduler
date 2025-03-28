@@ -5,10 +5,8 @@ import { GoogleSheetsService } from '../../lib/google/sheets';
 import { IntakeQService } from '../../lib/intakeq/service';
 import { AppointmentSyncHandler } from '../../lib/intakeq/appointment-sync';
 import { WebhookHandler } from '../../lib/intakeq/webhook-handler';
-import { BulkImportService } from '../../lib/scheduling/bulk-import-service';
 import { DailyScheduleService } from '../../lib/scheduling/daily-schedule-service';
 import { SchedulerService } from '../../lib/scheduling/scheduler-service';
-import { verifyAppointmentDeletion } from '../../lib/util/row-monitor';
 import { getTodayEST } from '../../lib/util/date-helpers';
 import { logger } from '../../lib/util/logger';
 import crypto from 'crypto';
@@ -46,7 +44,6 @@ const sheetsService = new GoogleSheetsService();
 const intakeQService = new IntakeQService(sheetsService);
 const appointmentSyncHandler = new AppointmentSyncHandler(sheetsService, intakeQService);
 const webhookHandler = new WebhookHandler(sheetsService, appointmentSyncHandler, intakeQService);
-const bulkImportService = new BulkImportService(sheetsService, intakeQService, appointmentSyncHandler);
 
 /**
  * Test endpoint for IntakeQ API connection
@@ -448,82 +445,6 @@ router.post('/office-assignment', async (req: Request, res: Response) => {
   } catch (error) {
     const errorInfo = handleError(error);
     logger.error('Error testing office assignment:', errorInfo);
-    res.status(500).json({
-      success: false,
-      error: errorInfo.message,
-      timestamp: new Date().toISOString()
-    });
-  }
-});
-
-/**
- * Test endpoint for bulk import
- * POST /api/testing/bulk-import
- */
-router.post('/bulk-import', async (req: Request, res: Response) => {
-  try {
-    // Extract configuration from request
-    const {
-      startDate,
-      endDate,
-      keepPastDays = 7,
-      keepFutureDays = 14,
-      cleanupAfterImport = true,
-      dryRun = false
-    } = req.body;
-    
-    logger.info('Testing bulk import with configuration:', {
-      startDate,
-      endDate,
-      keepPastDays,
-      keepFutureDays,
-      cleanupAfterImport,
-      dryRun
-    });
-    
-    if (dryRun) {
-      // Just return the configuration that would be used
-      return res.json({
-        success: true,
-        message: 'Dry run - import would use these parameters',
-        configuration: {
-          startDate: startDate || `today-${keepPastDays}`,
-          endDate: endDate || `today+${keepFutureDays}`,
-          keepPastDays,
-          keepFutureDays,
-          cleanupAfterImport
-        },
-        timestamp: new Date().toISOString()
-      });
-    }
-    
-    // Send an immediate response as this can take time
-    res.json({
-      success: true,
-      message: 'Bulk import process has started. This may take several minutes to complete.',
-      timestamp: new Date().toISOString()
-    });
-    
-    // Start the import process asynchronously
-    bulkImportService.runBulkImport({
-      startDate,
-      endDate,
-      keepPastDays,
-      keepFutureDays,
-      cleanupAfterImport,
-      source: 'test_api'
-    })
-      .then(result => {
-        logger.info('Bulk import completed successfully:', result);
-      })
-      .catch(error => {
-        const errorInfo = handleError(error);
-        logger.error('Error in bulk import process:', errorInfo);
-      });
-  } catch (error) {
-    const errorInfo = handleError(error);
-    logger.error('Error initiating bulk import test:', errorInfo);
-    
     res.status(500).json({
       success: false,
       error: errorInfo.message,
