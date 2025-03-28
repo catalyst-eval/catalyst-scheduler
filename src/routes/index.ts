@@ -1,6 +1,5 @@
 // src/routes/index.ts
 import express from 'express';
-import bulkImportRoute from './bulk-import-route';
 import testIntakeQRoutes from './test-intakeq';
 import webhookRoutes from './webhooks';
 import schedulingRoutes from './scheduling';
@@ -10,7 +9,6 @@ import maintenanceRoutes from './maintenance';  // Add this import
 const router = express.Router();
 
 // Mount routes
-router.use('/bulk-import', bulkImportRoute);
 router.use('/test-intakeq', testIntakeQRoutes);
 router.use('/webhooks', webhookRoutes);
 router.use('/scheduling', schedulingRoutes);
