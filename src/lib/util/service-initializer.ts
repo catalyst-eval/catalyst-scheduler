@@ -4,7 +4,6 @@ import { GoogleSheetsService } from '../google/sheets';
 import { IntakeQService } from '../intakeq/service';
 import { AppointmentSyncHandler } from '../intakeq/appointment-sync';
 import { WebhookHandler } from '../intakeq/webhook-handler';
-import { BulkImportService } from '../scheduling/bulk-import-service';
 import { ErrorRecoveryService, OperationType } from './error-recovery';
 import { RowMonitorService } from './row-monitor';
 import { verifyAppointmentDeletion } from './row-monitor';
@@ -47,7 +46,6 @@ export interface ServiceContainer {
   intakeQService: IntakeQService;
   appointmentSyncHandler: AppointmentSyncHandler;
   webhookHandler: WebhookHandler;
-  bulkImportService: BulkImportService;
   dailyScheduleService: DailyScheduleService;
   schedulerService: SchedulerService;
   emailService: EmailService;
@@ -85,10 +83,6 @@ export async function initializeServices(
     // 4. Create webhook handler with all dependencies
     const webhookHandler = new WebhookHandler(sheetsService, appointmentSyncHandler, intakeQService);
     logger.info('WebhookHandler initialized');
-
-    // 5. Create bulk import service
-    const bulkImportService = new BulkImportService(sheetsService, intakeQService, appointmentSyncHandler);
-    logger.info('BulkImportService initialized');
 
     // 6. Create email service
     const emailService = new EmailService(sheetsService);
@@ -140,7 +134,6 @@ export async function initializeServices(
       intakeQService,
       appointmentSyncHandler,
       webhookHandler,
-      bulkImportService,
       dailyScheduleService,
       schedulerService,
       emailService,
