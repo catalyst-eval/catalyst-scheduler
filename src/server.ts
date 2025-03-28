@@ -57,7 +57,6 @@ initializePromise.then(initializedServices => {
   app.locals.rowMonitor = services.rowMonitor;
   app.locals.appointmentSyncHandler = services.appointmentSyncHandler;
   app.locals.webhookHandler = services.webhookHandler;
-  app.locals.bulkImportService = services.bulkImportService;
   
   // Connect dependent services to scheduler
   if (services.rowMonitor) {
