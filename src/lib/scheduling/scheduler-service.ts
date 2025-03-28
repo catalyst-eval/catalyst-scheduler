@@ -131,6 +131,7 @@ export class SchedulerService {
     try {
       console.log(`Registering scheduled task: ${task.type} (${task.description})`);
       
+      // Modify how the cron job is created to include timezone
       const cronJob = cron.schedule(task.schedule, () => {
         console.log(`Executing scheduled task: ${task.type}`);
         task.lastRun = new Date();
@@ -142,6 +143,9 @@ export class SchedulerService {
             console.error(`Error in scheduled task ${task.type}:`, error);
           }
         });
+      }, {
+        scheduled: true,
+        timezone: "America/New_York"  // Set timezone here
       });
       
       this.scheduledTasks.set(task.type, { task, cronJob });
