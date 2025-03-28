@@ -14,16 +14,28 @@ import { exec } from 'child_process';
 const execAsync = promisify(exec);
 
 // Configuration
-const SCRIPTS_DIR = path.resolve(__dirname);
+const SCRIPTS_DIR = path.resolve(__dirname, '..');  // Root of src directory
 const SRC_DIR = path.resolve(__dirname, '..');
 const REPORT_FILE = path.resolve(__dirname, '../.script-audit-report.json');
 
 // Scripts to ignore (already integrated or special purpose)
 const IGNORE_SCRIPTS = [
   'audit-standalone-scripts.ts',  // This script itself
-  'test-intakeq-webhook.ts',      // Integrated into consolidated test router
-  'deduplicate-accessibility.ts', // Integrated into maintenance routes
-  'manual-import-appointments.ts' // Integrated into bulk-import-service.ts
+  'run-code-consolidation.ts',    // Migration script
+  'server.ts',                    // Main server file
+  'index.ts',                     // Route indices
+  'node-cron.d.ts',               // Type definitions
+  '.DS_Store',                    // macOS system files
+  'test-intakeq-webhook.ts',      // Integrated testing
+  'deduplicate-accessibility.ts', // Maintenance utility
+  'manual-import-appointments.ts' // Import utility
+];
+
+// Directories to exclude from the search
+const EXCLUDE_DIRS = [
+  'node_modules',
+  'dist',
+  '.git'
 ];
 
 interface ScriptInfo {
@@ -43,19 +55,15 @@ interface ScriptInfo {
 async function auditStandaloneScripts(): Promise<void> {
   console.log('Auditing standalone scripts...');
   
-  // Find all TypeScript files in scripts directory
-  const files = await findTsFiles(SCRIPTS_DIR);
+  // Find all TypeScript files that might be standalone scripts
+  const standaloneFiles = await findPotentialStandaloneScripts(SCRIPTS_DIR);
   
-  // Filter out ignored scripts
-  const scriptsToAudit = files.filter(file => 
-    !IGNORE_SCRIPTS.includes(path.basename(file)));
-  
-  console.log(`Found ${scriptsToAudit.length} scripts to audit`);
+  console.log(`Found ${standaloneFiles.length} potential standalone scripts to audit`);
   
   const scriptInfos: ScriptInfo[] = [];
   
   // Analyze each script
-  for (const scriptPath of scriptsToAudit) {
+  for (const scriptPath of standaloneFiles) {
     const scriptInfo = await analyzeScript(scriptPath);
     scriptInfos.push(scriptInfo);
     
@@ -101,11 +109,27 @@ async function auditStandaloneScripts(): Promise<void> {
  * Find all TypeScript files in a directory and its subdirectories
  */
 async function findTsFiles(dir: string): Promise<string[]> {
-  const files = await fs.promises.readdir(dir);
   const tsFiles: string[] = [];
+  
+  // Check if directory exists
+  try {
+    await fs.promises.access(dir);
+  } catch (error) {
+    console.warn(`Directory does not exist: ${dir}`);
+    return tsFiles;
+  }
+  
+  // Read directory contents
+  const files = await fs.promises.readdir(dir);
   
   for (const file of files) {
     const fullPath = path.join(dir, file);
+    
+    // Skip excluded directories
+    if (EXCLUDE_DIRS.some(excludeDir => fullPath.includes(`/${excludeDir}/`))) {
+      continue;
+    }
+    
     const stat = await fs.promises.stat(fullPath);
     
     if (stat.isDirectory()) {
@@ -117,6 +141,50 @@ async function findTsFiles(dir: string): Promise<string[]> {
   }
   
   return tsFiles;
+}
+
+/**
+ * Find potential standalone scripts in the codebase
+ */
+async function findPotentialStandaloneScripts(dir: string): Promise<string[]> {
+  try {
+    // Find all TypeScript files first
+    const allTsFiles = await findTsFiles(dir);
+    console.log(`Found ${allTsFiles.length} total TypeScript files`);
+    
+    // Filter to focus on potential standalone scripts
+    const standaloneFiles = allTsFiles.filter(file => {
+      const fileName = path.basename(file);
+      
+      // Skip files in the ignore list
+      if (IGNORE_SCRIPTS.includes(fileName)) {
+        return false;
+      }
+      
+      // Files in scripts directory are likely standalone scripts
+      if (file.includes('/scripts/')) {
+        return true;
+      }
+      
+      // Files in src/ root that are not imported by other files
+      if (path.dirname(file) === SRC_DIR) {
+        return true;
+      }
+      
+      // Files with names containing "script", "util", "tool" etc.
+      const standaloneKeywords = ['script', 'util', 'tool', 'import', 'export', 'bulk', 'test-'];
+      if (standaloneKeywords.some(keyword => fileName.toLowerCase().includes(keyword))) {
+        return true;
+      }
+      
+      return false;
+    });
+    
+    return standaloneFiles;
+  } catch (error) {
+    console.error('Error finding standalone scripts:', error);
+    return [];
+  }
 }
 
 /**
@@ -142,7 +210,7 @@ async function analyzeScript(scriptPath: string): Promise<ScriptInfo> {
   
   // Search the main src directory for references to this script
   const { stdout: grepResult } = await execAsync(
-    `grep -r "${searchPattern}" ${SRC_DIR} --include="*.ts" --exclude-dir="scripts" || true`
+    `grep -r "${searchPattern}" ${SRC_DIR} --include="*.ts" --exclude-dir="scripts" --exclude-dir=".git" || true`
   );
   
   // Determine script status

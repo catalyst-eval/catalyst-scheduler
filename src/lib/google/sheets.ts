@@ -1579,6 +1579,135 @@ async updateAppointment(appointment: AppointmentRecord): Promise<void> {
   }
 }
 
+/**
+ * Update appointment in Active_Appointments tab only, leaving the main Appointments tab untouched
+ * Used specifically for daily schedule generation
+ */
+async updateActiveAppointmentOnly(appointment: AppointmentRecord): Promise<void> {
+  try {
+    // Normalize to ensure we have all required fields
+    const normalizedAppointment = normalizeAppointmentRecord(appointment);
+    
+    // Ensure both old and new field values are set
+    const currentOfficeId = standardizeOfficeId(
+      normalizedAppointment.currentOfficeId || normalizedAppointment.officeId || 'TBD'
+    );
+    
+    const assignedOfficeId = standardizeOfficeId(
+      normalizedAppointment.assignedOfficeId || normalizedAppointment.suggestedOfficeId || currentOfficeId || 'TBD'
+    );
+
+    // Prepare requirements JSON with error handling
+    let requirementsJson = '{"accessibility":false,"specialFeatures":[]}';
+    try {
+      if (normalizedAppointment.requirements) {
+        requirementsJson = JSON.stringify(normalizedAppointment.requirements);
+      }
+    } catch (jsonError) {
+      console.error('Error stringifying requirements, using default:', jsonError);
+    }
+
+    // Format tags as comma-separated string
+    const tagsString = normalizedAppointment.tags && normalizedAppointment.tags.length > 0 ? 
+      normalizedAppointment.tags.join(',') : '';
+
+    // Prepare row data
+    const rowData = [
+      normalizedAppointment.appointmentId,
+      normalizedAppointment.clientId,
+      normalizedAppointment.clientName,
+      normalizedAppointment.clientDateOfBirth || '',
+      normalizedAppointment.clinicianId,
+      normalizedAppointment.clinicianName,
+      currentOfficeId,
+      normalizedAppointment.sessionType,
+      normalizedAppointment.startTime,
+      normalizedAppointment.endTime,
+      normalizedAppointment.status,
+      normalizedAppointment.source,
+      normalizedAppointment.lastUpdated || new Date().toISOString(),
+      requirementsJson,
+      normalizedAppointment.notes || '',
+      assignedOfficeId,
+      normalizedAppointment.assignmentReason || '',
+      tagsString
+    ];
+
+    // Check if Active_Appointments sheet exists
+    let activeSheetExists = true;
+    try {
+      await this.readSheet(`${SHEET_NAMES.ACTIVE_APPOINTMENTS}!A1`);
+    } catch (error) {
+      activeSheetExists = false;
+      console.warn('Active_Appointments sheet not found, skipping update');
+      return;
+    }
+    
+    if (!activeSheetExists) return;
+    
+    // Check if appointment exists in Active_Appointments and get its row index
+    console.log(`Looking for appointment ${normalizedAppointment.appointmentId} in Active_Appointments`);
+    const activeValues = await this.readSheet(`${SHEET_NAMES.ACTIVE_APPOINTMENTS}!A:A`);
+    
+    if (!activeValues) {
+      console.warn('Failed to read Active_Appointments sheet');
+      return;
+    }
+    
+    console.log(`Found ${activeValues.length} rows in Active_Appointments`);
+    let foundMatch = false;
+    let activeAppointmentRow = -1;
+    
+    // Log all appointment IDs for debugging
+    activeValues.forEach((row, index) => {
+      if (row && row[0] === normalizedAppointment.appointmentId) {
+        console.log(`Match found at row ${index + 2}`);
+        foundMatch = true;
+        activeAppointmentRow = index;
+      }
+    });
+    
+    if (foundMatch && activeAppointmentRow >= 0) {
+      // Update existing row in Active_Appointments
+      console.log(`Updating existing row ${activeAppointmentRow + 2} in Active_Appointments`);
+      await this.sheets.spreadsheets.values.update({
+        spreadsheetId: this.spreadsheetId,
+        range: `${SHEET_NAMES.ACTIVE_APPOINTMENTS}!A${activeAppointmentRow + 2}:R${activeAppointmentRow + 2}`,
+        valueInputOption: 'RAW',
+        requestBody: {
+          values: [rowData]
+        }
+      });
+    } else {
+      // Add new row to Active_Appointments
+      console.log(`Adding new row for appointment ${normalizedAppointment.appointmentId} to Active_Appointments`);
+      await this.appendRows(`${SHEET_NAMES.ACTIVE_APPOINTMENTS}!A:R`, [rowData]);
+    }
+
+    // Log audit entry
+    await this.addAuditLog({
+      timestamp: new Date().toISOString(),
+      eventType: AuditEventType.APPOINTMENT_UPDATED,
+      description: `Updated appointment ${appointment.appointmentId} in Active_Appointments only`,
+      user: 'SYSTEM',
+      systemNotes: JSON.stringify({
+        appointmentId: normalizedAppointment.appointmentId,
+        operation: 'update_active_only'
+      })
+    });
+  } catch (error) {
+    console.error(`Error updating appointment ${appointment.appointmentId} in Active_Appointments:`, error);
+    await this.addAuditLog({
+      timestamp: new Date().toISOString(),
+      eventType: AuditEventType.SYSTEM_ERROR,
+      description: `Failed to update appointment ${appointment.appointmentId} in Active_Appointments`,
+      user: 'SYSTEM',
+      systemNotes: error instanceof Error ? error.message : 'Unknown error'
+    });
+    throw error;
+  }
+}
+
 async deleteAppointment(appointmentId: string): Promise<void> {
   try {
     console.log(`Starting deletion process for appointment ${appointmentId}`);

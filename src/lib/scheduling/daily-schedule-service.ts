@@ -990,26 +990,48 @@ private async resolveOfficeAssignments(appointments: AppointmentRecord[]): Promi
     let updatesApplied = 0;
     for (const appt of updatedAppointments) {
       // Only update if assignedOfficeId changed or was not set
-      if (appt.assignedOfficeId && 
-          appt.assignedOfficeId !== 'TBD' && 
-          (!appt.currentOfficeId || 
-           appt.currentOfficeId === 'TBD' || 
-           appt.assignedOfficeId !== appt.currentOfficeId)) {
-        
-        try {
-          await this.sheetsService.updateAppointment({
-            ...appt,
-            lastUpdated: new Date().toISOString()
-          });
-          updatesApplied++;
-        } catch (error) {
-          console.error(`Error updating appointment ${appt.appointmentId}:`, error);
-        }
-      }
+if (appt.assignedOfficeId && 
+  appt.assignedOfficeId !== 'TBD' && 
+  (!appt.currentOfficeId || 
+   appt.currentOfficeId === 'TBD' || 
+   appt.assignedOfficeId !== appt.currentOfficeId)) {
+
+try {
+  // Use updateActiveAppointmentOnly to avoid modifying the main Appointments sheet
+  await this.sheetsService.updateActiveAppointmentOnly({
+    ...appt,
+    lastUpdated: new Date().toISOString()
+  });
+  updatesApplied++;
+} catch (error) {
+  console.error(`Error updating appointment ${appt.appointmentId}:`, error);
+}
+}
     }
 
     console.log(`Updated ${updatesApplied} appointments with new office assignments`);
     
+    // Validate no appointments were lost during processing
+if (updatedAppointments.length !== appointments.length) {
+  console.error(`Appointment count mismatch: original ${appointments.length}, updated ${updatedAppointments.length}`);
+  // Identify missing appointments
+  const originalIds = appointments.map(a => a.appointmentId);
+  const updatedIds = updatedAppointments.map(a => a.appointmentId);
+  const missingIds = originalIds.filter(id => !updatedIds.includes(id));
+  console.error(`Missing appointment IDs: ${missingIds.join(', ')}`);
+  
+  // Restore any missing appointments
+  for (const missingId of missingIds) {
+    const missingAppt = appointments.find(a => a.appointmentId === missingId);
+    if (missingAppt) {
+      console.log(`Restoring missing appointment: ${missingId} for client ${missingAppt.clientName}`);
+      updatedAppointments.push(missingAppt);
+    }
+  }
+}
+
+return updatedAppointments;
+
     return updatedAppointments;
   } catch (error) {
     console.error('Error resolving office assignments:', error);
