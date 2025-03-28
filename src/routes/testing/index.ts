@@ -626,12 +626,6 @@ router.post('/scheduler/:taskType', async (req: Request, res: Response) => {
         await schedulerService.cleanupDuplicateAppointments();
         result = 'Duplicate cleanup process started';
         break;
-      case 'refresh-window':
-        result = await schedulerService.refreshTwoWeekWindow(
-          req.body.keepPastDays || 7,
-          req.body.keepFutureDays || 14
-        );
-        break;
       default:
         return res.status(400).json({
           success: false,

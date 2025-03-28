@@ -710,32 +710,99 @@ private async readSheet(range: string, ttl: number = 60000): Promise<any[]> {
     })) ?? [];
   }
 
-  async addAuditLog(entry: AuditLogEntry): Promise<void> {
-    try {
-      const rowData = [
-        entry.timestamp,
-        entry.eventType,
-        entry.description,
-        entry.user,
-        entry.previousValue || '',
-        entry.newValue || '',
-        entry.systemNotes || ''
-      ];
+  // Keep track of pending log entries to batch
+private pendingAuditLogs: AuditLogEntry[] = [];
+private readonly MAX_BATCH_SIZE = 10;
+private auditLogTimer: NodeJS.Timeout | null = null;
 
-      await this.appendRows(`${SHEET_NAMES.AUDIT_LOG}!A:G`, [rowData]);
-      console.log('Audit log entry added:', entry);
-    } catch (error) {
-      console.error('Error adding audit log:', error);
-      console.error('Failed audit log entry:', entry);
-      
-      // Try direct logging as a fallback
-      try {
-        await this.logErrorDirectly(entry);
-      } catch (directLogError) {
-        console.error('CRITICAL: Failed to log directly to audit log:', directLogError);
-      }
+/**
+ * Add an audit log entry with batching to reduce API calls
+ */
+async addAuditLog(entry: AuditLogEntry): Promise<void> {
+  try {
+    // Add entry to pending logs
+    this.pendingAuditLogs.push(entry);
+    
+    // If this is a critical error, process immediately
+    if (entry.eventType === AuditEventType.CRITICAL_ERROR || 
+        entry.eventType === AuditEventType.SYSTEM_ERROR) {
+      await this.flushAuditLogs();
+      return;
+    }
+    
+    // If we have enough entries or timer isn't set, process the batch
+    if (this.pendingAuditLogs.length >= this.MAX_BATCH_SIZE) {
+      await this.flushAuditLogs();
+    } else if (!this.auditLogTimer) {
+      // Set timer to flush logs after a delay (5 seconds)
+      this.auditLogTimer = setTimeout(() => this.flushAuditLogs(), 5000);
+    }
+  } catch (error) {
+    console.error('Error adding audit log:', error);
+    console.error('Failed audit log entry:', entry);
+    
+    // Try direct logging as a fallback
+    try {
+      await this.logErrorDirectly(entry);
+    } catch (directLogError) {
+      console.error('CRITICAL: Failed to log directly to audit log:', directLogError);
     }
   }
+}
+
+/**
+ * Flush pending audit logs to the sheet
+ */
+private async flushAuditLogs(): Promise<void> {
+  if (this.auditLogTimer) {
+    clearTimeout(this.auditLogTimer);
+    this.auditLogTimer = null;
+  }
+  
+  if (this.pendingAuditLogs.length === 0) return;
+  
+  try {
+    const logEntries = [...this.pendingAuditLogs];
+    this.pendingAuditLogs = [];
+    
+    const rowsData = logEntries.map(entry => [
+      entry.timestamp,
+      entry.eventType,
+      entry.description,
+      entry.user,
+      entry.previousValue || '',
+      entry.newValue || '',
+      entry.systemNotes || ''
+    ]);
+
+    await this.appendRows(`${SHEET_NAMES.AUDIT_LOG}!A:G`, rowsData);
+    console.log(`Flushed ${logEntries.length} audit log entries`);
+  } catch (error) {
+    console.error('Error flushing audit logs:', error);
+    
+    // Retry with individual entries as fallback if batch fails
+    for (const entry of this.pendingAuditLogs) {
+      try {
+        const rowData = [
+          entry.timestamp,
+          entry.eventType,
+          entry.description,
+          entry.user,
+          entry.previousValue || '',
+          entry.newValue || '',
+          entry.systemNotes || ''
+        ];
+        
+        await this.appendRows(`${SHEET_NAMES.AUDIT_LOG}!A:G`, [rowData]);
+      } catch (individualError) {
+        console.error('Failed to log individual entry:', individualError);
+      }
+    }
+    
+    // Clear pending logs regardless of success
+    this.pendingAuditLogs = [];
+  }
+}
 
   private safeParseJSON(value: string | null | undefined, defaultValue: any = []): any {
     if (!value) return defaultValue;
@@ -1325,257 +1392,290 @@ async addAppointment(appt: AppointmentRecord): Promise<void> {
 
 /**
  * Update an appointment in both Appointments and Active_Appointments tabs
- * Enhanced with transaction-like semantics
+ * Enhanced with transaction-like semantics and retry logic for rate limits
  */
 async updateAppointment(appointment: AppointmentRecord): Promise<void> {
   // Keep a copy of the original appointment for potential rollback
   let originalAppointment: AppointmentRecord | null = null;
   
-  try {
-    // Normalize to ensure we have all required fields
-    const normalizedAppointment = normalizeAppointmentRecord(appointment);
-    
-    // Fetch the original appointment for potential rollback
+  // Add retry logic variables
+  const maxRetries = 5;
+  let retryCount = 0;
+  let success = false;
+  
+  while (!success && retryCount <= maxRetries) {
     try {
-      originalAppointment = await this.getAppointment(normalizedAppointment.appointmentId);
-    } catch (fetchError) {
-      console.warn(`Could not fetch original appointment for potential rollback: ${fetchError}`);
-      // Continue without rollback capability
-    }
-    
-    // Execute as transaction
-    await this.executeTransaction(
-      async () => {
-        // Ensure both old and new field values are set
-        const currentOfficeId = standardizeOfficeId(
-          normalizedAppointment.currentOfficeId || normalizedAppointment.officeId || 'TBD'
-        );
-        
-        const assignedOfficeId = standardizeOfficeId(
-          normalizedAppointment.assignedOfficeId || normalizedAppointment.suggestedOfficeId || currentOfficeId || 'TBD'
-        );
-
-        // Prepare requirements JSON with error handling
-        let requirementsJson = '{"accessibility":false,"specialFeatures":[]}';
+      // Normalize to ensure we have all required fields
+      const normalizedAppointment = normalizeAppointmentRecord(appointment);
+      
+      // Fetch the original appointment for potential rollback
+      if (!originalAppointment) {
         try {
-          if (normalizedAppointment.requirements) {
-            requirementsJson = JSON.stringify(normalizedAppointment.requirements);
-          }
-        } catch (jsonError) {
-          console.error('Error stringifying requirements, using default:', jsonError);
+          originalAppointment = await this.getAppointment(normalizedAppointment.appointmentId);
+        } catch (fetchError) {
+          console.warn(`Could not fetch original appointment for potential rollback: ${fetchError}`);
+          // Continue without rollback capability
         }
-
-        // Format tags as comma-separated string
-        const tagsString = normalizedAppointment.tags && normalizedAppointment.tags.length > 0 ? 
-          normalizedAppointment.tags.join(',') : '';
-
-        // Prepare row data - CORRECTED column ordering matching sheet structure
-        const rowData = [
-          normalizedAppointment.appointmentId,                     // Column A: appointmentId
-          normalizedAppointment.clientId,                          // Column B: clientId
-          normalizedAppointment.clientName,                        // Column C: clientName
-          normalizedAppointment.clientDateOfBirth || '',           // Column D: clientDateOfBirth
-          normalizedAppointment.clinicianId,                       // Column E: clinicianId
-          normalizedAppointment.clinicianName,                     // Column F: clinicianName
-          currentOfficeId,                                         // Column G: currentOfficeId
-          normalizedAppointment.sessionType,                       // Column H: sessionType
-          normalizedAppointment.startTime,                         // Column I: startTime
-          normalizedAppointment.endTime,                           // Column J: endTime
-          normalizedAppointment.status,                            // Column K: status
-          normalizedAppointment.source,                            // Column L: source
-          normalizedAppointment.lastUpdated || new Date().toISOString(), // Column M: lastUpdated
-          requirementsJson,                                        // Column N: requirements
-          normalizedAppointment.notes || '',                       // Column O: notes
-          assignedOfficeId,                                        // Column P: assignedOfficeId
-          normalizedAppointment.assignmentReason || '',            // Column Q: assignmentReason
-          tagsString                                               // Column R: tags
-        ];
-
-        // 1. First update in the main Appointments sheet
-        // Find the appointment row
-        const values = await this.readSheet(`${SHEET_NAMES.APPOINTMENTS}!A:A`);
-        const appointmentRow = values?.findIndex((row: SheetRow) => row[0] === normalizedAppointment.appointmentId);
-
-        if (!values || appointmentRow === undefined || appointmentRow < 0) {
-          throw new Error(`Appointment ${normalizedAppointment.appointmentId} not found in main Appointments sheet`);
-        }
-
-        await this.sheets.spreadsheets.values.update({
-          spreadsheetId: this.spreadsheetId,
-          range: `${SHEET_NAMES.APPOINTMENTS}!A${appointmentRow + 2}:R${appointmentRow + 2}`,
-          valueInputOption: 'RAW',
-          requestBody: {
-            values: [rowData]
-          }
-        });
-
-        // 2. Try to update in Active_Appointments sheet if it exists and if the appointment is for today
-        try {
-          // Check if Active_Appointments sheet exists
-          const activeValues = await this.readSheet(`${SHEET_NAMES.ACTIVE_APPOINTMENTS}!A:A`);
-          const activeAppointmentRow = activeValues?.findIndex((row: SheetRow) => row[0] === normalizedAppointment.appointmentId);
-          
-          // Check if the appointment is for today
-          const isForToday = this.isAppointmentForToday(normalizedAppointment);
-          
-          if (isForToday) {
-            if (activeValues && activeAppointmentRow !== undefined && activeAppointmentRow >= 0) {
-              // Update existing row in Active_Appointments
-              await this.sheets.spreadsheets.values.update({
-                spreadsheetId: this.spreadsheetId,
-                range: `${SHEET_NAMES.ACTIVE_APPOINTMENTS}!A${activeAppointmentRow + 2}:R${activeAppointmentRow + 2}`,
-                valueInputOption: 'RAW',
-                requestBody: {
-                  values: [rowData]
-                }
-              });
-              console.log(`Updated appointment ${normalizedAppointment.appointmentId} in Active_Appointments at row ${activeAppointmentRow + 2}`);
-            } else if (activeValues) {
-              // Add new row to Active_Appointments
-              await this.appendRows(`${SHEET_NAMES.ACTIVE_APPOINTMENTS}!A:R`, [rowData]);
-              console.log(`Added appointment ${normalizedAppointment.appointmentId} to Active_Appointments`);
-            }
-          } else if (activeValues && activeAppointmentRow !== undefined && activeAppointmentRow >= 0) {
-            // Remove from Active_Appointments if it's not for today and is present
-            try {
-              // Get spreadsheet metadata to find correct sheet ID
-              const spreadsheet = await this.sheets.spreadsheets.get({
-                spreadsheetId: this.spreadsheetId
-              });
-              
-              // Find the Active_Appointments sheet
-              const activeSheet = spreadsheet.data.sheets?.find(
-                sheet => sheet.properties?.title === SHEET_NAMES.ACTIVE_APPOINTMENTS
-              );
-              
-              if (activeSheet && activeSheet.properties?.sheetId !== undefined) {
-                // Delete the row
-                await this.sheets.spreadsheets.batchUpdate({
-                  spreadsheetId: this.spreadsheetId,
-                  requestBody: {
-                    requests: [{
-                      deleteDimension: {
-                        range: {
-                          sheetId: activeSheet.properties.sheetId,
-                          dimension: 'ROWS',
-                          startIndex: activeAppointmentRow + 1, // +1 for header
-                          endIndex: activeAppointmentRow + 2    // +1 for exclusive range
-                        }
-                      }
-                    }]
-                  }
-                });
-                console.log(`Removed appointment ${normalizedAppointment.appointmentId} from Active_Appointments as it's not for today`);
-              }
-            } catch (deleteError) {
-              console.warn(`Could not delete row from Active_Appointments:`, deleteError);
-            }
-          }
-        } catch (activeSheetError) {
-          // Active_Appointments sheet might not exist yet, or other error occurred
-          console.warn(`Error working with Active_Appointments sheet:`, activeSheetError);
-        }
-        
-        // Return true for successful operation (for transaction)
-        return true;
-      },
-      async () => {
-        // Rollback logic - restore original appointment if available
-        if (originalAppointment) {
-          console.log(`Rolling back appointment update for ${appointment.appointmentId}`);
-          
-          // Ensure original appointment has all required fields
-          const normalizedOriginal = normalizeAppointmentRecord(originalAppointment);
-          
-          // Prepare row data from original appointment
+      }
+      
+      // Execute as transaction
+      await this.executeTransaction(
+        async () => {
+          // Ensure both old and new field values are set
           const currentOfficeId = standardizeOfficeId(
-            normalizedOriginal.currentOfficeId || normalizedOriginal.officeId || 'TBD'
+            normalizedAppointment.currentOfficeId || normalizedAppointment.officeId || 'TBD'
           );
           
           const assignedOfficeId = standardizeOfficeId(
-            normalizedOriginal.assignedOfficeId || normalizedOriginal.suggestedOfficeId || currentOfficeId || 'TBD'
+            normalizedAppointment.assignedOfficeId || normalizedAppointment.suggestedOfficeId || currentOfficeId || 'TBD'
           );
-          
-          // Prepare requirements JSON
+
+          // Prepare requirements JSON with error handling
           let requirementsJson = '{"accessibility":false,"specialFeatures":[]}';
           try {
-            if (normalizedOriginal.requirements) {
-              requirementsJson = JSON.stringify(normalizedOriginal.requirements);
+            if (normalizedAppointment.requirements) {
+              requirementsJson = JSON.stringify(normalizedAppointment.requirements);
             }
           } catch (jsonError) {
-            console.error('Error stringifying requirements during rollback, using default:', jsonError);
+            console.error('Error stringifying requirements, using default:', jsonError);
           }
-          
-          // Format tags
-          const tagsString = normalizedOriginal.tags && normalizedOriginal.tags.length > 0 ? 
-            normalizedOriginal.tags.join(',') : '';
-          
-          // Create row data for rollback
-          const rollbackRowData = [
-            normalizedOriginal.appointmentId,
-            normalizedOriginal.clientId,
-            normalizedOriginal.clientName,
-            normalizedOriginal.clientDateOfBirth || '',
-            normalizedOriginal.clinicianId,
-            normalizedOriginal.clinicianName,
-            currentOfficeId,
-            normalizedOriginal.sessionType,
-            normalizedOriginal.startTime,
-            normalizedOriginal.endTime,
-            normalizedOriginal.status,
-            normalizedOriginal.source,
-            new Date().toISOString(), // Updated timestamp for rollback
-            requirementsJson,
-            (normalizedOriginal.notes || '') + '\n[ROLLBACK: Transaction failed]',
-            assignedOfficeId,
-            normalizedOriginal.assignmentReason || '',
-            tagsString
+
+          // Format tags as comma-separated string
+          const tagsString = normalizedAppointment.tags && normalizedAppointment.tags.length > 0 ? 
+            normalizedAppointment.tags.join(',') : '';
+
+          // Prepare row data - CORRECTED column ordering matching sheet structure
+          const rowData = [
+            normalizedAppointment.appointmentId,                     // Column A: appointmentId
+            normalizedAppointment.clientId,                          // Column B: clientId
+            normalizedAppointment.clientName,                        // Column C: clientName
+            normalizedAppointment.clientDateOfBirth || '',           // Column D: clientDateOfBirth
+            normalizedAppointment.clinicianId,                       // Column E: clinicianId
+            normalizedAppointment.clinicianName,                     // Column F: clinicianName
+            currentOfficeId,                                         // Column G: currentOfficeId
+            normalizedAppointment.sessionType,                       // Column H: sessionType
+            normalizedAppointment.startTime,                         // Column I: startTime
+            normalizedAppointment.endTime,                           // Column J: endTime
+            normalizedAppointment.status,                            // Column K: status
+            normalizedAppointment.source,                            // Column L: source
+            normalizedAppointment.lastUpdated || new Date().toISOString(), // Column M: lastUpdated
+            requirementsJson,                                        // Column N: requirements
+            normalizedAppointment.notes || '',                       // Column O: notes
+            assignedOfficeId,                                        // Column P: assignedOfficeId
+            normalizedAppointment.assignmentReason || '',            // Column Q: assignmentReason
+            tagsString                                               // Column R: tags
           ];
-          
+
+          // 1. First update in the main Appointments sheet
           // Find the appointment row
           const values = await this.readSheet(`${SHEET_NAMES.APPOINTMENTS}!A:A`);
-          const appointmentRow = values?.findIndex((row: SheetRow) => row[0] === normalizedOriginal.appointmentId);
-          
-          if (values && appointmentRow !== undefined && appointmentRow >= 0) {
-            // Update with original data
-            await this.sheets.spreadsheets.values.update({
-              spreadsheetId: this.spreadsheetId,
-              range: `${SHEET_NAMES.APPOINTMENTS}!A${appointmentRow + 2}:R${appointmentRow + 2}`,
-              valueInputOption: 'RAW',
-              requestBody: {
-                values: [rollbackRowData]
-              }
-            });
-            
-            console.log(`Successfully rolled back appointment ${normalizedOriginal.appointmentId}`);
+          const appointmentRow = values?.findIndex((row: SheetRow) => row[0] === normalizedAppointment.appointmentId);
+
+          if (!values || appointmentRow === undefined || appointmentRow < 0) {
+            throw new Error(`Appointment ${normalizedAppointment.appointmentId} not found in main Appointments sheet`);
           }
-        }
-      },
-      `Update appointment ${normalizedAppointment.appointmentId}`
-    );
 
-    await this.addAuditLog({
-      timestamp: new Date().toISOString(),
-      eventType: AuditEventType.APPOINTMENT_UPDATED,
-      description: `Updated appointment ${appointment.appointmentId}`,
-      user: 'SYSTEM',
-      previousValue: originalAppointment ? JSON.stringify(originalAppointment) : '',
-      newValue: JSON.stringify(normalizedAppointment)
-    });
+          await this.sheets.spreadsheets.values.update({
+            spreadsheetId: this.spreadsheetId,
+            range: `${SHEET_NAMES.APPOINTMENTS}!A${appointmentRow + 2}:R${appointmentRow + 2}`,
+            valueInputOption: 'RAW',
+            requestBody: {
+              values: [rowData]
+            }
+          });
 
-    // Clear cache for both sheets
-    await this.refreshCache(`${SHEET_NAMES.APPOINTMENTS}!A2:R`);
-    await this.refreshCache(`${SHEET_NAMES.ACTIVE_APPOINTMENTS}!A2:R`);
-  } catch (error) {
-    console.error(`Error updating appointment ${appointment.appointmentId}:`, error);
-    await this.addAuditLog({
-      timestamp: new Date().toISOString(),
-      eventType: AuditEventType.SYSTEM_ERROR,
-      description: `Failed to update appointment ${appointment.appointmentId}`,
-      user: 'SYSTEM',
-      systemNotes: error instanceof Error ? error.message : 'Unknown error'
-    });
-    throw new Error(`Failed to update appointment: ${error instanceof Error ? error.message : 'Unknown error'}`);
+          // 2. Try to update in Active_Appointments sheet if it exists and if the appointment is for today
+          try {
+            // Check if Active_Appointments sheet exists
+            const activeValues = await this.readSheet(`${SHEET_NAMES.ACTIVE_APPOINTMENTS}!A:A`);
+            const activeAppointmentRow = activeValues?.findIndex((row: SheetRow) => row[0] === normalizedAppointment.appointmentId);
+            
+            // Check if the appointment is for today
+            const isForToday = this.isAppointmentForToday(normalizedAppointment);
+            
+            if (isForToday) {
+              if (activeValues && activeAppointmentRow !== undefined && activeAppointmentRow >= 0) {
+                // Update existing row in Active_Appointments
+                await this.sheets.spreadsheets.values.update({
+                  spreadsheetId: this.spreadsheetId,
+                  range: `${SHEET_NAMES.ACTIVE_APPOINTMENTS}!A${activeAppointmentRow + 2}:R${activeAppointmentRow + 2}`,
+                  valueInputOption: 'RAW',
+                  requestBody: {
+                    values: [rowData]
+                  }
+                });
+                console.log(`Updated appointment ${normalizedAppointment.appointmentId} in Active_Appointments at row ${activeAppointmentRow + 2}`);
+              } else if (activeValues) {
+                // Add new row to Active_Appointments
+                await this.appendRows(`${SHEET_NAMES.ACTIVE_APPOINTMENTS}!A:R`, [rowData]);
+                console.log(`Added appointment ${normalizedAppointment.appointmentId} to Active_Appointments`);
+              }
+            } else if (activeValues && activeAppointmentRow !== undefined && activeAppointmentRow >= 0) {
+              // Remove from Active_Appointments if it's not for today and is present
+              try {
+                // Get spreadsheet metadata to find correct sheet ID
+                const spreadsheet = await this.sheets.spreadsheets.get({
+                  spreadsheetId: this.spreadsheetId
+                });
+                
+                // Find the Active_Appointments sheet
+                const activeSheet = spreadsheet.data.sheets?.find(
+                  sheet => sheet.properties?.title === SHEET_NAMES.ACTIVE_APPOINTMENTS
+                );
+                
+                if (activeSheet && activeSheet.properties?.sheetId !== undefined) {
+                  // Delete the row
+                  await this.sheets.spreadsheets.batchUpdate({
+                    spreadsheetId: this.spreadsheetId,
+                    requestBody: {
+                      requests: [{
+                        deleteDimension: {
+                          range: {
+                            sheetId: activeSheet.properties.sheetId,
+                            dimension: 'ROWS',
+                            startIndex: activeAppointmentRow + 1, // +1 for header
+                            endIndex: activeAppointmentRow + 2    // +1 for exclusive range
+                          }
+                        }
+                      }]
+                    }
+                  });
+                  console.log(`Removed appointment ${normalizedAppointment.appointmentId} from Active_Appointments as it's not for today`);
+                }
+              } catch (deleteError) {
+                console.warn(`Could not delete row from Active_Appointments:`, deleteError);
+              }
+            }
+          } catch (activeSheetError) {
+            // Active_Appointments sheet might not exist yet, or other error occurred
+            console.warn(`Error working with Active_Appointments sheet:`, activeSheetError);
+          }
+          
+          // Return true for successful operation (for transaction)
+          return true;
+        },
+        async () => {
+          // Rollback logic - restore original appointment if available
+          if (originalAppointment) {
+            console.log(`Rolling back appointment update for ${appointment.appointmentId}`);
+            
+            // Ensure original appointment has all required fields
+            const normalizedOriginal = normalizeAppointmentRecord(originalAppointment);
+            
+            // Prepare row data from original appointment
+            const currentOfficeId = standardizeOfficeId(
+              normalizedOriginal.currentOfficeId || normalizedOriginal.officeId || 'TBD'
+            );
+            
+            const assignedOfficeId = standardizeOfficeId(
+              normalizedOriginal.assignedOfficeId || normalizedOriginal.suggestedOfficeId || currentOfficeId || 'TBD'
+            );
+            
+            // Prepare requirements JSON
+            let requirementsJson = '{"accessibility":false,"specialFeatures":[]}';
+            try {
+              if (normalizedOriginal.requirements) {
+                requirementsJson = JSON.stringify(normalizedOriginal.requirements);
+              }
+            } catch (jsonError) {
+              console.error('Error stringifying requirements during rollback, using default:', jsonError);
+            }
+            
+            // Format tags
+            const tagsString = normalizedOriginal.tags && normalizedOriginal.tags.length > 0 ? 
+              normalizedOriginal.tags.join(',') : '';
+            
+            // Create row data for rollback
+            const rollbackRowData = [
+              normalizedOriginal.appointmentId,
+              normalizedOriginal.clientId,
+              normalizedOriginal.clientName,
+              normalizedOriginal.clientDateOfBirth || '',
+              normalizedOriginal.clinicianId,
+              normalizedOriginal.clinicianName,
+              currentOfficeId,
+              normalizedOriginal.sessionType,
+              normalizedOriginal.startTime,
+              normalizedOriginal.endTime,
+              normalizedOriginal.status,
+              normalizedOriginal.source,
+              new Date().toISOString(), // Updated timestamp for rollback
+              requirementsJson,
+              (normalizedOriginal.notes || '') + '\n[ROLLBACK: Transaction failed]',
+              assignedOfficeId,
+              normalizedOriginal.assignmentReason || '',
+              tagsString
+            ];
+            
+            // Find the appointment row
+            const values = await this.readSheet(`${SHEET_NAMES.APPOINTMENTS}!A:A`);
+            const appointmentRow = values?.findIndex((row: SheetRow) => row[0] === normalizedOriginal.appointmentId);
+            
+            if (values && appointmentRow !== undefined && appointmentRow >= 0) {
+              // Update with original data
+              await this.sheets.spreadsheets.values.update({
+                spreadsheetId: this.spreadsheetId,
+                range: `${SHEET_NAMES.APPOINTMENTS}!A${appointmentRow + 2}:R${appointmentRow + 2}`,
+                valueInputOption: 'RAW',
+                requestBody: {
+                  values: [rollbackRowData]
+                }
+              });
+              
+              console.log(`Successfully rolled back appointment ${normalizedOriginal.appointmentId}`);
+            }
+          }
+        },
+        `Update appointment ${normalizedAppointment.appointmentId}`
+      );
+
+      await this.addAuditLog({
+        timestamp: new Date().toISOString(),
+        eventType: AuditEventType.APPOINTMENT_UPDATED,
+        description: `Updated appointment ${appointment.appointmentId}`,
+        user: 'SYSTEM',
+        previousValue: originalAppointment ? JSON.stringify(originalAppointment) : '',
+        newValue: JSON.stringify(normalizedAppointment)
+      });
+
+      // Clear cache for both sheets
+      await this.refreshCache(`${SHEET_NAMES.APPOINTMENTS}!A2:R`);
+      await this.refreshCache(`${SHEET_NAMES.ACTIVE_APPOINTMENTS}!A2:R`);
+      
+      // Mark success to exit the retry loop
+      success = true;
+      
+    } catch (error) {
+      // Check if it's a rate limit error
+      const isRateLimit = error && 
+        typeof error === 'object' && 
+        'message' in error && 
+        typeof error.message === 'string' && 
+        error.message.includes('Quota exceeded');
+      
+      retryCount++;
+      
+      if (isRateLimit && retryCount <= maxRetries) {
+        // Calculate exponential backoff delay with increasing base time
+        // Starting with 2 seconds, then 4, 8, 16, 32 seconds
+        const delay = Math.pow(2, retryCount) * 1000;
+        console.warn(`Rate limit hit when updating appointment ${appointment.appointmentId}. Retrying in ${delay}ms (attempt ${retryCount}/${maxRetries})`);
+        
+        // Wait before retrying
+        await new Promise(resolve => setTimeout(resolve, delay));
+      } else {
+        // For non-rate limit errors or if we've exceeded retries, log and throw
+        console.error(`Error updating appointment ${appointment.appointmentId}:`, error);
+        await this.addAuditLog({
+          timestamp: new Date().toISOString(),
+          eventType: AuditEventType.SYSTEM_ERROR,
+          description: `Failed to update appointment ${appointment.appointmentId}`,
+          user: 'SYSTEM',
+          systemNotes: error instanceof Error ? error.message : 'Unknown error'
+        });
+        throw new Error(`Failed to update appointment: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+    }
   }
 }
 
