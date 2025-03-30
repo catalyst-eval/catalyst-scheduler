@@ -35,9 +35,30 @@ export class EmailTemplates {
       'Mikah': '#B8ACF6',    // Light Purple
       'Mikah Jones': '#B8ACF6',    // Light Purple
       'Carlisle': '#FFC2D1',       // Light Pink
+      'Carlisle Bading': '#FFC2D1',       // Light Pink
       'Cullen': '#79E2F2',         // Seafoam Green
-      'Jessica': '#F5CD47'         // Light Yellow
+      'Cullen MacDonald': '#79E2F2',         // Seafoam Green
+      'Jessica': '#F5CD47',         // Light Yellow
+      'Jessica Cox': '#F5CD47'         // Light Yellow
     };
+    
+    // Office Update Request Form button section
+    const requestFormSection = `
+      <div style="margin: 20px 0; padding: 15px; background-color: #f0f7ff; border-left: 5px solid #0066cc; border-radius: 4px;">
+        <h3 style="margin-top: 0; color: #0066cc;">Office Update Request Form 📋</h3>
+        <p>Need to specify an office requirement or register accessibility needs for a client?</p>
+        <div style="margin: 15px 0;">
+          <a href="${this.getFormUrl()}" 
+             style="display: inline-block; padding: 10px 20px; background-color: #0066cc; color: white; 
+                    text-decoration: none; font-weight: bold; border-radius: 4px;">
+            Submit Office Update Request
+          </a>
+        </div>
+        <p style="margin-bottom: 0; font-size: 0.9em; color: #555;">
+          Requests are processed hourly and will be applied to future appointments.
+        </p>
+      </div>
+    `;
     
     // Generate the HTML email
     const htmlBody = `
@@ -106,18 +127,18 @@ export class EmailTemplates {
       color: #3498db;
     }
     .summary {
-  background-color: #e9f7ef;
-  padding: 12px;
-  margin-bottom: 15px;
-  border-left: 4px solid #27ae60;
-  font-size: 0.85em; /* 2 points smaller */
-}
+      background-color: #e9f7ef;
+      padding: 12px;
+      margin-bottom: 15px;
+      border-left: 4px solid #27ae60;
+      font-size: 0.85em; /* 2 points smaller */
+    }
     .priority-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-bottom: 15px;
-  font-size: 0.75em; /* 4 points smaller (2 additional points) */
-}
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 15px;
+      font-size: 0.75em; /* 4 points smaller (2 additional points) */
+    }
     .priority-table th, .priority-table td {
       border: 1px solid #ddd;
       padding: 6px;
@@ -127,12 +148,12 @@ export class EmailTemplates {
       background-color: #e6e6e6;
     }
     .legend {
-  margin-top: 15px;
-  padding: 10px;
-  background-color: #f8f9fa;
-  border: 1px solid #eaeaea;
-  font-size: 0.85em; /* 2 points smaller */
-}
+      margin-top: 15px;
+      padding: 10px;
+      background-color: #f8f9fa;
+      border: 1px solid #eaeaea;
+      font-size: 0.85em; /* 2 points smaller */
+    }
     .legend ul {
       margin: 5px 0;
       padding-left: 20px;
@@ -144,6 +165,13 @@ export class EmailTemplates {
       text-align: center;
       border-top: 1px solid #ddd;
     }
+    .form-explanation {
+      margin: 30px 0; 
+      padding: 15px; 
+      background-color: #f9f9f9; 
+      border: 1px solid #ddd; 
+      border-radius: 4px;
+    }
   </style>
 </head>
 <body>
@@ -151,6 +179,8 @@ export class EmailTemplates {
     <h1>Daily Schedule: ${displayDate}</h1>
   </div>
   <div class="content">
+    ${requestFormSection}
+    
     ${this.renderClinicianGroups(clinicianGroups, clinicianColors)}
     
     <div class="summary">
@@ -165,6 +195,18 @@ export class EmailTemplates {
       </ul>
     </div>
     
+    <div class="form-explanation">
+      <h3 style="margin-top: 0; color: #333;">About the Office Update Request Form</h3>
+      <p>The Office Update Request Form allows clinicians to:</p>
+      <ul>
+        <li><strong>Register accessibility needs</strong> including mobility requirements</li>
+        <li><strong>Request specific offices</strong> for clients who have difficulty with room changes</li>
+        <li><strong>Specify yoga swing requirements</strong> for clients who need this therapy tool</li>
+      </ul>
+      <p>Once submitted, these requirements will be automatically applied to all future appointments.</p>
+      <p><strong>Note:</strong> The yoga swings are available in offices B-2, C-1, and B-5.</p>
+    </div>
+    
     <table class="priority-table">
       <thead>
         <tr>
@@ -176,7 +218,9 @@ export class EmailTemplates {
         <tr><td>100</td><td>Client-Specific Requirements</td></tr>
         <tr><td>90</td><td>Accessibility Requirements</td></tr>
         <tr><td>80</td><td>Young Children (≤10 years)</td></tr>
-        <tr><td>75</td><td>Older Children and Teens (11-17 years)</td></tr>
+        <tr><td>78</td><td>Yoga Swing Assignment</td></tr>
+        <tr><td>76</td><td>B-2 Secondary for Children</td></tr>
+        <tr><td>75</td><td>Older Children and Teens (11-15 years)</td></tr>
         <tr><td>70</td><td>Adult Client Assignments</td></tr>
         <tr><td>65</td><td>Clinician's Primary Office</td></tr>
         <tr><td>62</td><td>Clinician's Preferred Office</td></tr>
@@ -191,7 +235,7 @@ export class EmailTemplates {
     </table>
   </div>
   <div class="footer">
-    <p>This report was automatically generated by Catalyst Scheduler on ${new Date().toLocaleString('en-US', { timeZone: 'America/New_York' })}</p>
+    <p>This report was automatically generated by Catalyst Scheduler on ${new Date().toLocaleString()}</p>
     <p>For questions or issues, please contact your administrator.</p>
   </div>
 </body>
@@ -257,83 +301,83 @@ export class EmailTemplates {
   }
   
   /**
- * Group appointments by clinician's normalized name
- * Handles cases where the same clinician might appear with full name and first name only
- * Filters out duplicate appointments
- */
-private static groupAppointmentsByClinicianLastName(
-  appointments: ProcessedAppointment[]
-): { clinicianName: string; appointments: ProcessedAppointment[]; lastName: string }[] {
-  // Create a map of clinician first names to full names
-  const clinicianFirstNames = new Map<string, string>();
-  appointments.forEach(appt => {
-    const nameParts = appt.clinicianName.split(' ');
-    if (nameParts.length > 1) {
-      clinicianFirstNames.set(nameParts[0], appt.clinicianName);
-    }
-  });
-  
-  // Normalize clinician names (use full name when available)
-  const normalizedAppointments = appointments.map(appt => {
-    const nameParts = appt.clinicianName.split(' ');
-    if (nameParts.length === 1 && clinicianFirstNames.has(nameParts[0])) {
-      return { ...appt, normalizedClinicianName: clinicianFirstNames.get(nameParts[0]) };
-    }
-    return { ...appt, normalizedClinicianName: appt.clinicianName };
-  });
-  
-  // Group appointments by normalized clinician name
-  const appointmentsByClinicianMap = new Map<string, ProcessedAppointment[]>();
-  
-  // Create a Set to track unique appointment identifiers to detect duplicates
-  const processedAppointments = new Set<string>();
-  
-  normalizedAppointments.forEach(appt => {
-    const clinicianName = appt.normalizedClinicianName || appt.clinicianName;
-    if (!appointmentsByClinicianMap.has(clinicianName)) {
-      appointmentsByClinicianMap.set(clinicianName, []);
-    }
-    
-    // Create a unique identifier for this appointment
-    // Use appointmentId if available, otherwise use a combination of client, clinician, and time
-    const uniqueId = appt.appointmentId || 
-      `${appt.clientName}_${appt.clinicianName}_${appt.startTime}_${appt.endTime}`;
-    
-    // Only add this appointment if we haven't seen it before
-    if (!processedAppointments.has(uniqueId)) {
-      processedAppointments.add(uniqueId);
-      appointmentsByClinicianMap.get(clinicianName)?.push(appt);
-    }
-  });
-  
-  // Convert to array with last name for sorting
-  const clinicianGroups = Array.from(appointmentsByClinicianMap.entries())
-    .map(([clinicianName, appointments]) => {
-      // Extract last name for sorting (assumes format "First Last")
-      const nameParts = clinicianName.split(' ');
-      const lastName = nameParts.length > 1 ? nameParts[nameParts.length - 1] : clinicianName;
-      
-      return {
-        clinicianName,
-        appointments: appointments.sort((a, b) => {
-          // Safely sort by time, handling potential invalid dates
-          try {
-            const timeA = new Date(a.startTime).getTime();
-            const timeB = new Date(b.startTime).getTime();
-            if (isNaN(timeA) || isNaN(timeB)) return 0;
-            return timeA - timeB;
-          } catch (error) {
-            console.error('Error sorting appointments by time:', error);
-            return 0;
-          }
-        }),
-        lastName
-      };
+   * Group appointments by clinician's normalized name
+   * Handles cases where the same clinician might appear with full name and first name only
+   * Filters out duplicate appointments
+   */
+  private static groupAppointmentsByClinicianLastName(
+    appointments: ProcessedAppointment[]
+  ): { clinicianName: string; appointments: ProcessedAppointment[]; lastName: string }[] {
+    // Create a map of clinician first names to full names
+    const clinicianFirstNames = new Map<string, string>();
+    appointments.forEach(appt => {
+      const nameParts = appt.clinicianName.split(' ');
+      if (nameParts.length > 1) {
+        clinicianFirstNames.set(nameParts[0], appt.clinicianName);
+      }
     });
-  
-  // Sort by last name
-  return clinicianGroups.sort((a, b) => a.lastName.localeCompare(b.lastName));
-}
+    
+    // Normalize clinician names (use full name when available)
+    const normalizedAppointments = appointments.map(appt => {
+      const nameParts = appt.clinicianName.split(' ');
+      if (nameParts.length === 1 && clinicianFirstNames.has(nameParts[0])) {
+        return { ...appt, normalizedClinicianName: clinicianFirstNames.get(nameParts[0]) };
+      }
+      return { ...appt, normalizedClinicianName: appt.clinicianName };
+    });
+    
+    // Group appointments by normalized clinician name
+    const appointmentsByClinicianMap = new Map<string, ProcessedAppointment[]>();
+    
+    // Create a Set to track unique appointment identifiers to detect duplicates
+    const processedAppointments = new Set<string>();
+    
+    normalizedAppointments.forEach(appt => {
+      const clinicianName = appt.normalizedClinicianName || appt.clinicianName;
+      if (!appointmentsByClinicianMap.has(clinicianName)) {
+        appointmentsByClinicianMap.set(clinicianName, []);
+      }
+      
+      // Create a unique identifier for this appointment
+      // Use appointmentId if available, otherwise use a combination of client, clinician, and time
+      const uniqueId = appt.appointmentId || 
+        `${appt.clientName}_${appt.clinicianName}_${appt.startTime}_${appt.endTime}`;
+      
+      // Only add this appointment if we haven't seen it before
+      if (!processedAppointments.has(uniqueId)) {
+        processedAppointments.add(uniqueId);
+        appointmentsByClinicianMap.get(clinicianName)?.push(appt);
+      }
+    });
+    
+    // Convert to array with last name for sorting
+    const clinicianGroups = Array.from(appointmentsByClinicianMap.entries())
+      .map(([clinicianName, appointments]) => {
+        // Extract last name for sorting (assumes format "First Last")
+        const nameParts = clinicianName.split(' ');
+        const lastName = nameParts.length > 1 ? nameParts[nameParts.length - 1] : clinicianName;
+        
+        return {
+          clinicianName,
+          appointments: appointments.sort((a, b) => {
+            // Safely sort by time, handling potential invalid dates
+            try {
+              const timeA = new Date(a.startTime).getTime();
+              const timeB = new Date(b.startTime).getTime();
+              if (isNaN(timeA) || isNaN(timeB)) return 0;
+              return timeA - timeB;
+            } catch (error) {
+              console.error('Error sorting appointments by time:', error);
+              return 0;
+            }
+          }),
+          lastName
+        };
+      });
+    
+    // Sort by last name
+    return clinicianGroups.sort((a, b) => a.lastName.localeCompare(b.lastName));
+  }
   
   /**
    * Render clinician groups with their appointments
@@ -462,6 +506,12 @@ private static groupAppointmentsByClinicianLastName(
     
     let text = `DAILY SCHEDULE: ${displayDate}\n\n`;
     
+    // Form section
+    text += `OFFICE UPDATE REQUEST FORM\n`;
+    text += `Need to specify accessibility needs or office requirements?\n`;
+    text += `Visit: ${this.getFormUrl()}\n\n`;
+    text += `Requests are processed hourly and will be applied to future appointments.\n\n`;
+    
     // Appointments section
     if (clinicianGroups.length === 0) {
       text += `No appointments scheduled for today.\n\n`;
@@ -510,12 +560,20 @@ private static groupAppointmentsByClinicianLastName(
     text += `❗ - Office move due to client needs\n`;
     text += `⚠️ - Office move due to scheduling conflict\n\n`;
     
+    // About the form section
+    text += `ABOUT THE OFFICE UPDATE REQUEST FORM\n`;
+    text += `The form allows clinicians to register accessibility needs, request specific offices\n`;
+    text += `for clients with difficulty handling room changes, and specify yoga swing requirements.\n`;
+    text += `Yoga swings are available in offices B-2, C-1, and B-5.\n\n`;
+    
     // Priority Levels
     text += `PRIORITY LEVELS REFERENCE\n`;
     text += `100 - Client-Specific Requirements\n`;
     text += `90 - Accessibility Requirements\n`;
     text += `80 - Young Children (≤10 years)\n`;
-    text += `75 - Older Children and Teens (11-17 years)\n`;
+    text += `78 - Yoga Swing Assignment\n`;
+    text += `76 - B-2 Secondary for Children\n`;
+    text += `75 - Older Children and Teens (11-15 years)\n`;
     text += `70 - Adult Client Assignments\n`;
     text += `65 - Clinician's Primary Office\n`;
     text += `62 - Clinician's Preferred Office\n`;
@@ -630,5 +688,13 @@ This is an automated message from Catalyst Scheduler
       htmlBody,
       textBody
     };
+  }
+  
+  /**
+   * Get the form URL from settings
+   */
+  private static getFormUrl(): string {
+    // Return the actual Google Form URL
+    return 'https://docs.google.com/forms/d/e/1FAIpQLSeb_jWT5fexL9PE434ItIpQQcnF5v-a3w0_sIdQIgndCIU-rw/viewform?usp=sharing';
   }
 }

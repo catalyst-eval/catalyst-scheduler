@@ -9,7 +9,6 @@ import { GoogleSheetsService } from './lib/google/sheets';
 import { initializeServices, ServiceContainer } from './lib/util/service-initializer';
 import { logger } from './lib/util/logger';
 import diagnosticsRoutes from './routes/maintenance/diagnostics';
-import testingRoutes from './routes/testing/office-assignments';
 import { AppointmentSyncHandler } from './lib/intakeq/appointment-sync';
 import { RowMonitorService } from './lib/util/row-monitor';
 
@@ -33,7 +32,6 @@ const PORT = process.env.PORT || 3000;
 // Basic JSON parser for all routes
 app.use(express.json());
 app.use('/api/scheduling', schedulingRoutes);
-app.use('/api/testing', testingRoutes);
 
 // Initialize scheduler and make it available app-wide
 const schedulerService = new SchedulerService();
