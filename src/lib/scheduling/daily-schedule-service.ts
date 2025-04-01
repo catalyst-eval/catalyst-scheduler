@@ -52,11 +52,18 @@ export interface ProcessedAppointment {
     specialFeatures?: string[];
   };
   notes?: string;
-  assignmentReason?: string;      // Added to display assignment reason
-  requiresOfficeChange?: boolean; // Flag for office changes
-  previousOffice?: string;        // Track previous office
-  ageGroup?: string;              // Added to track client age group if available
+  assignmentReason?: string;
+  requiresOfficeChange?: boolean;
+  previousOffice?: string;
+  ageGroup?: string;
+  conflicts: {      // Make this a required property, not optional
+    appointmentId: string;
+    clinicianName: string;
+    startTime: string;
+    endTime: string;
+  }[];
 }
+
 
 export interface ScheduleConflict {
   type: 'double-booking' | 'capacity' | 'accessibility' | 'requirements';
@@ -608,11 +615,35 @@ if (!assignedOffice) {
     clientAccessibility.accessibilityNotes.toLowerCase().includes('yoga-swing');
   
   if (hasSensoryNeeds || hasYogaSwingTag) {
-    console.log(`  Client requires a yoga swing, checking offices with yoga swings`);
+    console.log(`  Client requires a yoga swing`);
     
-    // Prioritize B-2, C-1, B-5 as offices with yoga swings (in this order)
-    const yogaSwingOffices = ['B-2', 'C-1', 'B-5'];
+    // Define yoga swing offices by age group
+    let yogaSwingOffices: string[] = [];
     
+    // Select yoga swing office order based on age (follows same pattern as regular age rules)
+    if (clientAge !== null) {
+      if (clientAge >= 11 && clientAge <= 15) {
+        // For ages 11-15, follow the same order as the regular age rules: C-1 → B-5 → B-2
+        console.log(`  Client is ${clientAge} years old (11-15), checking C-1 first for yoga swing`);
+        yogaSwingOffices = ['C-1', 'B-5', 'B-2'];
+      } else if (clientAge <= 10) {
+        // For ages ≤10, follow the same order as the regular age rules: B-5 → C-1 → B-2
+        console.log(`  Client is ${clientAge} years old (≤10), checking B-5 first for yoga swing`);
+        yogaSwingOffices = ['B-5', 'C-1', 'B-2'];
+      } else {
+        // For adults and older teens (16-17), try all yoga swing offices
+        console.log(`  Client is ${clientAge} years old (adult or older teen), checking all yoga swing offices`);
+        yogaSwingOffices = ['B-2', 'C-1', 'B-5'];
+      }
+    } else {
+      // If age unknown, try all yoga swing offices in a default order
+      console.log(`  Client age unknown, checking all yoga swing offices in default order`);
+      yogaSwingOffices = ['B-2', 'C-1', 'B-5'];
+    }
+    
+    console.log(`  Checking yoga swing offices in this order: ${yogaSwingOffices.join(', ')}`);
+    
+    // Check each office in the age-appropriate order
     for (const officeId of yogaSwingOffices) {
       console.log(`  Checking yoga swing office: ${officeId}`);
       const matchingOffice = activeOffices.find(o => 
@@ -776,24 +807,44 @@ if (!assignedOffice) {
   }
 }
 
-        // Rest of the rules (65 through 10) remain unchanged...
         // ===============================
-        // RULE PRIORITY 65: Clinician Primary Office
-        // ===============================
-        if (!assignedOffice && clinician) {
-          // Check if clinician has a primary/preferred office
-          if (clinician.preferredOffices && clinician.preferredOffices.length > 0) {
-            // First preferred office is considered the primary
-            const primaryOfficeId = clinician.preferredOffices[0];
-            const available = await this.isOfficeAvailable(primaryOfficeId, appt, appointments);
-            
-            if (available) {
-              assignedOffice = standardizeOfficeId(primaryOfficeId);
-              assignmentReason = `Assigned to clinician's primary office (Priority ${RulePriority.CLINICIAN_PRIMARY_OFFICE})`;
-              console.log(`  MATCH: ${assignmentReason} - Office ${assignedOffice}`);
-            }
-          }
-        }
+// RULE PRIORITY 65: Clinician Primary Office
+// ===============================
+if (!assignedOffice) {
+  console.log("Checking PRIORITY 65: Clinician Primary Office");
+  
+  // Check if clinician has a primary/preferred office
+  if (clinician) {
+    // For telehealth appointments, prioritize this rule to ensure they get clinician's office
+    const isTelehealth = appt.sessionType === 'telehealth';
+    
+    if (clinician.preferredOffices && clinician.preferredOffices.length > 0) {
+      // First preferred office is considered the primary
+      const primaryOfficeId = clinician.preferredOffices[0];
+      
+      // For telehealth, we don't need to check availability as multiple telehealth
+      // sessions can use the same office
+      let available = isTelehealth;
+      
+      // Only check availability for in-person appointments
+      if (!isTelehealth) {
+        available = await this.isOfficeAvailable(primaryOfficeId, appt, appointments);
+      }
+      
+      if (available) {
+        assignedOffice = standardizeOfficeId(primaryOfficeId);
+        assignmentReason = `Assigned to clinician's primary office (Priority ${RulePriority.CLINICIAN_PRIMARY_OFFICE})`;
+        console.log(`  MATCH: ${assignmentReason} - Office ${assignedOffice}`);
+      } else if (!isTelehealth) {
+        console.log(`  Clinician's primary office ${primaryOfficeId} is not available`);
+      }
+    } else {
+      console.log(`  Clinician ${clinician.name} has no preferred offices defined`);
+    }
+  } else {
+    console.log(`  No clinician information found for ${appt.clinicianName}`);
+  }
+}
 
         // ===============================
         // RULE PRIORITY 62: Clinician Preferred Office
@@ -880,28 +931,31 @@ if (!assignedOffice) {
         }
 
         // ===============================
-        // RULE PRIORITY 40: Telehealth to Preferred Office
-        // ===============================
-        if (!assignedOffice && appt.sessionType === 'telehealth' && clinician && clinician.preferredOffices) {
-          console.log(`  Checking telehealth assignment to clinician's preferred office`);
-          
-          for (const officeId of clinician.preferredOffices) {
-            const office = activeOffices.find(o => 
-              standardizeOfficeId(o.officeId) === standardizeOfficeId(officeId)
-            );
-            
-            if (office) {
-              const available = await this.isOfficeAvailable(officeId, appt, appointments);
-              
-              if (available) {
-                assignedOffice = standardizeOfficeId(officeId);
-                assignmentReason = `Telehealth assigned to clinician's preferred office (Priority ${RulePriority.TELEHEALTH_PREFERRED})`;
-                console.log(`  MATCH: ${assignmentReason} - Office ${assignedOffice}`);
-                break;
-              }
-            }
-          }
-        }
+// RULE PRIORITY 40: Telehealth to Preferred Office
+// ===============================
+if (!assignedOffice && appt.sessionType === 'telehealth' && clinician && clinician.preferredOffices) {
+  console.log(`  Checking telehealth assignment to clinician's preferred office`);
+  
+  // Start from the second preferred office (first one was checked in Priority 65)
+  for (let i = 1; i < clinician.preferredOffices.length; i++) {
+    const officeId = clinician.preferredOffices[i];
+    console.log(`  Checking clinician's preferred office: ${officeId}`);
+    
+    const office = activeOffices.find(o => 
+      standardizeOfficeId(o.officeId) === standardizeOfficeId(officeId)
+    );
+    
+    if (office) {
+      // For telehealth, we don't need to check availability
+      assignedOffice = standardizeOfficeId(officeId);
+      assignmentReason = `Telehealth assigned to clinician's preferred office (Priority ${RulePriority.TELEHEALTH_PREFERRED})`;
+      console.log(`  MATCH: ${assignmentReason} - Office ${assignedOffice}`);
+      break;
+    } else {
+      console.log(`  Office ${officeId} not found in active offices list`);
+    }
+  }
+}
         
         // ===============================
         // RULE PRIORITY 35: Special Features Match
@@ -1434,188 +1488,237 @@ return updatedAppointments;
   }
   
   /**
-   * Process appointments for display with improved office change tracking
-   */
-  private processAppointments(
-    appointments: AppointmentRecord[],
-    offices: any[]
-  ): ProcessedAppointment[] {
-    // Sort appointments by clinician and time to detect office changes
-    const sortedAppointments = [...appointments]
-      .filter(appt => appt.status !== 'cancelled' && appt.status !== 'rescheduled')
-      .sort((a, b) => {
-        // First sort by clinician
-        const clinicianCompare = a.clinicianName.localeCompare(b.clinicianName);
-        if (clinicianCompare !== 0) return clinicianCompare;
-        
-        // Then by start time
-        return new Date(a.startTime).getTime() - new Date(b.startTime).getTime();
-      });
-    
-    // Track the last office used by each clinician
-    const clinicianLastOffice: Record<string, string> = {};
-    
-    return sortedAppointments.map(appt => {
-      // IMPORTANT: Prioritize assignedOfficeId as the new algorithm-determined assignment
-      const displayOfficeId = appt.assignedOfficeId && appt.assignedOfficeId !== 'TBD' ? 
-        standardizeOfficeId(appt.assignedOfficeId) : 
-        appt.currentOfficeId && appt.currentOfficeId !== 'TBD' ?
-          standardizeOfficeId(appt.currentOfficeId) :
-          appt.sessionType === 'telehealth' ? 'A-v' : 'TBD';
+ * Process appointments for display with improved office change tracking and age groups
+ */
+private processAppointments(
+  appointments: AppointmentRecord[],
+  offices: any[]
+): ProcessedAppointment[] {
+  // Sort appointments by clinician and time to detect office changes
+  const sortedAppointments = [...appointments]
+    .filter(appt => appt.status !== 'cancelled' && appt.status !== 'rescheduled')
+    .sort((a, b) => {
+      // First sort by clinician
+      const clinicianCompare = a.clinicianName.localeCompare(b.clinicianName);
+      if (clinicianCompare !== 0) return clinicianCompare;
       
-      // Find office details
-      const office = offices.find(o => standardizeOfficeId(o.officeId) === displayOfficeId);
-      
-      const hasSpecialRequirements = !!(
-        appt.requirements?.accessibility || 
-        (appt.requirements?.specialFeatures && appt.requirements.specialFeatures.length > 0)
-      );
-      
-      // Check if this appointment requires an office change for the clinician
-      const previousOffice = clinicianLastOffice[appt.clinicianName];
-      let requiresOfficeChange: boolean | undefined = undefined;
-      
-      // Only set requiresOfficeChange if:
-      // 1. We have a previous office
-      // 2. Previous office is different from current office
-      // 3. Not a virtual-to-virtual change (A-v to A-v)
-      // 4. If current is telehealth (A-v), don't show change from physical office
-      if (previousOffice) {
-        if (displayOfficeId === 'A-v') {
-          // For telehealth appointments, don't show office changes
-          requiresOfficeChange = false;
-        } else if (previousOffice === 'A-v') {
-          // Coming from telehealth to physical is not a "change"
-          requiresOfficeChange = false;
-        } else {
-          // For physical offices, show changes
-          requiresOfficeChange = previousOffice !== displayOfficeId;
-        }
-      }
-      
-      // Update last office for this clinician
-      clinicianLastOffice[appt.clinicianName] = displayOfficeId;
-      
-      // Add debug logging to trace office ID values
-      console.log(`Processing appointment ${appt.appointmentId}:`, {
-        originalOfficeId: appt.currentOfficeId,
-        assignedOfficeId: appt.assignedOfficeId,
-        displayOfficeId: displayOfficeId,
-        requiresOfficeChange,
-        previousOffice,
-        isVirtual: displayOfficeId === 'A-v',
-        sessionType: appt.sessionType
-      });
-      
-      return {
-        appointmentId: appt.appointmentId,
-        clientName: appt.clientName,
-        clinicianName: appt.clinicianName,
-        officeId: displayOfficeId,
-        officeDisplay: displayOfficeId === 'A-v' ? 'Virtual Office' : `Office ${displayOfficeId}`,
-        startTime: appt.startTime,
-        endTime: appt.endTime,
-        formattedTime: `${formatESTTime(appt.startTime)} - ${formatESTTime(appt.endTime)}`,
-        sessionType: appt.sessionType,
-        hasSpecialRequirements,
-        requirements: appt.requirements,
-        notes: appt.notes,
-        // IMPORTANT: Include assignment reason in processed appointments
-        assignmentReason: appt.assignmentReason,
-        requiresOfficeChange,
-        previousOffice
-      };
+      // Then by start time
+      return new Date(a.startTime).getTime() - new Date(b.startTime).getTime();
     });
-  }
+  
+  // Track the last office used by each clinician
+  const clinicianLastOffice: Record<string, string> = {};
+  
+  return sortedAppointments.map(appt => {
+    // IMPORTANT: Prioritize assignedOfficeId as the new algorithm-determined assignment
+    const displayOfficeId = appt.assignedOfficeId && appt.assignedOfficeId !== 'TBD' ? 
+      standardizeOfficeId(appt.assignedOfficeId) : 
+      appt.currentOfficeId && appt.currentOfficeId !== 'TBD' ?
+        standardizeOfficeId(appt.currentOfficeId) :
+        appt.sessionType === 'telehealth' ? 'A-v' : 'TBD';
+    
+    // Find office details
+    const office = offices.find(o => standardizeOfficeId(o.officeId) === displayOfficeId);
+    
+    const hasSpecialRequirements = !!(
+      appt.requirements?.accessibility || 
+      (appt.requirements?.specialFeatures && appt.requirements.specialFeatures.length > 0)
+    );
+    
+    // Check if this appointment requires an office change for the clinician
+    const previousOffice = clinicianLastOffice[appt.clinicianName];
+    let requiresOfficeChange: boolean | undefined = undefined;
+    
+    // Only set requiresOfficeChange if:
+    // 1. We have a previous office
+    // 2. Previous office is different from current office
+    // 3. Not a virtual-to-virtual change (A-v to A-v)
+    // 4. If current is telehealth (A-v), don't show change from physical office
+    if (previousOffice) {
+      if (displayOfficeId === 'A-v') {
+        // For telehealth appointments, don't show office changes
+        requiresOfficeChange = false;
+      } else if (previousOffice === 'A-v') {
+        // Coming from telehealth to physical is not a "change"
+        requiresOfficeChange = false;
+      } else {
+        // For physical offices, show changes
+        requiresOfficeChange = previousOffice !== displayOfficeId;
+      }
+    }
+    
+    // Update last office for this clinician
+    clinicianLastOffice[appt.clinicianName] = displayOfficeId;
+    
+    // Determine age group based on client date of birth
+    let ageGroup: string | undefined = undefined;
+    if (appt.clientDateOfBirth) {
+      try {
+        const dobDate = new Date(appt.clientDateOfBirth);
+        if (!isNaN(dobDate.getTime())) {
+          const appointmentDate = new Date(appt.startTime);
+          let age = appointmentDate.getFullYear() - dobDate.getFullYear();
+          
+          // Adjust age if birthday hasn't occurred yet this year
+          const monthDiff = appointmentDate.getMonth() - dobDate.getMonth();
+          if (monthDiff < 0 || (monthDiff === 0 && appointmentDate.getDate() < dobDate.getDate())) {
+            age--;
+          }
+          
+          // Create age group description
+          if (age <= 10) {
+            ageGroup = '≤10 Years Old';
+          } else if (age >= 11 && age <= 15) {
+            ageGroup = '11-15 Years Old';
+          } else if (age >= 16 && age <= 17) {
+            ageGroup = '16-17 Years Old';
+          } else {
+            ageGroup = 'Adult';
+          }
+        }
+      } catch (error) {
+        console.error('Error calculating age:', error);
+      }
+    }
+    
+    // Add logging for telehealth appointments to help debug office assignments
+    if (appt.sessionType === 'telehealth') {
+      console.log(`Telehealth appointment for ${appt.clientName} with ${appt.clinicianName}`);
+      console.log(`  - Assignment reason: ${appt.assignmentReason || 'None'}`);
+      console.log(`  - Assigned office: ${displayOfficeId}`);
+      
+      // For telehealth, clinician's primary office should take precedence 
+      // unless there's a higher priority reason (like an age-based rule)
+      const priorityMatch = appt.assignmentReason?.match(/\(Priority (\d+)\)/);
+      const priorityNumber = priorityMatch ? parseInt(priorityMatch[1]) : 0;
+      
+      if (priorityNumber < 65 && priorityNumber !== 0) { // 65 is clinician's primary office
+        console.log(`  - Telehealth has lower priority (${priorityNumber}) than clinician's primary office (65)`);
+        // This case is unusual and might indicate an issue, unless there was a conflict
+      }
+    }
+    
+    return {
+      appointmentId: appt.appointmentId,
+      clientName: appt.clientName,
+      clinicianName: appt.clinicianName,
+      officeId: displayOfficeId,
+      officeDisplay: displayOfficeId === 'A-v' ? 'Virtual Office' : `Office ${displayOfficeId}`,
+      startTime: appt.startTime,
+      endTime: appt.endTime,
+      formattedTime: `${formatESTTime(appt.startTime)} - ${formatESTTime(appt.endTime)}`,
+      sessionType: appt.sessionType,
+      hasSpecialRequirements,
+      requirements: appt.requirements,
+      notes: appt.notes,
+      // IMPORTANT: Include assignment reason in processed appointments
+      assignmentReason: appt.assignmentReason,
+      requiresOfficeChange,
+      previousOffice,
+      ageGroup,
+      conflicts: [] // Initialize conflicts array to prevent TypeScript error
+    };
+  });
+}
 
   /**
-   * Detect scheduling conflicts with improved accuracy
-   */
-  private detectConflicts(appointments: ProcessedAppointment[]): ScheduleConflict[] {
-    const conflicts: ScheduleConflict[] = [];
+ * Detect scheduling conflicts with improved detail tracking
+ */
+private detectConflicts(appointments: ProcessedAppointment[]): ScheduleConflict[] {
+  const conflicts: ScheduleConflict[] = [];
+  
+  // First pass: process each appointment to find overlaps
+  appointments.forEach(appt => {
+    // Skip telehealth/virtual appointments for conflict detection
+    if (appt.officeId === 'A-v' || appt.sessionType === 'telehealth') {
+      return;
+    }
     
-    // Process each appointment to find overlaps
-    appointments.forEach(appt => {
-      // Skip telehealth/virtual appointments for conflict detection
-      if (appt.officeId === 'A-v' || appt.sessionType === 'telehealth') {
+    const startTime = new Date(appt.startTime).getTime();
+    const endTime = new Date(appt.endTime).getTime();
+    
+    // conflicts array is already initialized in processAppointments
+    
+    // Check each appointment against all others for the same office
+    appointments.forEach(otherAppt => {
+      // Skip comparing with itself or with telehealth appointments
+      if (appt.appointmentId === otherAppt.appointmentId || 
+          otherAppt.officeId === 'A-v' || 
+          otherAppt.sessionType === 'telehealth') {
         return;
       }
       
-      const startTime = new Date(appt.startTime).getTime();
-      const endTime = new Date(appt.endTime).getTime();
+      // Only check appointments in the same office
+      if (appt.officeId !== otherAppt.officeId) {
+        return;
+      }
       
-      // Check each appointment against all others for the same office
-      appointments.forEach(otherAppt => {
-        // Skip comparing with itself or with telehealth appointments
-        if (appt.appointmentId === otherAppt.appointmentId || 
-            otherAppt.officeId === 'A-v' || 
-            otherAppt.sessionType === 'telehealth') {
-          return;
-        }
+      // Get times for other appointment
+      const otherStartTime = new Date(otherAppt.startTime).getTime();
+      const otherEndTime = new Date(otherAppt.endTime).getTime();
+      
+      // Check for ACTUAL time overlap (not just consecutive appointments)
+      const hasOverlap = (
+        // This appointment starts during other appointment
+        (startTime >= otherStartTime && startTime < otherEndTime) || 
+        // This appointment ends during other appointment
+        (endTime > otherStartTime && endTime <= otherEndTime) ||
+        // This appointment completely contains other appointment 
+        (startTime <= otherStartTime && endTime >= otherEndTime)
+      );
+      
+      // If there's a true overlap, record the conflict
+      if (hasOverlap) {
+        // Create a unique key for this conflict to avoid duplicates
+        const conflictKey = [appt.appointmentId, otherAppt.appointmentId].sort().join('-');
         
-        // Only check appointments in the same office
-        if (appt.officeId !== otherAppt.officeId) {
-          return;
-        }
+        // Use the formatted time string that spans both appointments
+        const startDisplay = new Date(Math.min(startTime, otherStartTime));
+        const endDisplay = new Date(Math.max(endTime, otherEndTime));
         
-        // Get times for other appointment
-        const otherStartTime = new Date(otherAppt.startTime).getTime();
-        const otherEndTime = new Date(otherAppt.endTime).getTime();
+        // Format start/end times for display
+        const formattedStart = formatESTTime(startDisplay.toISOString());
+        const formattedEnd = formatESTTime(endDisplay.toISOString());
+        const timeDisplay = `${formattedStart} - ${formattedEnd}`;
         
-        // Check for ACTUAL time overlap (not just consecutive appointments)
-        const hasOverlap = (
-          // This appointment starts during other appointment
-          (startTime >= otherStartTime && startTime < otherEndTime) || 
-          // This appointment ends during other appointment
-          (endTime > otherStartTime && endTime <= otherEndTime) ||
-          // This appointment completely contains other appointment 
-          (startTime <= otherStartTime && endTime >= otherEndTime)
+        // Create detailed conflict description
+        const description = `Double booking in ${appt.officeDisplay}: ${appt.clientName} with ${appt.clinicianName} and ${otherAppt.clientName} with ${otherAppt.clinicianName} at ${timeDisplay}`;
+        
+        // Check if this conflict has already been recorded
+        const existingConflict = conflicts.find(c => 
+          c.appointmentIds?.includes(appt.appointmentId) && 
+          c.appointmentIds?.includes(otherAppt.appointmentId)
         );
         
-        // If there's a true overlap, record the conflict
-        if (hasOverlap) {
-          // Create a unique key for this conflict to avoid duplicates
-          const conflictKey = [appt.appointmentId, otherAppt.appointmentId].sort().join('-');
-          
-          // Use the formatted time string that spans both appointments
-          const startDisplay = new Date(Math.min(startTime, otherStartTime));
-          const endDisplay = new Date(Math.max(endTime, otherEndTime));
-          
-          // Format start/end times for display
-          const formattedStart = formatESTTime(startDisplay.toISOString());
-          const formattedEnd = formatESTTime(endDisplay.toISOString());
-          const timeDisplay = `${formattedStart} - ${formattedEnd}`;
-          
-          // Create detailed conflict description
-          const description = `Double booking in ${appt.officeDisplay}: ${appt.clientName} with ${appt.clinicianName} and ${otherAppt.clientName} with ${otherAppt.clinicianName} at ${timeDisplay}`;
-          
-          // Check if this conflict has already been recorded
-          const existingConflict = conflicts.find(c => 
-            c.appointmentIds?.includes(appt.appointmentId) && 
-            c.appointmentIds?.includes(otherAppt.appointmentId)
-          );
-          
-          // Add suggested resolution
-          const resolutionSuggestion = `Consider moving one appointment to a different office or time.`;
-          
-          if (!existingConflict) {
-            conflicts.push({
-              type: 'double-booking',
-              description,
-              severity: 'high',
-              appointmentIds: [appt.appointmentId, otherAppt.appointmentId],
-              officeId: appt.officeId,
-              clinicianIds: [appt.clinicianName, otherAppt.clinicianName], // Track BOTH clinicians involved
-              timeBlock: timeDisplay,
-              resolutionSuggestion
-            });
-          }
+        // Add conflict information to the appointment
+        appt.conflicts.push({
+          appointmentId: otherAppt.appointmentId,
+          clinicianName: otherAppt.clinicianName,
+          startTime: otherAppt.startTime,
+          endTime: otherAppt.endTime
+        });
+        
+        // Add suggested resolution
+        const resolutionSuggestion = `Consider moving one appointment to a different office or time.`;
+        
+        if (!existingConflict) {
+          conflicts.push({
+            type: 'double-booking',
+            description,
+            severity: 'high',
+            appointmentIds: [appt.appointmentId, otherAppt.appointmentId],
+            officeId: appt.officeId,
+            clinicianIds: [appt.clinicianName, otherAppt.clinicianName], // Track BOTH clinicians involved
+            timeBlock: timeDisplay,
+            resolutionSuggestion
+          });
         }
-      });
+      }
     });
-    
-    return conflicts;
-  }
+  });
+  
+  return conflicts;
+}
 
   /**
    * Calculate schedule statistics - UPDATED to use the assigned office IDs

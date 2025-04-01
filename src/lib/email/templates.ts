@@ -70,43 +70,73 @@ export class EmailTemplates {
       padding: 20px; 
       background-color: #f9f9f9;
     }
-    h2 {
-      margin-top: 8px;
-      margin-bottom: 8px;
+    .card-container {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
     }
-    .appointment-table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-bottom: 15px;
+    .clinician-card {
+      width: 48%;
+      margin-bottom: 20px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      overflow: hidden;
     }
-    .appointment-table td {
+    .clinician-header {
       padding: 8px;
+      font-weight: bold;
+      color: white;
       border-bottom: 1px solid #ddd;
     }
-    .appointment-table tr:nth-child(even) {
-      background-color: #f2f2f2;
+    .card-content {
+      padding: 0;
     }
-    .clinician-section {
-      margin-bottom: 20px;
+    .appointment {
+      padding: 10px;
+      border-bottom: 1px solid #eee;
     }
-    .clinician-name {
-      font-size: 1.1em;
+    .appointment:last-child {
+      border-bottom: none;
+    }
+    /* Alternating row colors */
+    .appointment:nth-child(even) {
+      background-color: #f8f9fa;
+    }
+    .appointment:nth-child(odd) {
+      background-color: #ffffff;
+    }
+    .time {
       font-weight: bold;
-      margin-bottom: 8px;
-      padding: 6px;
-      background-color: #f0f8ff;
-      border-left: 4px solid #4b6cb7;
+      display: block;
+      margin-bottom: 4px;
     }
-    .office-change-client {
-      color: #e74c3c;
+    .client {
+      display: block;
+      margin-bottom: 4px;
+    }
+    .office {
+      color: #555;
+      margin-bottom: 2px;
+    }
+    .details {
+      font-style: italic;
+      color: #666;
+      font-size: 0.9em;
+    }
+    .rule-applied {
+      color: #1e88e5; /* Blue for rules being applied */
       font-weight: bold;
     }
-    .office-change-conflict {
-      color: #f39c12;
+    .room-moved {
+      color: #e65100; /* Orange for room moves */
       font-weight: bold;
     }
-    .telehealth {
-      color: #3498db;
+    .conflict-notification {
+      margin-top: 4px;
+      padding-top: 4px;
+      border-top: 1px dashed #f44336;
+      color: #f44336;
+      font-size: 0.9em;
     }
     .summary {
       background-color: #e9f7ef;
@@ -115,19 +145,12 @@ export class EmailTemplates {
       border-left: 4px solid #27ae60;
       font-size: 0.85em;
     }
-    .priority-table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-bottom: 15px;
-      font-size: 0.75em;
-    }
-    .priority-table th, .priority-table td {
-      border: 1px solid #ddd;
-      padding: 6px;
-      text-align: left;
-    }
-    .priority-table th {
-      background-color: #e6e6e6;
+    .request-form {
+      margin: 20px 0; 
+      padding: 15px; 
+      background-color: #f0f7ff; 
+      border-left: 5px solid #0066cc; 
+      border-radius: 4px;
     }
     .legend {
       margin-top: 15px;
@@ -147,50 +170,15 @@ export class EmailTemplates {
       text-align: center;
       border-top: 1px solid #ddd;
     }
-    .request-form {
-      margin: 20px 0; 
-      padding: 15px; 
-      background-color: #f0f7ff; 
-      border-left: 5px solid #0066cc; 
-      border-radius: 4px;
-    }
-    .collapsible {
-      background-color: #f1f1f1;
-      color: #444;
-      cursor: pointer;
-      padding: 12px;
-      width: 100%;
-      border: none;
-      text-align: left;
-      outline: none;
-      font-size: 15px;
-      border-radius: 4px;
-      margin-bottom: 5px;
-    }
-    .active, .collapsible:hover {
-      background-color: #e6e6e6;
-    }
-    .collapsible:after {
-      content: '\\002B'; /* Unicode character for "plus" sign (+) */
-      font-weight: bold;
-      float: right;
-      margin-left: 5px;
-    }
-    .active:after {
-      content: "\\2212"; /* Unicode character for "minus" sign (-) */
-    }
-    .collapsible-content {
-      padding: 0 18px;
-      max-height: 0;
-      overflow: hidden;
-      transition: max-height 0.2s ease-out;
-      background-color: #f9f9f9;
-    }
-    
-    /* Ensure collapsible sections appear open in email clients that don't support JavaScript */
-    .email-safe-collapsible {
-      display: block;
-    }
+    /* Colors for clinician headers */
+    .tyler { background-color: #57D9A3; }
+    .julia { background-color: #E774BB; }
+    .samantha { background-color: #FF8F73; }
+    .carlisle { background-color: #FFC2D1; }
+    .mikah { background-color: #B8ACF6; }
+    .cullen { background-color: #79E2F2; }
+    .jessica { background-color: #F5CD47; }
+    .bailey { background-color: #4C9AFF; }
   </style>
 </head>
 <body>
@@ -198,8 +186,9 @@ export class EmailTemplates {
     <h1>Daily Schedule: ${displayDate}</h1>
   </div>
   <div class="content">
-    
-    ${this.renderClinicianGroups(clinicianGroups, clinicianColors)}
+    <div class="card-container">
+      ${this.renderClinicianCards(clinicianGroups, clinicianColors)}
+    </div>
     
     <div class="request-form">
       <h3 style="margin-top: 0; color: #0066cc;">Office Update Request Form 📋</h3>
@@ -223,63 +212,10 @@ export class EmailTemplates {
     <div class="legend">
       <strong>Legend:</strong>
       <ul>
-        <li><span style="color: #e74c3c;">❗</span> <span style="color: #e74c3c; font-weight: bold;">Red text and exclamation point</span> - Office move due to client needs</li>
-        <li><span style="color: #f39c12;">⚠️</span> <span style="color: #f39c12; font-weight: bold;">Orange text and warning triangle</span> - Office move due to scheduling conflict</li>
+        <li><span style="color: #1e88e5;">📋</span> <span style="color: #1e88e5; font-weight: bold;">Rule-based assignment</span> - Office assigned based on client needs or age</li>
+        <li><span style="color: #e65100;">🔄</span> <span style="color: #e65100; font-weight: bold;">Room moved</span> - Office change due to scheduling conflict</li>
       </ul>
     </div>
-    
-    <!-- Collapsible Priority Table Section -->
-    <button type="button" class="collapsible">Priority Level Reference Table ▼</button>
-    <div class="collapsible-content email-safe-collapsible">
-      <table class="priority-table">
-  <thead>
-    <tr>
-      <th>Priority</th>
-      <th>Description</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr><td>100</td><td>Client-Specific Requirements</td></tr>
-    <tr><td>90</td><td>Accessibility Requirements</td></tr>
-    <tr><td>80</td><td>Young Children (≤10 years)</td></tr>
-    <tr><td>78</td><td>Yoga Swing Assignment</td></tr>
-    <tr><td>75</td><td>Older Children and Teens (11-17 years) to C-1</td></tr>
-    <tr><td>74</td><td>B-5 Secondary for Older Children (11-15)</td></tr>
-    <tr><td>73</td><td>C-1 Secondary for Young Children (≤10)</td></tr>
-    <tr><td>72</td><td>B-2 Tertiary for All Children (≤15)</td></tr>
-    <tr><td>70</td><td>Adult Client Assignments</td></tr>
-    <tr><td>65</td><td>Clinician's Primary Office</td></tr>
-    <tr><td>62</td><td>Clinician's Preferred Office</td></tr>
-    <tr><td>55</td><td>In-Person Priority</td></tr>
-    <tr><td>40</td><td>Telehealth to Preferred Office</td></tr>
-    <tr><td>35</td><td>Special Features Match</td></tr>
-    <tr><td>30</td><td>Alternative Clinician Office</td></tr>
-    <tr><td>20</td><td>Available Office</td></tr>
-    <tr><td>15</td><td>Break Room Last Resort</td></tr>
-    <tr><td>10</td><td>Default Telehealth</td></tr>
-  </tbody>
-</table>
-    </div>
-    
-    <!-- JavaScript to handle collapsible sections -->
-    <script>
-      var coll = document.getElementsByClassName("collapsible");
-      var i;
-      
-      for (i = 0; i < coll.length; i++) {
-        coll[i].addEventListener("click", function() {
-          this.classList.toggle("active");
-          var content = this.nextElementSibling;
-          if (content.style.maxHeight){
-            content.style.maxHeight = null;
-            content.style.padding = "0 18px";
-          } else {
-            content.style.maxHeight = content.scrollHeight + "px";
-            content.style.padding = "18px";
-          }
-        });
-      }
-    </script>
   </div>
   <div class="footer">
     <p>This report was automatically generated by Catalyst Scheduler on ${new Date().toLocaleString()}</p>
@@ -427,9 +363,9 @@ export class EmailTemplates {
   }
   
   /**
-   * Render clinician groups with their appointments
+   * Render clinician cards
    */
-  private static renderClinicianGroups(
+  private static renderClinicianCards(
     clinicianGroups: { clinicianName: string; appointments: ProcessedAppointment[]; lastName: string }[],
     clinicianColors: {[key: string]: string}
   ): string {
@@ -440,25 +376,34 @@ export class EmailTemplates {
     return clinicianGroups.map(group => {
       // Get color for this clinician
       const color = clinicianColors[group.clinicianName] || '#4b6cb7';
+      const colorClass = this.getClinicianColorClass(group.clinicianName);
       
       return `
-        <div class="clinician-section">
-          <div class="clinician-name" style="border-left-color: ${color}">
-            <span style="color: ${color}">${group.clinicianName}</span>
+        <div class="clinician-card">
+          <div class="clinician-header ${colorClass}" style="background-color: ${color}">
+            ${group.clinicianName}
           </div>
-          
-          <table class="appointment-table">
-            ${group.appointments.map(appt => this.renderAppointmentRow(appt)).join('')}
-          </table>
+          <div class="card-content">
+            ${group.appointments.map(appt => this.renderAppointmentCard(appt)).join('')}
+          </div>
         </div>
       `;
     }).join('');
   }
   
   /**
-   * Generate HTML for an appointment row with columns
+   * Helper to get clinician CSS class
    */
-  private static renderAppointmentRow(appt: ProcessedAppointment): string {
+  private static getClinicianColorClass(name: string): string {
+    const firstName = name.split(' ')[0].toLowerCase();
+    const knownNames = ['tyler', 'julia', 'samantha', 'carlisle', 'mikah', 'cullen', 'jessica', 'bailey'];
+    return knownNames.includes(firstName) ? firstName : '';
+  }
+  
+  /**
+   * Render appointment card
+   */
+  private static renderAppointmentCard(appt: ProcessedAppointment): string {
     // Ensure formatted time is valid
     const formattedTime = appt.formattedTime && !appt.formattedTime.includes('Invalid Date') ? 
       appt.formattedTime : 
@@ -474,31 +419,67 @@ export class EmailTemplates {
     // Determine if office change is due to conflict
     const isConflictChange = appt.requiresOfficeChange && appt.assignmentReason?.includes('conflict');
     
-    // Handle office display with priority in parentheses (fix duplicate "Office")
-    // Make sure we only display "Office B-X" not "Office Office B-X"
-    const officeId = appt.officeDisplay.replace(/^Office\s+/, '');
-    const officeDisplay = `${officeId} (${priorityNumber})`;
+    // Generate details
+    let details = this.formatSessionType(appt.sessionType);
     
-    // Handle office change warning with different symbols based on reason
-    let officeChangeWarning = officeDisplay;
-    if (appt.requiresOfficeChange) {
-      if (isConflictChange) {
-        officeChangeWarning = `<span class="office-change-conflict">⚠️ ${officeDisplay}</span>`;
-      } else {
-        officeChangeWarning = `<span class="office-change-client">❗ ${officeDisplay}</span>`;
+    // Add age group if available
+    if (appt.ageGroup) {
+      details += `; ${appt.ageGroup}`;
+    }
+    
+    // Add special requirements if any
+    if (appt.hasSpecialRequirements) {
+      if (appt.requirements?.accessibility) {
+        details += '; Mobility Need';
+      }
+      if (appt.requirements?.specialFeatures?.includes('yoga-swing')) {
+        details += '; Yoga Swing Required';
       }
     }
     
-    // Determine session type class
-    const sessionTypeClass = appt.sessionType === 'telehealth' ? 'class="telehealth"' : '';
+    // Handle office display with priority in parentheses
+    const officeId = appt.officeDisplay.replace(/^Office\s+/, '');
+    const officeDisplay = `${officeId} (${priorityNumber})`;
+    
+    // Use different symbols based on reason
+    let officeChangeWarning = officeDisplay;
+    if (appt.requiresOfficeChange) {
+      if (isConflictChange) {
+        // 🔄 for room moves due to scheduling
+        officeChangeWarning = `<span class="room-moved">🔄 ${officeDisplay}</span>`;
+      } else {
+        // 📋 for rule-based assignments
+        officeChangeWarning = `<span class="rule-applied">📋 ${officeDisplay}</span>`;
+      }
+    } else if (priorityNumber && (
+      priorityNumber === '75' || 
+      priorityNumber === '78' || 
+      priorityNumber === '80' || 
+      priorityNumber === '90' ||
+      priorityNumber === '100')) {
+      // Also show 📋 for special rule priorities even without room change
+      officeChangeWarning = `<span class="rule-applied">📋 ${officeDisplay}</span>`;
+    }
+    
+    // Check for conflicts
+    let conflictNotification = '';
+    if (appt.conflicts && appt.conflicts.length > 0) {
+      // Create conflict notification for each conflict
+      const conflictsList = appt.conflicts.map(conflict => {
+        return `<div class="conflict-notification">🔄 Conflict with ${conflict.clinicianName} at ${this.formatTimeString(conflict.startTime)}</div>`;
+      }).join('');
+      
+      conflictNotification = conflictsList;
+    }
     
     return `
-      <tr>
-        <td>${cleanFormattedTime}</td>
-        <td>${appt.clientName}</td>
-        <td>${officeChangeWarning}</td>
-        <td><span ${sessionTypeClass}>${this.formatSessionType(appt.sessionType)}</span></td>
-      </tr>
+      <div class="appointment">
+        <span class="time">${cleanFormattedTime}</span>
+        <span class="client">${appt.clientName}</span>
+        <div class="office">${officeChangeWarning}</div>
+        <div class="details">${details}</div>
+        ${conflictNotification}
+      </div>
     `;
   }
   
@@ -576,17 +557,38 @@ export class EmailTemplates {
           // Handle office display
           const officeId = appt.officeDisplay.replace(/^Office\s+/, '');
           
-          text += `${cleanFormattedTime}  ${appt.clientName}  ${officeId} (${priorityNumber})`;
-          
-          if (appt.requiresOfficeChange) {
-            if (appt.assignmentReason?.includes('conflict')) {
-              text += ` ⚠️ OFFICE CHANGE (CONFLICT)`;
-            } else {
-              text += ` ❗ OFFICE CHANGE (CLIENT NEED)`;
+          // Generate details text
+          let details = this.formatSessionType(appt.sessionType);
+          if (appt.ageGroup) {
+            details += `; ${appt.ageGroup}`;
+          }
+          if (appt.hasSpecialRequirements) {
+            if (appt.requirements?.accessibility) {
+              details += '; Mobility Need';
+            }
+            if (appt.requirements?.specialFeatures?.includes('yoga-swing')) {
+              details += '; Yoga Swing Required';
             }
           }
           
-          text += `  ${this.formatSessionType(appt.sessionType)}\n`;
+          text += `${cleanFormattedTime}  ${appt.clientName}  ${officeId} (${priorityNumber})  ${details}`;
+          
+          if (appt.requiresOfficeChange) {
+            if (appt.assignmentReason?.includes('conflict')) {
+              text += `  🔄 ROOM MOVED`;
+            } else {
+              text += `  📋 RULE APPLIED`;
+            }
+          }
+          
+          text += `\n`;
+          
+          // Add conflict notification
+          if (appt.conflicts && appt.conflicts.length > 0) {
+            appt.conflicts.forEach(conflict => {
+              text += `   🔄 Conflict with ${conflict.clinicianName} at ${this.formatTimeString(conflict.startTime)}\n`;
+            });
+          }
         });
         
         text += `\n`;
@@ -604,29 +606,8 @@ export class EmailTemplates {
     
     // Legend
     text += `Legend:\n`;
-    text += `❗ - Office move due to client needs\n`;
-    text += `⚠️ - Office move due to scheduling conflict\n\n`;
-    
-    // Priority Levels Reference (shortened, no explainer text)
-    text += `PRIORITY LEVELS REFERENCE\n`;
-text += `100 - Client-Specific Requirements\n`;
-text += `90 - Accessibility Requirements\n`;
-text += `80 - Young Children (≤10 years)\n`;
-text += `78 - Yoga Swing Assignment\n`;
-text += `75 - Older Children and Teens (11-17 years) to C-1\n`;
-text += `74 - B-5 Secondary for Older Children (11-15)\n`;
-text += `73 - C-1 Secondary for Young Children (≤10)\n`;
-text += `72 - B-2 Tertiary for All Children (≤15)\n`;
-text += `70 - Adult Client Assignments\n`;
-text += `65 - Clinician's Primary Office\n`;
-text += `62 - Clinician's Preferred Office\n`;
-text += `55 - In-Person Priority\n`;
-text += `40 - Telehealth to Preferred Office\n`;
-text += `35 - Special Features Match\n`;
-text += `30 - Alternative Clinician Office\n`;
-text += `20 - Available Office\n`;
-text += `15 - Break Room Last Resort\n`;
-text += `10 - Default Telehealth\n`;
+    text += `📋 - Rule-based assignment (office assigned based on client needs or age)\n`;
+    text += `🔄 - Room moved (office change due to scheduling conflict)\n\n`;
     
     return text;
   }
