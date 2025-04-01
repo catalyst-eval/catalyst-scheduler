@@ -42,24 +42,6 @@ export class EmailTemplates {
       'Jessica Cox': '#F5CD47'         // Light Yellow
     };
     
-    // Office Update Request Form button section
-    const requestFormSection = `
-      <div style="margin: 20px 0; padding: 15px; background-color: #f0f7ff; border-left: 5px solid #0066cc; border-radius: 4px;">
-        <h3 style="margin-top: 0; color: #0066cc;">Office Update Request Form 📋</h3>
-        <p>Need to specify an office requirement or register accessibility needs for a client?</p>
-        <div style="margin: 15px 0;">
-          <a href="${this.getFormUrl()}" 
-             style="display: inline-block; padding: 10px 20px; background-color: #0066cc; color: white; 
-                    text-decoration: none; font-weight: bold; border-radius: 4px;">
-            Submit Office Update Request
-          </a>
-        </div>
-        <p style="margin-bottom: 0; font-size: 0.9em; color: #555;">
-          Requests are processed hourly and will be applied to future appointments.
-        </p>
-      </div>
-    `;
-    
     // Generate the HTML email
     const htmlBody = `
 <!DOCTYPE html>
@@ -77,11 +59,11 @@ export class EmailTemplates {
     .header { 
       background-color: #4b6cb7; 
       color: white; 
-      padding: 10px; /* 50% reduction from 20px */
+      padding: 10px;
       border-radius: 5px 5px 0 0;
     }
     .header h1 {
-      font-size: 1.5em; /* 25% reduction from 2em */
+      font-size: 1.5em;
       margin: 0;
     }
     .content { 
@@ -89,7 +71,7 @@ export class EmailTemplates {
       background-color: #f9f9f9;
     }
     h2 {
-      margin-top: 8px; /* 20% reduction from 10px */
+      margin-top: 8px;
       margin-bottom: 8px;
     }
     .appointment-table {
@@ -131,13 +113,13 @@ export class EmailTemplates {
       padding: 12px;
       margin-bottom: 15px;
       border-left: 4px solid #27ae60;
-      font-size: 0.85em; /* 2 points smaller */
+      font-size: 0.85em;
     }
     .priority-table {
       width: 100%;
       border-collapse: collapse;
       margin-bottom: 15px;
-      font-size: 0.75em; /* 4 points smaller (2 additional points) */
+      font-size: 0.75em;
     }
     .priority-table th, .priority-table td {
       border: 1px solid #ddd;
@@ -152,7 +134,7 @@ export class EmailTemplates {
       padding: 10px;
       background-color: #f8f9fa;
       border: 1px solid #eaeaea;
-      font-size: 0.85em; /* 2 points smaller */
+      font-size: 0.85em;
     }
     .legend ul {
       margin: 5px 0;
@@ -165,12 +147,49 @@ export class EmailTemplates {
       text-align: center;
       border-top: 1px solid #ddd;
     }
-    .form-explanation {
-      margin: 30px 0; 
+    .request-form {
+      margin: 20px 0; 
       padding: 15px; 
-      background-color: #f9f9f9; 
-      border: 1px solid #ddd; 
+      background-color: #f0f7ff; 
+      border-left: 5px solid #0066cc; 
       border-radius: 4px;
+    }
+    .collapsible {
+      background-color: #f1f1f1;
+      color: #444;
+      cursor: pointer;
+      padding: 12px;
+      width: 100%;
+      border: none;
+      text-align: left;
+      outline: none;
+      font-size: 15px;
+      border-radius: 4px;
+      margin-bottom: 5px;
+    }
+    .active, .collapsible:hover {
+      background-color: #e6e6e6;
+    }
+    .collapsible:after {
+      content: '\\002B'; /* Unicode character for "plus" sign (+) */
+      font-weight: bold;
+      float: right;
+      margin-left: 5px;
+    }
+    .active:after {
+      content: "\\2212"; /* Unicode character for "minus" sign (-) */
+    }
+    .collapsible-content {
+      padding: 0 18px;
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.2s ease-out;
+      background-color: #f9f9f9;
+    }
+    
+    /* Ensure collapsible sections appear open in email clients that don't support JavaScript */
+    .email-safe-collapsible {
+      display: block;
     }
   </style>
 </head>
@@ -179,9 +198,23 @@ export class EmailTemplates {
     <h1>Daily Schedule: ${displayDate}</h1>
   </div>
   <div class="content">
-    ${requestFormSection}
     
     ${this.renderClinicianGroups(clinicianGroups, clinicianColors)}
+    
+    <div class="request-form">
+      <h3 style="margin-top: 0; color: #0066cc;">Office Update Request Form 📋</h3>
+      <p>Need to specify an office requirement or register accessibility needs for a client?</p>
+      <div style="margin: 15px 0;">
+        <a href="${this.getFormUrl()}" 
+           style="display: inline-block; padding: 10px 20px; background-color: #0066cc; color: white; 
+                  text-decoration: none; font-weight: bold; border-radius: 4px;">
+          Submit Office Update Request
+        </a>
+      </div>
+      <p style="margin-bottom: 0; font-size: 0.9em; color: #555;">
+        Requests are processed hourly and will be applied to future appointments.
+      </p>
+    </div>
     
     <div class="summary">
       <strong>Summary - ${stats.totalAppointments} Total Appointments</strong>
@@ -195,44 +228,58 @@ export class EmailTemplates {
       </ul>
     </div>
     
-    <div class="form-explanation">
-      <h3 style="margin-top: 0; color: #333;">About the Office Update Request Form</h3>
-      <p>The Office Update Request Form allows clinicians to:</p>
-      <ul>
-        <li><strong>Register accessibility needs</strong> including mobility requirements</li>
-        <li><strong>Request specific offices</strong> for clients who have difficulty with room changes</li>
-        <li><strong>Specify yoga swing requirements</strong> for clients who need this therapy tool</li>
-      </ul>
-      <p>Once submitted, these requirements will be automatically applied to all future appointments.</p>
-      <p><strong>Note:</strong> The yoga swings are available in offices B-2, C-1, and B-5.</p>
+    <!-- Collapsible Priority Table Section -->
+    <button type="button" class="collapsible">Priority Level Reference Table ▼</button>
+    <div class="collapsible-content email-safe-collapsible">
+      <table class="priority-table">
+  <thead>
+    <tr>
+      <th>Priority</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td>100</td><td>Client-Specific Requirements</td></tr>
+    <tr><td>90</td><td>Accessibility Requirements</td></tr>
+    <tr><td>80</td><td>Young Children (≤10 years)</td></tr>
+    <tr><td>78</td><td>Yoga Swing Assignment</td></tr>
+    <tr><td>75</td><td>Older Children and Teens (11-17 years) to C-1</td></tr>
+    <tr><td>74</td><td>B-5 Secondary for Older Children (11-15)</td></tr>
+    <tr><td>73</td><td>C-1 Secondary for Young Children (≤10)</td></tr>
+    <tr><td>72</td><td>B-2 Tertiary for All Children (≤15)</td></tr>
+    <tr><td>70</td><td>Adult Client Assignments</td></tr>
+    <tr><td>65</td><td>Clinician's Primary Office</td></tr>
+    <tr><td>62</td><td>Clinician's Preferred Office</td></tr>
+    <tr><td>55</td><td>In-Person Priority</td></tr>
+    <tr><td>40</td><td>Telehealth to Preferred Office</td></tr>
+    <tr><td>35</td><td>Special Features Match</td></tr>
+    <tr><td>30</td><td>Alternative Clinician Office</td></tr>
+    <tr><td>20</td><td>Available Office</td></tr>
+    <tr><td>15</td><td>Break Room Last Resort</td></tr>
+    <tr><td>10</td><td>Default Telehealth</td></tr>
+  </tbody>
+</table>
     </div>
     
-    <table class="priority-table">
-      <thead>
-        <tr>
-          <th>Priority</th>
-          <th>Description</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr><td>100</td><td>Client-Specific Requirements</td></tr>
-        <tr><td>90</td><td>Accessibility Requirements</td></tr>
-        <tr><td>80</td><td>Young Children (≤10 years)</td></tr>
-        <tr><td>78</td><td>Yoga Swing Assignment</td></tr>
-        <tr><td>76</td><td>B-2 Secondary for Children</td></tr>
-        <tr><td>75</td><td>Older Children and Teens (11-15 years)</td></tr>
-        <tr><td>70</td><td>Adult Client Assignments</td></tr>
-        <tr><td>65</td><td>Clinician's Primary Office</td></tr>
-        <tr><td>62</td><td>Clinician's Preferred Office</td></tr>
-        <tr><td>55</td><td>In-Person Priority</td></tr>
-        <tr><td>40</td><td>Telehealth to Preferred Office</td></tr>
-        <tr><td>35</td><td>Special Features Match</td></tr>
-        <tr><td>30</td><td>Alternative Clinician Office</td></tr>
-        <tr><td>20</td><td>Available Office</td></tr>
-        <tr><td>15</td><td>Break Room Last Resort</td></tr>
-        <tr><td>10</td><td>Default Telehealth</td></tr>
-      </tbody>
-    </table>
+    <!-- JavaScript to handle collapsible sections -->
+    <script>
+      var coll = document.getElementsByClassName("collapsible");
+      var i;
+      
+      for (i = 0; i < coll.length; i++) {
+        coll[i].addEventListener("click", function() {
+          this.classList.toggle("active");
+          var content = this.nextElementSibling;
+          if (content.style.maxHeight){
+            content.style.maxHeight = null;
+            content.style.padding = "0 18px";
+          } else {
+            content.style.maxHeight = content.scrollHeight + "px";
+            content.style.padding = "18px";
+          }
+        });
+      }
+    </script>
   </div>
   <div class="footer">
     <p>This report was automatically generated by Catalyst Scheduler on ${new Date().toLocaleString()}</p>
@@ -506,12 +553,6 @@ export class EmailTemplates {
     
     let text = `DAILY SCHEDULE: ${displayDate}\n\n`;
     
-    // Form section
-    text += `OFFICE UPDATE REQUEST FORM\n`;
-    text += `Need to specify accessibility needs or office requirements?\n`;
-    text += `Visit: ${this.getFormUrl()}\n\n`;
-    text += `Requests are processed hourly and will be applied to future appointments.\n\n`;
-    
     // Appointments section
     if (clinicianGroups.length === 0) {
       text += `No appointments scheduled for today.\n\n`;
@@ -552,6 +593,12 @@ export class EmailTemplates {
       });
     }
     
+    // Form section moved below appointments
+    text += `OFFICE UPDATE REQUEST FORM\n`;
+    text += `Need to specify accessibility needs or office requirements?\n`;
+    text += `Visit: ${this.getFormUrl()}\n\n`;
+    text += `Requests are processed hourly and will be applied to future appointments.\n\n`;
+    
     // Summary section
     text += `Summary - ${stats.totalAppointments} Total Appointments\n\n`;
     
@@ -560,30 +607,26 @@ export class EmailTemplates {
     text += `❗ - Office move due to client needs\n`;
     text += `⚠️ - Office move due to scheduling conflict\n\n`;
     
-    // About the form section
-    text += `ABOUT THE OFFICE UPDATE REQUEST FORM\n`;
-    text += `The form allows clinicians to register accessibility needs, request specific offices\n`;
-    text += `for clients with difficulty handling room changes, and specify yoga swing requirements.\n`;
-    text += `Yoga swings are available in offices B-2, C-1, and B-5.\n\n`;
-    
-    // Priority Levels
+    // Priority Levels Reference (shortened, no explainer text)
     text += `PRIORITY LEVELS REFERENCE\n`;
-    text += `100 - Client-Specific Requirements\n`;
-    text += `90 - Accessibility Requirements\n`;
-    text += `80 - Young Children (≤10 years)\n`;
-    text += `78 - Yoga Swing Assignment\n`;
-    text += `76 - B-2 Secondary for Children\n`;
-    text += `75 - Older Children and Teens (11-15 years)\n`;
-    text += `70 - Adult Client Assignments\n`;
-    text += `65 - Clinician's Primary Office\n`;
-    text += `62 - Clinician's Preferred Office\n`;
-    text += `55 - In-Person Priority\n`;
-    text += `40 - Telehealth to Preferred Office\n`;
-    text += `35 - Special Features Match\n`;
-    text += `30 - Alternative Clinician Office\n`;
-    text += `20 - Available Office\n`;
-    text += `15 - Break Room Last Resort\n`;
-    text += `10 - Default Telehealth\n`;
+text += `100 - Client-Specific Requirements\n`;
+text += `90 - Accessibility Requirements\n`;
+text += `80 - Young Children (≤10 years)\n`;
+text += `78 - Yoga Swing Assignment\n`;
+text += `75 - Older Children and Teens (11-17 years) to C-1\n`;
+text += `74 - B-5 Secondary for Older Children (11-15)\n`;
+text += `73 - C-1 Secondary for Young Children (≤10)\n`;
+text += `72 - B-2 Tertiary for All Children (≤15)\n`;
+text += `70 - Adult Client Assignments\n`;
+text += `65 - Clinician's Primary Office\n`;
+text += `62 - Clinician's Preferred Office\n`;
+text += `55 - In-Person Priority\n`;
+text += `40 - Telehealth to Preferred Office\n`;
+text += `35 - Special Features Match\n`;
+text += `30 - Alternative Clinician Office\n`;
+text += `20 - Available Office\n`;
+text += `15 - Break Room Last Resort\n`;
+text += `10 - Default Telehealth\n`;
     
     return text;
   }
