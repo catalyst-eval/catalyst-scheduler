@@ -593,6 +593,76 @@ private async resolveOfficeAssignments(appointments: AppointmentRecord[]): Promi
           }
         }
 
+        // ===============================
+// RULE PRIORITY 78: Yoga Swing Assignment
+// ===============================
+if (!assignedOffice) {
+  console.log("Checking PRIORITY 78: Yoga Swing Assignment");
+  
+  // Search for yoga-swing tag in accessibilityNotes
+  const hasYogaSwing = clientAccessibility?.accessibilityNotes && 
+                      clientAccessibility.accessibilityNotes.includes('yoga-swing');
+  
+  if (hasYogaSwing) {
+    console.log(`  Client requires yoga swing, checking yoga swing offices`);
+    
+    // Try B-2, C-1, B-5 in that order for yoga swing
+    const yogaSwingOffices = ['B-2', 'C-1', 'B-5'];
+    
+    for (const officeId of yogaSwingOffices) {
+      console.log(`  Checking yoga swing office: ${officeId}`);
+      const office = activeOffices.find(o => standardizeOfficeId(o.officeId) === standardizeOfficeId(officeId));
+      
+      if (office) {
+        const available = await this.isOfficeAvailable(officeId, appt, appointments);
+        console.log(`  Office ${officeId} availability: ${available ? 'AVAILABLE' : 'NOT AVAILABLE'}`);
+        
+        if (available) {
+          assignedOffice = standardizeOfficeId(officeId);
+          assignmentReason = `Client requires yoga swing (Priority ${RulePriority.YOGA_SWING_ASSIGNMENT})`;
+          console.log(`  MATCH: ${assignmentReason} - Office ${assignedOffice}`);
+          break;
+        }
+      } else {
+        console.log(`  Office ${officeId} not found in active offices list`);
+      }
+    }
+  } else {
+    console.log(`  Client does not require a yoga swing, skipping yoga swing rule`);
+  }
+}
+
+        // ===============================
+// RULE PRIORITY 76: B-2 Secondary for Children
+// ===============================
+if (!assignedOffice) {
+  console.log("Checking PRIORITY 76: B-2 Secondary for Children rule");
+  if (clientAge !== null) {
+    console.log(`  Client age is ${clientAge} years old`);
+    if (clientAge >= 11 && clientAge <= 15) {
+      console.log(`  Client is ${clientAge} years old (11-15), checking if B-2 is available as secondary option`);
+      
+      const b2Office = activeOffices.find(o => standardizeOfficeId(o.officeId) === 'B-2');
+      if (b2Office) {
+        const available = await this.isOfficeAvailable('B-2', appt, appointments);
+        console.log(`  B-2 availability check result: ${available ? 'AVAILABLE' : 'NOT AVAILABLE'}`);
+        
+        if (available) {
+          assignedOffice = 'B-2';
+          assignmentReason = `Child/teen (${clientAge} years old) assigned to B-2 as secondary option (Priority ${RulePriority.B2_SECONDARY_FOR_CHILDREN})`;
+          console.log(`  MATCH: ${assignmentReason} - Office ${assignedOffice}`);
+        }
+      } else {
+        console.log(`  B-2 office not found in active offices list`);
+      }
+    } else {
+      console.log(`  Client age ${clientAge} is not 11-15, skipping B-2 Secondary for Children rule`);
+    }
+  } else {
+    console.log(`  Client age is unknown, skipping B-2 Secondary for Children rule`);
+  }
+}
+
         // =======================================
         // RULE PRIORITY 75: Older Children and Teens
         // =======================================
@@ -1702,7 +1772,7 @@ try {
         assignmentReason = `Young child assigned to B-5 (Priority 80)`;
         stats.ruleMatches['80'] = (stats.ruleMatches['80'] || 0) + 1;
       }
-      
+
       // RULE PRIORITY 75: Older Children and Teens
       if (!assignedOffice && clientAge !== null && clientAge >= 11 && clientAge <= 17) {
         assignedOffice = 'C-1';
