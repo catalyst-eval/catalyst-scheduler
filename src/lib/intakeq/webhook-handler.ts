@@ -65,12 +65,9 @@ export class WebhookHandler {
     return payload.EventType || payload.Type;
   }
 
-  /**
- * Process incoming webhook with validation and retries
- */
 /**
  * Process incoming webhook with validation and retries
- * Updated to handle tags from IntakeQ
+ * Enhanced with improved error handling and recurring appointment detection
  */
 async processWebhook(
   payload: unknown,
@@ -79,13 +76,8 @@ async processWebhook(
   // Add timestamp to measure processing time
   const startTime = Date.now();
 
-  const payloadCopy = JSON.parse(JSON.stringify(payload));
-  if (payloadCopy.Appointment?.ClientEmail) {
-    payloadCopy.Appointment.ClientEmail = '[REDACTED]';
-  }
-  if (payloadCopy.Appointment?.ClientPhone) {
-    payloadCopy.Appointment.ClientPhone = '[REDACTED]';
-  }
+  // Create safe copy of payload for logging
+  const payloadCopy = this.createSafePayloadCopy(payload);
   console.log('Complete webhook payload structure:', JSON.stringify(payloadCopy, null, 2));  
 
   try {
@@ -103,15 +95,23 @@ async processWebhook(
     const typedPayload = payload as IntakeQWebhookPayload;
     const eventType = this.getEventType(typedPayload);
     
-    // Log the appointment data including tags if present
-    if (typedPayload.Appointment) {
-      console.log('Webhook Appointment data:', {
-        id: typedPayload.Appointment.Id,
-        clientId: typedPayload.Appointment.ClientId,
-        tags: typedPayload.Appointment.Tags || 'none'
-      });
+    // Generate a unique idempotency key for this webhook
+    const idempotencyKey = this.generateIdempotencyKey(typedPayload);
+    
+    // Check if this webhook has already been processed
+    const alreadyProcessed = await this.sheetsService.isWebhookProcessed(idempotencyKey);
+    if (alreadyProcessed) {
+      console.log(`Webhook ${idempotencyKey} already processed, skipping`);
+      return {
+        success: true,
+        details: {
+          idempotencyKey,
+          status: 'already_processed',
+          eventType
+        }
+      };
     }
-      
+    
     // Log webhook receipt
     await this.sheetsService.addAuditLog({
       timestamp: new Date().toISOString(),
@@ -123,8 +123,19 @@ async processWebhook(
         clientId: typedPayload.ClientId,
         // Log tags if present in appointment
         tags: typedPayload.Appointment?.Tags || 'none',
-        apiDisabled: process.env.DISABLE_API_CALLS === 'true' ? true : false
+        apiDisabled: process.env.DISABLE_API_CALLS === 'true' ? true : false,
+        idempotencyKey
       })
+    });
+
+    // Check for recurring appointment pattern
+    const isRecurringAppointment = this.isRecurringAppointment(typedPayload);
+    
+    // Record webhook as being processed
+    await this.sheetsService.logWebhook(idempotencyKey, 'processing', {
+      type: eventType,
+      entityId: typedPayload.Appointment?.Id || typedPayload.IntakeId || '',
+      isRecurring: isRecurringAppointment
     });
 
     // Check if API calls are disabled
@@ -139,9 +150,13 @@ async processWebhook(
       };
     }
 
-    // Check if this is a form submission or an appointment webhook
+    // Process the webhook based on its type and contents
     let result: WebhookResponse;
-    if (eventType === "Form Submitted" || eventType === "Intake Submitted") {
+    
+    if (isRecurringAppointment && this.appointmentSyncHandler) {
+      console.log('Detected recurring appointment, using specialized handler');
+      result = await this.appointmentSyncHandler.processRecurringAppointment(typedPayload);
+    } else if (eventType === "Form Submitted" || eventType === "Intake Submitted") {
       result = await this.processIntakeFormSubmission(typedPayload);
     } else if (typedPayload.Appointment && this.appointmentSyncHandler) {
       // Process appointment event using the appointment sync handler
@@ -150,6 +165,17 @@ async processWebhook(
       // Process with retry logic for other events
       result = await this.processWithRetry(typedPayload);
     }
+
+    // Update webhook status
+    await this.sheetsService.updateWebhookStatus(idempotencyKey, 
+      result.success ? 'completed' : 'failed', 
+      { 
+        details: result.details,
+        error: result.error,
+        retryable: result.retryable,
+        processingTime: Date.now() - startTime
+      }
+    );
 
     // Log successful webhook handling
     if (result.success) {
@@ -181,6 +207,25 @@ async processWebhook(
 }
 
 /**
+ * Create a safe copy of the payload for logging (without sensitive data)
+ */
+private createSafePayloadCopy(payload: any): any {
+  try {
+    const payloadCopy = JSON.parse(JSON.stringify(payload));
+    if (payloadCopy.Appointment?.ClientEmail) {
+      payloadCopy.Appointment.ClientEmail = '[REDACTED]';
+    }
+    if (payloadCopy.Appointment?.ClientPhone) {
+      payloadCopy.Appointment.ClientPhone = '[REDACTED]';
+    }
+    return payloadCopy;
+  } catch (error) {
+    console.warn('Error creating safe payload copy:', error);
+    return { error: 'Could not create safe copy' };
+  }
+}
+
+/**
  * Generate a unique idempotency key based on payload content
  */
 private generateIdempotencyKey(payload: any): string {
@@ -195,10 +240,16 @@ private generateIdempotencyKey(payload: any): string {
   }
   
   // Add timestamp from payload if available
-  const timestamp = payload.DateCreated || '';
+  const timestamp = payload.DateCreated || payload.Appointment?.DateCreated || '';
   
   // Create a hash of the content for uniqueness
-  const contentString = JSON.stringify(payload);
+  const contentString = JSON.stringify({
+    type,
+    entityId,
+    timestamp,
+    clientId: payload.ClientId
+  });
+  
   const contentHash = require('crypto')
     .createHash('md5')
     .update(contentString)
@@ -206,6 +257,37 @@ private generateIdempotencyKey(payload: any): string {
     .substring(0, 8); // Just use first 8 chars for brevity
   
   return `${type}-${entityId}-${timestamp}-${contentHash}`;
+}
+
+/**
+ * Check if a payload is for a recurring appointment
+ */
+private isRecurringAppointment(payload: IntakeQWebhookPayload): boolean {
+  // Check if the appointment has a RecurrencePattern property
+  if (payload.Appointment?.RecurrencePattern) {
+    return true;
+  }
+  
+  // Check for other indicators of recurring appointments
+  if (payload.Appointment) {
+    // Look for frequency or recurrence information in notes or tags
+    const hasRecurrenceTags = 
+      payload.Appointment.Tags?.includes('recurring') || 
+      payload.Appointment.Tags?.includes('weekly') ||
+      payload.Appointment.Tags?.includes('biweekly');
+    
+    const hasRecurrenceNotes =
+      payload.Appointment.Notes?.includes('recurring') ||
+      payload.Appointment.Notes?.includes('series') ||
+      payload.Appointment.Notes?.includes('weekly') ||
+      payload.Appointment.Notes?.includes('biweekly');
+    
+    if (hasRecurrenceTags || hasRecurrenceNotes) {
+      return true;
+    }
+  }
+  
+  return false;
 }
 
   /**

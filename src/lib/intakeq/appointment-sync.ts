@@ -466,189 +466,429 @@ private async handleNewAppointment(
   }
 
   /**
-   * Handle appointment cancellation
-   */
-  private async handleAppointmentCancellation(
-    appointment: IntakeQAppointment
-  ): Promise<WebhookResponse> {
-    try {
-      console.log('Processing appointment cancellation:', appointment.Id);
-      
-      // Check if appointment exists
-      let existingAppointment;
+ * Handle appointment cancellation with improved reliability
+ * Includes multiple fallback strategies and enhanced error handling
+ */
+private async handleAppointmentCancellation(
+  appointment: IntakeQAppointment
+): Promise<WebhookResponse> {
+  try {
+    console.log('Processing appointment cancellation:', appointment.Id);
+    
+    // Check if appointment exists
+    let existingAppointment;
+    let retryCount = 0;
+    const maxRetries = 3;
+    
+    // Retry getting the appointment with backoff
+    while (retryCount < maxRetries) {
       try {
-        existingAppointment = await this.retryWithBackoff(() => 
-          this.sheetsService.getAppointment(appointment.Id)
-        );
-      } catch (getError) {
-        console.error(`Error fetching appointment ${appointment.Id} for cancellation:`, getError);
-        return {
-          success: false,
-          error: `Error fetching appointment ${appointment.Id} for cancellation`,
-          retryable: true
-        };
-      }
-      
-      if (!existingAppointment) {
-        return {
-          success: false,
-          error: `Appointment ${appointment.Id} not found for cancellation`,
-          retryable: false
-        };
-      }
-      
-      try {
-        // First try to delete appointment from Google Sheets
-        console.log(`Attempting to delete appointment ${appointment.Id} from sheet`);
-        await this.retryWithBackoff(() => this.sheetsService.deleteAppointment(appointment.Id));
-        console.log(`Successfully deleted appointment ${appointment.Id} from sheet`);
-      } catch (deleteError) {
-        // If deletion fails, try to update status instead as a fallback
-        console.error(`Failed to delete appointment ${appointment.Id}, falling back to status update:`, deleteError);
-        
-        try {
-          // Create a modified copy of the existing appointment
-          const cancellationUpdate: AppointmentRecord = {
-            ...existingAppointment,
-            status: 'cancelled' as 'cancelled', // Type assertion to match the union type
-            lastUpdated: new Date().toISOString(),
-            notes: (existingAppointment.notes || '') + 
-                   `\nCancelled: ${new Date().toISOString()}` + 
-                   (appointment.CancellationReason ? `\nReason: ${appointment.CancellationReason}` : '')
-          };
+        // Clear cache before retrieval to ensure fresh data
+        if (retryCount > 0) {
+          console.log(`Clearing cache before retry ${retryCount + 1}`);
+          this.sheetsService.cache.invalidateAppointments();
           
-          // Update the appointment with cancelled status
-          await this.retryWithBackoff(() => this.sheetsService.updateAppointment(cancellationUpdate));
-          console.log(`Fallback successful: Updated appointment ${appointment.Id} status to cancelled`);
-        } catch (updateError) {
-          console.error(`Both deletion and status update failed for appointment ${appointment.Id}:`, updateError);
-          throw new Error(`Failed to process cancellation: ${updateError instanceof Error ? updateError.message : 'Unknown error'}`);
+          // Small delay before retry
+          await new Promise(resolve => setTimeout(resolve, 500 * Math.pow(2, retryCount)));
         }
-      }
-      
-      // Log cancellation (with safe error handling)
-      try {
-        await this.retryWithBackoff(() => this.sheetsService.addAuditLog({
-          timestamp: new Date().toISOString(),
-          eventType: 'APPOINTMENT_CANCELLED' as AuditEventType,
-          description: `Cancelled appointment ${appointment.Id}`,
-          user: 'SYSTEM',
-          systemNotes: JSON.stringify({
-            appointmentId: appointment.Id,
-            clientId: appointment.ClientId,
-            reason: appointment.CancellationReason || 'No reason provided',
-            deletionMethod: 'row_removal_with_status_fallback'
-          })
-        }), 2);
-      } catch (logError) {
-        console.warn('Failed to log appointment cancellation:', logError);
-      }
-
-      return {
-        success: true,
-        details: {
-          appointmentId: appointment.Id,
-          action: 'cancelled_and_processed'
-        }
-      };
-    } catch (error) {
-      console.error('Error handling appointment cancellation:', error);
-      
-      // Add detailed error logging (with safe error handling)
-      try {
-        await this.sheetsService.addAuditLog({
-          timestamp: new Date().toISOString(),
-          eventType: 'SYSTEM_ERROR' as AuditEventType,
-          description: `Error cancelling appointment ${appointment.Id}`,
-          user: 'SYSTEM',
-          systemNotes: error instanceof Error ? error.message : 'Unknown error'
-        });
-      } catch (logError) {
-        console.error('Failed to log cancellation error:', logError);
-      }
-      
-      throw error;
-    }
-  }
-
-  /**
-   * Handle appointment deletion
-   */
-  private async handleAppointmentDeletion(
-    appointment: IntakeQAppointment
-  ): Promise<WebhookResponse> {
-    try {
-      console.log('Processing appointment deletion:', appointment.Id);
-      
-      // Check if appointment exists
-      let existingAppointment;
-      try {
+        
         existingAppointment = await this.retryWithBackoff(() => 
           this.sheetsService.getAppointment(appointment.Id)
         );
+        
+        if (existingAppointment) {
+          console.log(`Found existing appointment ${appointment.Id} in database`);
+          break;
+        } else {
+          console.log(`Appointment ${appointment.Id} not found on attempt ${retryCount + 1}`);
+        }
       } catch (getError) {
-        console.error(`Error fetching appointment ${appointment.Id} for deletion:`, getError);
-        return {
-          success: false,
-          error: `Error fetching appointment ${appointment.Id} for deletion`,
-          retryable: true
-        };
+        console.error(`Error fetching appointment ${appointment.Id} for cancellation (attempt ${retryCount + 1}):`, getError);
       }
       
-      if (!existingAppointment) {
+      retryCount++;
+    }
+    
+    if (!existingAppointment) {
+      console.warn(`Appointment ${appointment.Id} not found for cancellation after ${maxRetries} attempts`);
+      
+      // Try to check if this is a recurring appointment
+      const hasRecurrencePattern = appointment.RecurrencePattern || 
+        (appointment.StartDateIso && appointment.EndDateIso);
+      
+      if (hasRecurrencePattern) {
+        console.log('This appears to be part of a recurring series. Proceeding with cancellation anyway.');
+        
+        // Log the cancellation even though we couldn't find the appointment
+        await this.logCancellationEvent(appointment);
+        
         return {
-          success: false,
-          error: `Appointment ${appointment.Id} not found for deletion`,
-          retryable: false
-        };
-      }
-      
-      // Delete appointment from Google Sheets with retry
-      await this.retryWithBackoff(() => this.sheetsService.deleteAppointment(appointment.Id));
-      
-      // Log deletion (with safe error handling)
-      try {
-        await this.retryWithBackoff(() => this.sheetsService.addAuditLog({
-          timestamp: new Date().toISOString(),
-          eventType: 'APPOINTMENT_DELETED' as AuditEventType,
-          description: `Deleted appointment ${appointment.Id}`,
-          user: 'SYSTEM',
-          systemNotes: JSON.stringify({
+          success: true,
+          details: {
             appointmentId: appointment.Id,
-            clientId: appointment.ClientId,
-            deletionMethod: 'row_removal'
-          })
-        }), 2);
-      } catch (logError) {
-        console.warn('Failed to log appointment deletion:', logError);
+            action: 'cancelled_recurring_appointment',
+            message: 'Appointment not found, but recorded cancellation for recurring series'
+          }
+        };
       }
-  
+            
       return {
-        success: true,
+        success: false,
+        error: `Appointment ${appointment.Id} not found for cancellation after ${maxRetries} attempts`,
+        retryable: false,
         details: {
           appointmentId: appointment.Id,
-          action: 'deleted'
+          attempts: maxRetries
         }
       };
-    } catch (error) {
-      console.error('Error handling appointment deletion:', error);
+    }
+    
+    // Strategy 1: Try deletion first
+    let deletionSuccess = false;
+    try {
+      console.log(`Attempting to delete appointment ${appointment.Id} from sheet`);
       
-      // Add detailed error logging (with safe error handling)
+      // Before deletion, ensure cache is invalidated
+      this.sheetsService.cache.invalidateAppointments();
+      
+      await this.retryWithBackoff(() => this.sheetsService.deleteAppointment(appointment.Id));
+      console.log(`Successfully deleted appointment ${appointment.Id} from sheet`);
+      deletionSuccess = true;
+    } catch (deleteError) {
+      console.error(`Failed to delete appointment ${appointment.Id}, falling back to status update:`, deleteError);
+    }
+    
+    // Strategy 2: If deletion fails, try to update status instead as a fallback
+    if (!deletionSuccess) {
       try {
-        await this.sheetsService.addAuditLog({
-          timestamp: new Date().toISOString(),
-          eventType: 'SYSTEM_ERROR' as AuditEventType,
-          description: `Error deleting appointment ${appointment.Id}`,
-          user: 'SYSTEM',
-          systemNotes: error instanceof Error ? error.message : 'Unknown error'
-        });
-      } catch (logError) {
-        console.error('Failed to log deletion error:', logError);
+        console.log(`Attempting fallback: Updating status of appointment ${appointment.Id} to cancelled`);
+        
+        // Create a modified copy of the existing appointment with cancelled status
+        const cancellationUpdate: AppointmentRecord = {
+          ...existingAppointment,
+          status: 'cancelled' as 'cancelled', // Type assertion to match the union type
+          lastUpdated: new Date().toISOString(),
+          notes: (existingAppointment.notes || '') + 
+                 `\nCancelled: ${new Date().toISOString()}` + 
+                 (appointment.CancellationReason ? `\nReason: ${appointment.CancellationReason}` : '')
+        };
+        
+        // Update the appointment with cancelled status
+        await this.retryWithBackoff(() => this.sheetsService.updateAppointment(cancellationUpdate));
+        console.log(`Fallback successful: Updated appointment ${appointment.Id} status to cancelled`);
+      } catch (updateError) {
+        console.error(`Both deletion and status update failed for appointment ${appointment.Id}:`, updateError);
+        throw new Error(`Failed to process cancellation: ${updateError instanceof Error ? updateError.message : 'Unknown error'}`);
+      }
+    }
+    
+    // Log cancellation
+    await this.logCancellationEvent(appointment);
+
+    return {
+      success: true,
+      details: {
+        appointmentId: appointment.Id,
+        action: 'cancelled_and_processed',
+        method: deletionSuccess ? 'row_deletion' : 'status_update'
+      }
+    };
+  } catch (error) {
+    console.error('Error handling appointment cancellation:', error);
+    
+    // Add detailed error logging (with safe error handling)
+    try {
+      await this.sheetsService.addAuditLog({
+        timestamp: new Date().toISOString(),
+        eventType: 'SYSTEM_ERROR' as AuditEventType,
+        description: `Error cancelling appointment ${appointment.Id}`,
+        user: 'SYSTEM',
+        systemNotes: error instanceof Error ? error.message : 'Unknown error'
+      });
+    } catch (logError) {
+      console.error('Failed to log cancellation error:', logError);
+    }
+    
+    throw error;
+  }
+}
+
+/**
+ * Helper method to log cancellation events consistently
+ */
+private async logCancellationEvent(appointment: IntakeQAppointment): Promise<void> {
+  try {
+    await this.retryWithBackoff(() => this.sheetsService.addAuditLog({
+      timestamp: new Date().toISOString(),
+      eventType: 'APPOINTMENT_CANCELLED' as AuditEventType,
+      description: `Cancelled appointment ${appointment.Id}`,
+      user: 'SYSTEM',
+      systemNotes: JSON.stringify({
+        appointmentId: appointment.Id,
+        clientId: appointment.ClientId,
+        reason: appointment.CancellationReason || 'No reason provided',
+        deletionMethod: 'row_removal_with_status_fallback',
+        cancellationDate: appointment.CancellationDate || new Date().toISOString()
+      })
+    }), 2);
+  } catch (logError) {
+    console.warn('Failed to log appointment cancellation:', logError);
+  }
+}
+
+/**
+ * Handle appointment deletion
+ * Enhanced with better error recovery and verification
+ */
+private async handleAppointmentDeletion(
+  appointment: IntakeQAppointment
+): Promise<WebhookResponse> {
+  try {
+    console.log('Processing appointment deletion:', appointment.Id);
+    
+    // Check if appointment exists
+    let existingAppointment;
+    let retryCount = 0;
+    const maxRetries = 3;
+    
+    // Retry getting the appointment with backoff
+    while (retryCount < maxRetries) {
+      try {
+        // Clear cache before retrieval to ensure fresh data
+        if (retryCount > 0) {
+          console.log(`Clearing cache before retry ${retryCount + 1}`);
+          this.sheetsService.cache.invalidateAppointments();
+          
+          // Small delay before retry
+          await new Promise(resolve => setTimeout(resolve, 500 * Math.pow(2, retryCount)));
+        }
+        
+        existingAppointment = await this.retryWithBackoff(() => 
+          this.sheetsService.getAppointment(appointment.Id)
+        );
+        
+        if (existingAppointment) {
+          console.log(`Found existing appointment ${appointment.Id} in database`);
+          break;
+        } else {
+          console.log(`Appointment ${appointment.Id} not found on attempt ${retryCount + 1}`);
+        }
+      } catch (getError) {
+        console.error(`Error fetching appointment ${appointment.Id} for deletion (attempt ${retryCount + 1}):`, getError);
       }
       
-      throw error;
+      retryCount++;
     }
+    
+    if (!existingAppointment) {
+      console.warn(`Appointment ${appointment.Id} not found for deletion after ${maxRetries} attempts`);
+      
+      // Check if this is a recurring appointment
+      const hasRecurrencePattern = appointment.RecurrencePattern || 
+        (appointment.StartDateIso && appointment.EndDateIso);
+      
+      if (hasRecurrencePattern) {
+        console.log('This appears to be part of a recurring series. Proceeding with deletion record anyway.');
+        
+        // Log the deletion even though we couldn't find the appointment
+        await this.logDeletionEvent(appointment);
+        
+        return {
+          success: true,
+          details: {
+            appointmentId: appointment.Id,
+            action: 'deleted_recurring_appointment',
+            message: 'Appointment not found, but recorded deletion for recurring series'
+          }
+        };
+      }
+      
+      return {
+        success: false,
+        error: `Appointment ${appointment.Id} not found for deletion after ${maxRetries} attempts`,
+        retryable: false,
+        details: {
+          appointmentId: appointment.Id,
+          attempts: maxRetries
+        }
+      };
+    }
+    
+    // Strategy 1: Try deletion with retry logic
+    let deletionSuccess = false;
+    try {
+      console.log(`Attempting to delete appointment ${appointment.Id}`);
+      
+      // Ensure cache is invalidated before deletion
+      this.sheetsService.cache.invalidateAppointments();
+      
+      await this.retryWithBackoff(() => this.sheetsService.deleteAppointment(appointment.Id), 5);
+      console.log(`Successfully deleted appointment ${appointment.Id}`);
+      deletionSuccess = true;
+    } catch (deleteError) {
+      console.error(`Failed to delete appointment ${appointment.Id}, falling back to status update:`, deleteError);
+    }
+    
+    // Strategy 2: If deletion fails, try to update status as a fallback
+    if (!deletionSuccess) {
+      try {
+        console.log(`Attempting fallback: Updating status of appointment ${appointment.Id} to cancelled`);
+        
+        // Create a modified copy of the existing appointment with cancelled status
+        const deletionUpdate: AppointmentRecord = {
+          ...existingAppointment,
+          status: 'cancelled' as 'cancelled',
+          lastUpdated: new Date().toISOString(),
+          notes: (existingAppointment.notes || '') + 
+                 `\nDeleted: ${new Date().toISOString()}`
+        };
+        
+        // Update with cancelled status
+        await this.retryWithBackoff(() => this.sheetsService.updateAppointment(deletionUpdate));
+        console.log(`Fallback successful: Updated appointment ${appointment.Id} status for deletion`);
+      } catch (updateError) {
+        console.error(`Both deletion and status update failed for appointment ${appointment.Id}:`, updateError);
+        throw new Error(`Failed to process deletion: ${updateError instanceof Error ? updateError.message : 'Unknown error'}`);
+      }
+    }
+    
+    // Log the deletion
+    await this.logDeletionEvent(appointment);
+    
+    return {
+      success: true,
+      details: {
+        appointmentId: appointment.Id,
+        action: 'deleted',
+        method: deletionSuccess ? 'row_deletion' : 'status_update'
+      }
+    };
+  } catch (error) {
+    console.error('Error handling appointment deletion:', error);
+    
+    // Add detailed error logging (with safe error handling)
+    try {
+      await this.sheetsService.addAuditLog({
+        timestamp: new Date().toISOString(),
+        eventType: 'SYSTEM_ERROR' as AuditEventType,
+        description: `Error deleting appointment ${appointment.Id}`,
+        user: 'SYSTEM',
+        systemNotes: error instanceof Error ? error.message : 'Unknown error'
+      });
+    } catch (logError) {
+      console.error('Failed to log deletion error:', logError);
+    }
+    
+    throw error;
   }
+}
+
+/**
+ * Helper method to log deletion events consistently
+ */
+private async logDeletionEvent(appointment: IntakeQAppointment): Promise<void> {
+  try {
+    await this.retryWithBackoff(() => this.sheetsService.addAuditLog({
+      timestamp: new Date().toISOString(),
+      eventType: 'APPOINTMENT_DELETED' as AuditEventType,
+      description: `Deleted appointment ${appointment.Id}`,
+      user: 'SYSTEM',
+      systemNotes: JSON.stringify({
+        appointmentId: appointment.Id,
+        clientId: appointment.ClientId,
+        deletionMethod: 'row_removal_with_status_fallback',
+        appointmentDate: appointment.StartDateIso || ''
+      })
+    }), 2);
+  } catch (logError) {
+    console.warn('Failed to log appointment deletion:', logError);
+  }
+}
+
+/**
+ * Process recurring appointment series
+ * Method to handle recurring appointments consistently
+ */
+async processRecurringAppointment(
+  payload: IntakeQWebhookPayload
+): Promise<WebhookResponse> {
+  // Keep the implementation the same, just change from private to public
+  try {
+    console.log('Processing recurring appointment series:', payload.Appointment?.Id);
+    
+    // Validate appointment data
+    if (!payload.Appointment || !payload.Appointment.RecurrencePattern) {
+      return {
+        success: false,
+        error: 'Invalid recurring appointment data',
+        retryable: false
+      };
+    }
+    
+    const appointment = payload.Appointment;
+    const recurrencePattern = appointment.RecurrencePattern;
+    
+    console.log('Recurrence pattern:', JSON.stringify(recurrencePattern));
+    
+    // Safety check for frequency and occurrences
+    const frequency = recurrencePattern?.frequency || 'unknown';
+    const occurrences = recurrencePattern?.occurrences || 0;
+    const endDate = recurrencePattern?.endDate || '';
+    
+    // Log the recurring nature of the appointment
+    await this.sheetsService.addAuditLog({
+      timestamp: new Date().toISOString(),
+      eventType: 'WEBHOOK_RECEIVED' as AuditEventType,
+      description: `Received recurring appointment data for ${appointment.Id}`,
+      user: 'SYSTEM',
+      systemNotes: JSON.stringify({
+        appointmentId: appointment.Id,
+        clientId: appointment.ClientId,
+        frequency,
+        occurrences,
+        endDate
+      })
+    });
+    
+    // Process the first occurrence (the base appointment)
+    const baseResult = await this.handleNewAppointment(appointment);
+    if (!baseResult.success) {
+      return baseResult;
+    }
+    
+    // For recurring appointments, we rely on IntakeQ to send separate webhooks for each occurrence
+    // This is just for logging and tracking purposes
+    return {
+      success: true,
+      details: {
+        appointmentId: appointment.Id,
+        action: 'created_recurring_base',
+        recurrencePattern: {
+          frequency,
+          occurrences,
+          endDate
+        }
+      }
+    };
+  } catch (error) {
+    console.error('Error processing recurring appointment:', error);
+    
+    // Log the error
+    await this.sheetsService.addAuditLog({
+      timestamp: new Date().toISOString(),
+      eventType: 'SYSTEM_ERROR' as AuditEventType,
+      description: `Error processing recurring appointment ${payload.Appointment?.Id}`,
+      user: 'SYSTEM',
+      systemNotes: error instanceof Error ? error.message : 'Unknown error'
+    });
+    
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error processing recurring appointment',
+      retryable: true
+    };
+  }
+}
 
   /**
    * Map IntakeQ status to our internal status format

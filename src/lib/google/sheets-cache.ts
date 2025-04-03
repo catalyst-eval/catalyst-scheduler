@@ -8,7 +8,7 @@ interface CacheEntry<T> {
 export class SheetsCacheService {
   private cache: Map<string, CacheEntry<any>>;
   private defaultTTL: number;
-  private memoryCache: Map<string, any>; // New in-memory cache for high-frequency data
+  private memoryCache: Map<string, any>; // In-memory cache for high-frequency data
   private memoryTTL: number; // Special TTL for memory cache
 
   constructor(defaultTTL = 60000, memoryTTL = 300000) { // 1 minute default TTL, 5 minutes for memory
@@ -122,24 +122,29 @@ export class SheetsCacheService {
       }
     }
     
-    // Then check regular cache
-    const cached = this.cache.get(key);
-    
-    if (cached && Date.now() - cached.timestamp < ttl) {
-      return cached.data as T;
+    // Then check regular cache (unless TTL is 0, which forces a fresh fetch)
+    if (ttl > 0) {
+      const cached = this.cache.get(key);
+      
+      if (cached && Date.now() - cached.timestamp < ttl) {
+        return cached.data as T;
+      }
     }
 
     const data = await fetchFn();
     
-    // Store in regular cache
-    this.cache.set(key, {
-      data,
-      timestamp: Date.now()
-    });
-    
-    // Also store in memory cache for config data
-    if (key.startsWith('config:') || key.startsWith('daily:')) {
-      this.setInMemory(key, data);
+    // Only store in cache if TTL is greater than 0
+    if (ttl > 0) {
+      // Store in regular cache
+      this.cache.set(key, {
+        data,
+        timestamp: Date.now()
+      });
+      
+      // Also store in memory cache for config data
+      if (key.startsWith('config:') || key.startsWith('daily:')) {
+        this.setInMemory(key, data);
+      }
     }
 
     return data;
@@ -149,8 +154,58 @@ export class SheetsCacheService {
    * Invalidate a specific cache key
    */
   invalidate(key: string): void {
+    // Log the invalidation for debugging
+    console.log(`Invalidating cache key: ${key}`);
+    
+    // Delete from both caches
     this.cache.delete(key);
     this.memoryCache.delete(key);
+  }
+
+  /**
+   * Invalidate cache entries based on a pattern
+   * Useful for invalidating all keys that match a certain pattern
+   */
+  invalidatePattern(pattern: string): void {
+    console.log(`Invalidating cache keys matching pattern: ${pattern}`);
+    
+    const regex = new RegExp(pattern);
+    let count = 0;
+    
+    // Check regular cache
+    for (const key of this.cache.keys()) {
+      if (regex.test(key)) {
+        this.cache.delete(key);
+        count++;
+      }
+    }
+    
+    // Check memory cache
+    for (const key of this.memoryCache.keys()) {
+      if (regex.test(key)) {
+        this.memoryCache.delete(key);
+        count++;
+      }
+    }
+    
+    console.log(`Invalidated ${count} cache entries matching pattern: ${pattern}`);
+  }
+  
+  /**
+   * Invalidate appointments-related cache
+   * Special method to ensure all appointment data is refreshed
+   */
+  invalidateAppointments(): void {
+    console.log('Invalidating all appointment-related cache entries');
+    
+    // Invalidate specific appointment sheet ranges
+    this.invalidatePattern('sheet:.*Appointments.*');
+    
+    // Invalidate daily schedule cache
+    this.invalidatePattern('daily:.*');
+    
+    // Force refresh of active appointments
+    this.invalidate('sheet:Active_Appointments!A2:R');
   }
 
   /**
@@ -159,6 +214,7 @@ export class SheetsCacheService {
   clearAll(): void {
     this.cache.clear();
     this.memoryCache.clear();
+    console.log('Cleared all cache entries');
   }
 }
 
