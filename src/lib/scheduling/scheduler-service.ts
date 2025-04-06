@@ -15,6 +15,8 @@ import {
   getDisplayDate 
 } from '../util/date-helpers';
 import { RowMonitorService } from '../util/row-monitor';
+import { getLockService } from '../util/distributed-lock';
+import { logger } from '../util/logger';
 
 // Task types enum for centralized scheduling
 export enum ScheduledTaskType {
@@ -52,13 +54,18 @@ export class SchedulerService {
   // Dependent services
   private rowMonitorService: RowMonitorService | null = null;
   private appointmentSyncHandler: AppointmentSyncHandler | null = null;
+
+  private lockService = getLockService();
   
-  constructor() {
+  constructor(sheetsService?: GoogleSheetsService) {
     // Initialize services
-    this.sheetsService = new GoogleSheetsService();
+    this.sheetsService = sheetsService || new GoogleSheetsService();
     this.dailyScheduleService = new DailyScheduleService(this.sheetsService);
     this.emailService = new EmailService(this.sheetsService);
-  }
+    
+    // Initialize the lock service with the same sheets service
+    this.lockService = getLockService(this.sheetsService);
+  }  
 
   /**
    * Initialize scheduled tasks
@@ -117,35 +124,49 @@ export class SchedulerService {
   }
 
   /**
-   * Register a scheduled task and set up its cron job
-   */
-  private registerScheduledTask(task: ScheduledTask): void {
-    try {
-      console.log(`Registering scheduled task: ${task.type} (${task.description})`);
+ * Register a scheduled task and set up its cron job
+ */
+private registerScheduledTask(task: ScheduledTask): void {
+  try {
+    console.log(`Registering scheduled task: ${task.type} (${task.description})`);
+    
+    // Create a specific task identifier for this task type
+    const taskIdentifier = `SCHEDULED_TASK_${task.type}`;
+    
+    // Modify how the cron job is created to include timezone
+    const cronJob = cron.schedule(task.schedule, () => {
+      console.log(`Executing scheduled task: ${task.type}`);
+      logger.info(`Executing scheduled task: ${task.type}`);
+      task.lastRun = new Date();
       
-      // Modify how the cron job is created to include timezone
-      const cronJob = cron.schedule(task.schedule, () => {
-        console.log(`Executing scheduled task: ${task.type}`);
-        task.lastRun = new Date();
-        
-        this.runWithLock(async () => {
-          try {
-            await task.handler();
-          } catch (error) {
-            console.error(`Error in scheduled task ${task.type}:`, error);
-          }
-        });
-      }, {
-        scheduled: true,
-        timezone: "America/New_York"  // Set timezone here
+      // Use the task identifier for locking
+      this.runWithLock(async () => {
+        try {
+          await task.handler();
+        } catch (error) {
+          console.error(`Error in scheduled task ${task.type}:`, error);
+          const errorObj = {
+            message: error instanceof Error ? error.message : String(error)
+          };
+          logger.error(`Error in scheduled task ${task.type}:`, errorObj);
+        }
       });
-      
-      this.scheduledTasks.set(task.type, { task, cronJob });
-      console.log(`Scheduled task ${task.type} registered for "${task.schedule}"`);
-    } catch (error) {
-      console.error(`Error registering scheduled task ${task.type}:`, error);
-    }
+    }, {
+      scheduled: true,
+      timezone: "America/New_York"  // Set timezone here
+    });
+    
+    this.scheduledTasks.set(task.type, { task, cronJob });
+    console.log(`Scheduled task ${task.type} registered for "${task.schedule}"`);
+    logger.info(`Scheduled task ${task.type} registered for "${task.schedule}"`);
+  } catch (error) {
+    console.error(`Error registering scheduled task ${task.type}:`, error);
+    const errorObj = {
+      message: error instanceof Error ? error.message : String(error)
+    };
+    logger.error(`Error registering scheduled task ${task.type}:`, errorObj);
   }
+}
 
   /**
    * Manual trigger for a specific task type
@@ -690,36 +711,46 @@ export class SchedulerService {
     return dates;
   }
 
-  /**
-   * Run a task with a lock to prevent multiple tasks from running at once
-   */
   private async runWithLock(task: () => Promise<void>): Promise<void> {
-    if (this.isTaskRunning) {
-      console.log('Task already running, queueing this task');
-      return new Promise<void>((resolve) => {
-        this.taskQueue.push(async () => {
-          await task();
-          resolve();
-        });
-      });
-    }
+    // Generate a task name based on the current stack trace
+    const taskName = new Error().stack?.split('\n')[2]?.trim() || 'unknown_task';
     
     try {
-      this.isTaskRunning = true;
-      await task();
-    } finally {
-      this.isTaskRunning = false;
+      // Try to acquire a distributed lock
+      const lockAcquired = await this.lockService.acquireLock(taskName);
       
-      // Run next task in queue if any
-      if (this.taskQueue.length > 0) {
-        const nextTask = this.taskQueue.shift();
-        if (nextTask) {
-          console.log('Running next task from queue');
-          this.runWithLock(nextTask);
+      if (!lockAcquired) {
+        logger.info(`Task ${taskName} is already running in another instance, skipping`);
+        return;
+      }
+      
+      try {
+        // If we get here, we have the lock
+        this.isTaskRunning = true;
+        await task();
+      } finally {
+        this.isTaskRunning = false;
+        
+        // Release the distributed lock
+        await this.lockService.releaseLock(taskName);
+        
+        // Run next task in queue if any
+        if (this.taskQueue.length > 0) {
+          const nextTask = this.taskQueue.shift();
+          if (nextTask) {
+            logger.info('Running next task from queue');
+            this.runWithLock(nextTask);
+          }
         }
       }
+    } catch (error) {
+      const errorObj = {
+        message: error instanceof Error ? error.message : String(error)
+      };
+      logger.error(`Error running task with lock:`, errorObj);
     }
   }
+  
 
   /**
    * Log task with retry mechanism and exponential backoff
