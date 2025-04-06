@@ -33,15 +33,15 @@ const PORT = process.env.PORT || 3000;
 app.use(express.json());
 app.use('/api/scheduling', schedulingRoutes);
 
-// Initialize scheduler and make it available app-wide
-const schedulerService = new SchedulerService();
-app.locals.scheduler = schedulerService;
+// Declare scheduler variable but don't initialize yet
+let schedulerService: SchedulerService | null = null;
+app.locals.scheduler = null; // Will be set later
 
 // Initialize services
 const initializePromise = initializeServices({
   enableErrorRecovery: true,
   enableRowMonitoring: false,
-  initializeScheduler: true
+  initializeScheduler: false // Don't initialize the scheduler yet
 });
 
 // Global services placeholder, will be populated when initializePromise resolves
@@ -55,6 +55,10 @@ initializePromise.then(initializedServices => {
   app.locals.rowMonitor = services.rowMonitor;
   app.locals.appointmentSyncHandler = services.appointmentSyncHandler;
   app.locals.webhookHandler = services.webhookHandler;
+  
+  // Now create the scheduler with the sheets service
+  schedulerService = new SchedulerService(services.sheetsService);
+  app.locals.scheduler = schedulerService;
   
   // Connect dependent services to scheduler
   if (services.rowMonitor) {
@@ -85,7 +89,7 @@ app.get('/health', (req: Request, res: Response) => {
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV,
     version: '1.0.0',
-    schedulerActive: true,
+    schedulerActive: !!schedulerService,
     enhancedServices: {
       errorRecovery: !!app.locals.errorRecovery,
       rowMonitor: !!app.locals.rowMonitor,
@@ -109,7 +113,9 @@ process.on('SIGTERM', () => {
   logger.info('SIGTERM received, shutting down gracefully');
   
   // Stop scheduler
-  schedulerService.stop();
+  if (schedulerService) {
+    schedulerService.stop();
+  }
   
   // Stop enhanced services
   if (app.locals.errorRecovery) {

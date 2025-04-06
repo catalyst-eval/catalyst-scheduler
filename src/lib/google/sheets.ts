@@ -2902,4 +2902,108 @@ async refreshCache(range: string): Promise<void> {
 clearCache(): void {
   this.cache.clearAll();
 }
+
+// Add these public methods to your GoogleSheetsService class
+
+/**
+ * Get data from a specific sheet and range
+ */
+async getSheetData(sheetName: string, range: string): Promise<any[][]> {
+  try {
+    // Use the existing private readSheet method
+    return await this.readSheet(`${sheetName}!${range}`);
+  } catch (error) {
+    console.error(`Error getting sheet data for ${sheetName}!${range}:`, error);
+    throw error;
+  }
+}
+
+/**
+ * Add a row to a sheet
+ */
+async addRow(sheetName: string, values: any[]): Promise<void> {
+  try {
+    // Use the existing private appendRows method
+    await this.appendRows(`${sheetName}!A:${this.columnIndexToLetter(values.length)}`, [values]);
+  } catch (error) {
+    console.error(`Error adding row to ${sheetName}:`, error);
+    throw error;
+  }
+}
+
+/**
+ * Update an existing row in a sheet
+ */
+async addOrUpdateRow(sheetName: string, rowIndex: number, values: any[]): Promise<void> {
+  try {
+    // Use the Google Sheets API directly
+    await this.sheets.spreadsheets.values.update({
+      spreadsheetId: this.spreadsheetId,
+      range: `${sheetName}!A${rowIndex}:${this.columnIndexToLetter(values.length)}${rowIndex}`,
+      valueInputOption: 'RAW',
+      requestBody: {
+        values: [values]
+      }
+    });
+  } catch (error) {
+    console.error(`Error updating row ${rowIndex} in ${sheetName}:`, error);
+    throw error;
+  }
+}
+
+/**
+ * Clear a range in a sheet
+ */
+async clearRange(sheetName: string, range: string): Promise<void> {
+  try {
+    // Use the Google Sheets API directly
+    await this.sheets.spreadsheets.values.clear({
+      spreadsheetId: this.spreadsheetId,
+      range: `${sheetName}!${range}`
+    });
+  } catch (error) {
+    console.error(`Error clearing range ${range} in ${sheetName}:`, error);
+    throw error;
+  }
+}
+
+/**
+ * Create a new sheet in the spreadsheet
+ */
+async createSheet(sheetName: string): Promise<void> {
+  try {
+    // Use the Google Sheets API directly
+    await this.sheets.spreadsheets.batchUpdate({
+      spreadsheetId: this.spreadsheetId,
+      requestBody: {
+        requests: [{
+          addSheet: {
+            properties: {
+              title: sheetName
+            }
+          }
+        }]
+      }
+    });
+  } catch (error) {
+    console.error(`Error creating sheet ${sheetName}:`, error);
+    throw error;
+  }
+}
+
+/**
+ * Convert column index to letter (e.g., 1 -> A, 26 -> Z, 27 -> AA)
+ */
+private columnIndexToLetter(index: number): string {
+  let letter = '';
+  let temp = index;
+  
+  while (temp > 0) {
+    temp--;
+    letter = String.fromCharCode(65 + (temp % 26)) + letter;
+    temp = Math.floor(temp / 26);
+  }
+  
+  return letter || 'A';
+}
 }
