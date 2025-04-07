@@ -7,10 +7,9 @@ import { getTodayEST } from '../lib/util/date-helpers';
 
 const router = express.Router();
 const sheetsService = new GoogleSheetsService();
-const schedulerService = new SchedulerService();
+const schedulerService = SchedulerService.getInstance();
 
-// Initialize scheduler service
-schedulerService.initialize();
+// No need to initialize here as it's handled in server.ts
 
 /**
  * Health check endpoint

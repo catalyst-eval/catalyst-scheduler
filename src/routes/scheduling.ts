@@ -28,8 +28,8 @@ router.get('/generate-daily-schedule/:date?', async (req: Request, res: Response
     // Use today if no date provided
     targetDate = targetDate || getTodayEST();
     
-    // Create scheduler service
-    const schedulerService = new SchedulerService();
+    // Get singleton scheduler service instance
+    const schedulerService = SchedulerService.getInstance();
     
     // Generate and send schedule
     console.log(`API request to generate daily schedule for ${targetDate}`);

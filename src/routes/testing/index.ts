@@ -518,9 +518,9 @@ router.post('/scheduler/:taskType', async (req: Request, res: Response) => {
     
     logger.info(`Testing scheduler task: ${taskType}`);
     
-    const schedulerService = new SchedulerService();
+    const schedulerService = SchedulerService.getInstance();
     
-    // This is a test, so we need to initialize the service first
+    // This is a test, but we don't need to initialize the service anymore
     if (taskType === 'initialize') {
       schedulerService.initialize();
       
