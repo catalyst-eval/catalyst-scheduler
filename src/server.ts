@@ -33,15 +33,16 @@ const PORT = process.env.PORT || 3000;
 app.use(express.json());
 app.use('/api/scheduling', schedulingRoutes);
 
-// Declare scheduler variable but don't initialize yet
-let schedulerService: SchedulerService | null = null;
-app.locals.scheduler = null; // Will be set later
+// Get singleton scheduler instance and make it available app-wide
+const schedulerService = SchedulerService.getInstance();
+app.locals.scheduler = schedulerService;
 
 // Initialize services
 const initializePromise = initializeServices({
   enableErrorRecovery: true,
   enableRowMonitoring: false,
-  initializeScheduler: false // Don't initialize the scheduler yet
+  // Change to false as we'll manually initialize once after all dependencies are set
+  initializeScheduler: false
 });
 
 // Global services placeholder, will be populated when initializePromise resolves
@@ -56,10 +57,6 @@ initializePromise.then(initializedServices => {
   app.locals.appointmentSyncHandler = services.appointmentSyncHandler;
   app.locals.webhookHandler = services.webhookHandler;
   
-  // Now create the scheduler with the sheets service
-  schedulerService = new SchedulerService(services.sheetsService);
-  app.locals.scheduler = schedulerService;
-  
   // Connect dependent services to scheduler
   if (services.rowMonitor) {
     schedulerService.setRowMonitorService(services.rowMonitor);
@@ -71,7 +68,8 @@ initializePromise.then(initializedServices => {
     logger.info('Appointment sync handler connected to scheduler');
   }
   
-  // Only after all dependencies are registered, initialize the scheduler
+  // Only after all dependencies are registered, initialize the scheduler once
+  // This is now the SINGLE point of initialization for the scheduler
   schedulerService.initialize();
   logger.info('Scheduler service initialized with all dependencies');
   
@@ -89,7 +87,7 @@ app.get('/health', (req: Request, res: Response) => {
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV,
     version: '1.0.0',
-    schedulerActive: !!schedulerService,
+    schedulerActive: true,
     enhancedServices: {
       errorRecovery: !!app.locals.errorRecovery,
       rowMonitor: !!app.locals.rowMonitor,
@@ -113,9 +111,7 @@ process.on('SIGTERM', () => {
   logger.info('SIGTERM received, shutting down gracefully');
   
   // Stop scheduler
-  if (schedulerService) {
-    schedulerService.stop();
-  }
+  schedulerService.stop();
   
   // Stop enhanced services
   if (app.locals.errorRecovery) {

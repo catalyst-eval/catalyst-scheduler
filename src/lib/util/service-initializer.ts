@@ -92,11 +92,11 @@ export async function initializeServices(
     const dailyScheduleService = new DailyScheduleService(sheetsService);
     logger.info('DailyScheduleService initialized');
 
-    // 8. Create scheduler service with its dependencies
-    const schedulerService = new SchedulerService();
+    // 8. Get the singleton scheduler service instance
+    const schedulerService = SchedulerService.getInstance();
     // The scheduler initializes its own dependencies internally
     // This is maintained for backward compatibility
-    logger.info('SchedulerService created (will be initialized later if requested)');
+    logger.info('Got singleton SchedulerService instance');
 
     // 9. Initialize optional enhanced services based on options
     let errorRecovery: ErrorRecoveryService | undefined;
