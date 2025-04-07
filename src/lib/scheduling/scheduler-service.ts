@@ -114,7 +114,7 @@ export class SchedulerService {
       
       this.registerScheduledTask({
         type: ScheduledTaskType.DUPLICATE_CLEANUP,
-        schedule: '45 5 * * *', // 5:45 AM daily
+        schedule: '15 6 * * *', // 6:15 AM daily - moved to run after office assignment and daily report
         description: 'Clean up duplicate appointments',
         enabled: true,
         handler: async () => {

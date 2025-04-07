@@ -1048,16 +1048,29 @@ if (!assignedOffice && appt.sessionType === 'telehealth' && clinician && clinici
         // RULE PRIORITY 10: Default Telehealth
         // ===============================
         if (!assignedOffice && appt.sessionType === 'telehealth') {
-          assignedOffice = 'A-v';
-          assignmentReason = `Virtual office (A-v) for telehealth as last resort (Priority ${RulePriority.DEFAULT_TELEHEALTH})`;
+          // Try to get the clinician's primary office first
+          if (clinician && clinician.preferredOffices && clinician.preferredOffices.length > 0) {
+            assignedOffice = standardizeOfficeId(clinician.preferredOffices[0]);
+            assignmentReason = `Telehealth assigned to clinician's primary office as fallback (Priority ${RulePriority.DEFAULT_TELEHEALTH})`;
+          } else {
+            // If no clinician preference available, use virtual office
+            assignedOffice = 'A-v';
+            assignmentReason = `Virtual office (A-v) for telehealth as last resort (Priority ${RulePriority.DEFAULT_TELEHEALTH})`;
+          }
           console.log(`  MATCH: ${assignmentReason} - Office ${assignedOffice}`);
         }
         
         // Final fallback - if nothing else worked
         if (!assignedOffice) {
           if (appt.sessionType === 'telehealth') {
-            assignedOffice = 'A-v';
-            assignmentReason = 'Default: Virtual office for telehealth as final fallback';
+            // Final attempt to use clinician's office for telehealth
+            if (clinician && clinician.preferredOffices && clinician.preferredOffices.length > 0) {
+              assignedOffice = standardizeOfficeId(clinician.preferredOffices[0]);
+              assignmentReason = 'Default: Clinician primary office for telehealth as final fallback';
+            } else {
+              assignedOffice = 'A-v';
+              assignmentReason = 'Default: Virtual office for telehealth as final fallback';
+            }
           } else {
             // Only assign B-1 if it's active, otherwise use first active office
             const breakRoom = activeOffices.find(o => standardizeOfficeId(o.officeId) === 'B-1');
