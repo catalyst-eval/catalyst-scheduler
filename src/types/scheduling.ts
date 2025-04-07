@@ -236,6 +236,7 @@ export interface OfficeConfiguration {
 export enum RulePriority {
   CLIENT_SPECIFIC_REQUIREMENT = 100,
   ACCESSIBILITY_REQUIREMENT = 90,
+  TELEHEALTH_PRIMARY = 85, // Highest priority for telehealth appointments to use clinician's office
   YOUNG_CHILDREN = 80,
   YOGA_SWING = 78, // Priority for yoga swing requirement
   OLDER_CHILDREN_TEENS = 75, // C-1 Primary for 11-17 year olds
@@ -246,7 +247,7 @@ export enum RulePriority {
   CLINICIAN_PRIMARY_OFFICE = 65,
   CLINICIAN_PREFERRED_OFFICE = 62,
   IN_PERSON_PRIORITY = 55,
-  TELEHEALTH_PREFERRED = 40,
+  TELEHEALTH_PREFERRED = 40, // Secondary office choices for telehealth
   SPECIAL_FEATURES_MATCH = 35,
   ALTERNATIVE_CLINICIAN = 30,
   AVAILABLE_OFFICE = 20,

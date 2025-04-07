@@ -604,6 +604,33 @@ private async resolveOfficeAssignments(appointments: AppointmentRecord[]): Promi
 // To be inserted in the resolveOfficeAssignments method in daily-schedule-service.ts
 
 // ===============================
+// RULE PRIORITY 85: Telehealth Primary Assignment
+// ===============================
+if (!assignedOffice) {
+  console.log("Checking PRIORITY 85: Telehealth Primary Assignment");
+  
+  // Only apply this rule to telehealth appointments
+  if (appt.sessionType === 'telehealth') {
+    console.log("  This is a telehealth appointment - high priority for clinician's office");
+    
+    // Check if clinician has preferred offices
+    if (clinician && clinician.preferredOffices && clinician.preferredOffices.length > 0) {
+      // Get primary office (first preferred)
+      const primaryOfficeId = clinician.preferredOffices[0];
+      
+      // For telehealth, we don't check availability - assign directly
+      assignedOffice = standardizeOfficeId(primaryOfficeId);
+      assignmentReason = `Telehealth appointment assigned to clinician's primary office (Priority ${RulePriority.TELEHEALTH_PRIMARY})`;
+      console.log(`  MATCH: ${assignmentReason} - Office ${assignedOffice}`);
+    } else {
+      console.log(`  Clinician ${clinician ? clinician.name : 'unknown'} has no preferred offices defined`);
+    }
+  } else {
+    console.log("  Not a telehealth appointment, skipping telehealth assignment rule");
+  }
+}
+
+// ===============================
 // RULE PRIORITY 78: Yoga Swing Assignment
 // ===============================
 if (!assignedOffice) {
@@ -673,7 +700,10 @@ if (!assignedOffice) {
 // ===============================
 if (!assignedOffice) {
   console.log("Checking PRIORITY 75: Older Children and Teens rule");
-  if (clientAge !== null) {
+  // Skip this rule for telehealth appointments - they should be handled by TELEHEALTH_PRIMARY rule
+  if (appt.sessionType === 'telehealth') {
+    console.log("  Skipping age-based rule for telehealth appointment");
+  } else if (clientAge !== null) {
     console.log(`  Client age is ${clientAge} years old`);
     if (clientAge >= 11 && clientAge <= 17) {
       console.log(`  MATCH! Client is ${clientAge} years old (11-17), should use Older Children/Teens rule`);
@@ -709,7 +739,10 @@ if (!assignedOffice) {
 // ===============================
 if (!assignedOffice) {
   console.log("Checking PRIORITY 74: B-5 Secondary for Older Children rule");
-  if (clientAge !== null) {
+  // Skip this rule for telehealth appointments - they should be handled by TELEHEALTH_PRIMARY rule
+  if (appt.sessionType === 'telehealth') {
+    console.log("  Skipping age-based rule for telehealth appointment");
+  } else if (clientAge !== null) {
     console.log(`  Client age is ${clientAge} years old`);
     if (clientAge >= 11 && clientAge <= 15) {
       console.log(`  Client is ${clientAge} years old (11-15), checking if B-5 is available as secondary option`);
@@ -744,7 +777,10 @@ if (!assignedOffice) {
 // ===============================
 if (!assignedOffice) {
   console.log("Checking PRIORITY 73: C-1 Secondary for Young Children rule");
-  if (clientAge !== null) {
+  // Skip this rule for telehealth appointments - they should be handled by TELEHEALTH_PRIMARY rule
+  if (appt.sessionType === 'telehealth') {
+    console.log("  Skipping age-based rule for telehealth appointment");
+  } else if (clientAge !== null) {
     console.log(`  Client age is ${clientAge} years old`);
     if (clientAge <= 10) {
       console.log(`  Client is ${clientAge} years old (<=10), checking if C-1 is available as secondary option`);
@@ -779,7 +815,10 @@ if (!assignedOffice) {
 // ===============================
 if (!assignedOffice) {
   console.log("Checking PRIORITY 72: B-2 Tertiary Option for All Children");
-  if (clientAge !== null) {
+  // Skip this rule for telehealth appointments - they should be handled by TELEHEALTH_PRIMARY rule
+  if (appt.sessionType === 'telehealth') {
+    console.log("  Skipping age-based rule for telehealth appointment");
+  } else if (clientAge !== null) {
     // For all children (both ≤10 and 11-15), B-2 as tertiary option
     if (clientAge <= 15) {
       console.log(`  Client is ${clientAge} years old (≤15), checking if B-2 is available as tertiary option`);
@@ -1048,29 +1087,22 @@ if (!assignedOffice && appt.sessionType === 'telehealth' && clinician && clinici
         // RULE PRIORITY 10: Default Telehealth
         // ===============================
         if (!assignedOffice && appt.sessionType === 'telehealth') {
-          // Try to get the clinician's primary office first
-          if (clinician && clinician.preferredOffices && clinician.preferredOffices.length > 0) {
-            assignedOffice = standardizeOfficeId(clinician.preferredOffices[0]);
-            assignmentReason = `Telehealth assigned to clinician's primary office as fallback (Priority ${RulePriority.DEFAULT_TELEHEALTH})`;
-          } else {
-            // If no clinician preference available, use virtual office
-            assignedOffice = 'A-v';
-            assignmentReason = `Virtual office (A-v) for telehealth as last resort (Priority ${RulePriority.DEFAULT_TELEHEALTH})`;
-          }
+          console.log("Checking PRIORITY 10: Default Telehealth");
+          // This fallback should only trigger if the higher priority telehealth rules didn't assign an office
+          // This means the clinician doesn't have preferred offices or those offices weren't found
+          assignedOffice = 'A-v';
+          assignmentReason = `Virtual office (A-v) for telehealth as last resort (Priority ${RulePriority.DEFAULT_TELEHEALTH})`;
           console.log(`  MATCH: ${assignmentReason} - Office ${assignedOffice}`);
         }
         
         // Final fallback - if nothing else worked
         if (!assignedOffice) {
           if (appt.sessionType === 'telehealth') {
-            // Final attempt to use clinician's office for telehealth
-            if (clinician && clinician.preferredOffices && clinician.preferredOffices.length > 0) {
-              assignedOffice = standardizeOfficeId(clinician.preferredOffices[0]);
-              assignmentReason = 'Default: Clinician primary office for telehealth as final fallback';
-            } else {
-              assignedOffice = 'A-v';
-              assignmentReason = 'Default: Virtual office for telehealth as final fallback';
-            }
+            // This should never happen for telehealth since we have multiple telehealth-specific rules
+            // But just in case, use virtual office
+            assignedOffice = 'A-v';
+            assignmentReason = 'Default: Virtual office for telehealth as absolute final fallback';
+            console.log(`EMERGENCY FALLBACK: All telehealth rules failed, using ${assignedOffice}`);
           } else {
             // Only assign B-1 if it's active, otherwise use first active office
             const breakRoom = activeOffices.find(o => standardizeOfficeId(o.officeId) === 'B-1');
