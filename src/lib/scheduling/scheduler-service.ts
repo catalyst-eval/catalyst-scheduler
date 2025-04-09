@@ -19,7 +19,7 @@ import { RowMonitorService } from '../util/row-monitor';
 // Task types enum for centralized scheduling
 export enum ScheduledTaskType {
   DAILY_REPORT = 'DAILY_REPORT',
-  WEEKLY_CLEANUP = 'WEEKLY_CLEANUP',
+  WEEKLY_CLEANUP = 'WEEKLY_CLEANUP', // Used for cleaning up old appointments
   ROW_MONITORING = 'ROW_MONITORING',
   DUPLICATE_CLEANUP = 'DUPLICATE_CLEANUP',
   OFFICE_ASSIGNMENT = 'OFFICE_ASSIGNMENT'
@@ -119,6 +119,21 @@ export class SchedulerService {
         enabled: true,
         handler: async () => {
           await this.cleanupDuplicateAppointments();
+          // Return void, not the result object
+        }
+      });
+      
+      this.registerScheduledTask({
+        type: ScheduledTaskType.WEEKLY_CLEANUP,
+        schedule: '45 6 * * *', // 6:45 AM daily
+        description: 'Clean up old appointments and logs',
+        enabled: true,
+        handler: async () => {
+          // Clean up old appointments
+          await this.cleanupOldAppointments();
+          
+          // Clean up old logs
+          await this.cleanupOldLogs();
           // Return void, not the result object
         }
       });
@@ -801,5 +816,325 @@ export class SchedulerService {
     
     // Clear the Map (don't reassign it)
     this.scheduledTasks.clear();
+  }
+  
+  /**
+   * Clean up old appointments (older than 48 hours)
+   * This deletes appointments that have already occurred and are older than the specified threshold
+   */
+  async cleanupOldAppointments(): Promise<{
+    detected: number;
+    removed: number;
+  }> {
+    try {
+      console.log('Starting cleanup of old appointments');
+      
+      // Get all appointments
+      const allAppointments = await this.sheetsService.getAllAppointments();
+      
+      // Calculate the cutoff time (48 hours ago)
+      const now = new Date();
+      const cutoffTime = new Date(now.getTime() - (48 * 60 * 60 * 1000)); // 48 hours ago
+      console.log(`Cutoff time for old appointments: ${cutoffTime.toISOString()}`);
+      
+      // Find appointments older than the cutoff
+      const oldAppointments = allAppointments.filter(appt => {
+        if (!appt.startTime) return false;
+        
+        const appointmentTime = new Date(appt.startTime);
+        return appointmentTime < cutoffTime;
+      });
+      
+      console.log(`Found ${oldAppointments.length} appointments older than 48 hours`);
+      
+      if (oldAppointments.length === 0) {
+        return { detected: 0, removed: 0 };
+      }
+      
+      // Log the old appointments found
+      await this.logTaskWithRetry({
+        timestamp: new Date().toISOString(),
+        eventType: AuditEventType.INTEGRATION_UPDATED,
+        description: `Detected ${oldAppointments.length} old appointments to clean up`,
+        user: 'SYSTEM',
+        systemNotes: JSON.stringify({
+          cutoffTime: cutoffTime.toISOString(),
+          appointmentIds: oldAppointments.map(a => a.appointmentId)
+        })
+      });
+      
+      // Delete old appointments
+      let removedCount = 0;
+      
+      for (const appointment of oldAppointments) {
+        try {
+          await this.sheetsService.deleteAppointment(appointment.appointmentId);
+          removedCount++;
+          console.log(`Deleted old appointment ${appointment.appointmentId} from ${appointment.startTime}`);
+        } catch (error) {
+          console.error(`Error deleting old appointment ${appointment.appointmentId}:`, error);
+        }
+      }
+      
+      console.log(`Old appointment cleanup completed: ${oldAppointments.length} detected, ${removedCount} removed`);
+      
+      // Log completion
+      await this.logTaskWithRetry({
+        timestamp: new Date().toISOString(),
+        eventType: AuditEventType.INTEGRATION_UPDATED,
+        description: `Completed old appointment cleanup`,
+        user: 'SYSTEM',
+        systemNotes: JSON.stringify({
+          detected: oldAppointments.length,
+          removed: removedCount
+        })
+      });
+      
+      return {
+        detected: oldAppointments.length,
+        removed: removedCount
+      };
+    } catch (error) {
+      console.error('Error in old appointment cleanup:', error);
+      
+      // Log error
+      try {
+        await this.logTaskWithRetry({
+          timestamp: new Date().toISOString(),
+          eventType: AuditEventType.SYSTEM_ERROR,
+          description: 'Error in old appointment cleanup',
+          user: 'SYSTEM',
+          systemNotes: error instanceof Error ? error.message : 'Unknown error'
+        });
+      } catch (logError) {
+        console.error('Failed to log error:', logError);
+      }
+      
+      return { detected: 0, removed: 0 };
+    }
+  }
+  
+  /**
+   * Clean up old logs (audit logs and webhook logs)
+   * - Audit logs older than 30 days will be removed
+   * - Webhook logs older than 14 days will be removed
+   */
+  async cleanupOldLogs(): Promise<{
+    auditLogs: { detected: number; removed: number; };
+    webhookLogs: { detected: number; removed: number; };
+  }> {
+    try {
+      console.log('Starting cleanup of old logs');
+      
+      // Clean up audit logs (older than 30 days)
+      const auditLogResults = await this.cleanupLogsByAge(
+        'Audit_Log', 
+        'timestamp', 
+        0, // column index for timestamp
+        30 // 30 days retention
+      );
+      
+      // Clean up webhook logs (older than 14 days)
+      const webhookLogResults = await this.cleanupLogsByAge(
+        'Webhook_Log',
+        'timestamp',
+        1, // column index for timestamp
+        14 // 14 days retention
+      );
+      
+      console.log(`Log cleanup completed: 
+        - Audit logs: ${auditLogResults.detected} detected, ${auditLogResults.removed} removed
+        - Webhook logs: ${webhookLogResults.detected} detected, ${webhookLogResults.removed} removed
+      `);
+      
+      return {
+        auditLogs: auditLogResults,
+        webhookLogs: webhookLogResults
+      };
+    } catch (error) {
+      console.error('Error in log cleanup:', error);
+      
+      // Log error
+      try {
+        await this.logTaskWithRetry({
+          timestamp: new Date().toISOString(),
+          eventType: AuditEventType.SYSTEM_ERROR,
+          description: 'Error in log cleanup',
+          user: 'SYSTEM',
+          systemNotes: error instanceof Error ? error.message : 'Unknown error'
+        });
+      } catch (logError) {
+        console.error('Failed to log error:', logError);
+      }
+      
+      return {
+        auditLogs: { detected: 0, removed: 0 },
+        webhookLogs: { detected: 0, removed: 0 }
+      };
+    }
+  }
+  
+  /**
+   * Helper method to clean up logs based on age using the public API methods
+   * @param sheetName The name of the sheet containing logs
+   * @param timestampField The name of the timestamp field in the log entry
+   * @param timestampColumnIndex The index of the timestamp column in the sheet
+   * @param retentionDays The number of days to retain logs
+   */
+  private async cleanupLogsByAge(
+    sheetName: string,
+    timestampField: string,
+    timestampColumnIndex: number,
+    retentionDays: number
+  ): Promise<{
+    detected: number;
+    removed: number;
+  }> {
+    try {
+      console.log(`Cleaning up ${sheetName} logs older than ${retentionDays} days`);
+      
+      // Get all rows from the log sheet - use the Google Sheets API directly
+      const response = await this.sheetsService.getSheetsApi().spreadsheets.values.get({
+        spreadsheetId: this.sheetsService.getSpreadsheetId(),
+        range: `${sheetName}!A2:Z`
+      });
+      
+      const values = response.data.values;
+      
+      if (!values || !Array.isArray(values) || values.length === 0) {
+        console.log(`No logs found in ${sheetName}`);
+        return { detected: 0, removed: 0 };
+      }
+      
+      console.log(`Found ${values.length} logs in ${sheetName}`);
+      
+      // Calculate the cutoff time
+      const now = new Date();
+      const cutoffTime = new Date(now.getTime() - (retentionDays * 24 * 60 * 60 * 1000));
+      console.log(`Cutoff time for ${sheetName}: ${cutoffTime.toISOString()}`);
+      
+      // Find old log entries
+      const oldLogs = values.map((row, index) => {
+        const timestampStr = row[timestampColumnIndex];
+        if (!timestampStr) return null;
+        
+        try {
+          const timestamp = new Date(timestampStr);
+          if (isNaN(timestamp.getTime())) return null;
+          
+          if (timestamp < cutoffTime) {
+            return {
+              rowIndex: index + 2, // +2 to account for 1-indexed and header row
+              timestamp: timestamp
+            };
+          }
+        } catch (error) {
+          console.warn(`Invalid timestamp in ${sheetName} at row ${index + 2}: ${timestampStr}`);
+        }
+        
+        return null;
+      }).filter((log): log is {rowIndex: number; timestamp: Date} => log !== null);
+      
+      const oldLogCount = oldLogs.length;
+      console.log(`Found ${oldLogCount} logs older than ${retentionDays} days in ${sheetName}`);
+      
+      if (oldLogCount === 0) {
+        return { detected: 0, removed: 0 };
+      }
+      
+      // Log the detection but don't include all row indices to avoid excessive logging
+      await this.logTaskWithRetry({
+        timestamp: new Date().toISOString(),
+        eventType: AuditEventType.INTEGRATION_UPDATED,
+        description: `Detected ${oldLogCount} old logs to clean up in ${sheetName}`,
+        user: 'SYSTEM',
+        systemNotes: JSON.stringify({
+          cutoffTime: cutoffTime.toISOString(),
+          retentionDays: retentionDays,
+          oldestLog: oldLogs[0]?.timestamp.toISOString()
+        })
+      });
+      
+      // Get spreadsheet info
+      const spreadsheet = await this.sheetsService.getSheetsApi().spreadsheets.get({
+        spreadsheetId: this.sheetsService.getSpreadsheetId()
+      });
+      
+      // Find the target sheet
+      const targetSheet = spreadsheet.data.sheets?.find(
+        (sheet: { properties?: { title?: string, sheetId?: number } }) => 
+          sheet.properties?.title === sheetName
+      );
+      
+      if (!targetSheet || targetSheet.properties?.sheetId === undefined) {
+        console.error(`Could not find sheet ID for ${sheetName}`);
+        return { detected: oldLogCount, removed: 0 };
+      }
+      
+      const sheetId = targetSheet.properties.sheetId;
+      
+      // Sort rows by index in descending order to delete from bottom to top
+      oldLogs.sort((a, b) => b.rowIndex - a.rowIndex);
+      
+      // Delete rows in batches to avoid API limits
+      const BATCH_SIZE = 100;
+      let removedCount = 0;
+      
+      for (let i = 0; i < oldLogs.length; i += BATCH_SIZE) {
+        const batch = oldLogs.slice(i, i + BATCH_SIZE);
+        const requests = batch.map(log => ({
+          deleteDimension: {
+            range: {
+              sheetId: sheetId,
+              dimension: 'ROWS',
+              startIndex: log.rowIndex - 1, // 0-indexed
+              endIndex: log.rowIndex // exclusive
+            }
+          }
+        }));
+        
+        try {
+          await this.sheetsService.getSheetsApi().spreadsheets.batchUpdate({
+            spreadsheetId: this.sheetsService.getSpreadsheetId(),
+            requestBody: {
+              requests: requests
+            }
+          });
+          
+          removedCount += batch.length;
+          console.log(`Deleted batch of ${batch.length} old logs from ${sheetName} (${removedCount}/${oldLogCount})`);
+          
+          // Pause briefly between batches to avoid rate limiting
+          if (i + BATCH_SIZE < oldLogs.length) {
+            await new Promise(resolve => setTimeout(resolve, 500));
+          }
+        } catch (error) {
+          console.error(`Error deleting batch of old logs from ${sheetName}:`, error);
+          break;
+        }
+      }
+      
+      console.log(`Removed ${removedCount} old logs from ${sheetName}`);
+      
+      // Log completion
+      await this.logTaskWithRetry({
+        timestamp: new Date().toISOString(),
+        eventType: AuditEventType.INTEGRATION_UPDATED,
+        description: `Completed ${sheetName} cleanup`,
+        user: 'SYSTEM',
+        systemNotes: JSON.stringify({
+          detected: oldLogCount,
+          removed: removedCount
+        })
+      });
+      
+      return {
+        detected: oldLogCount,
+        removed: removedCount
+      };
+    } catch (error) {
+      console.error(`Error cleaning up ${sheetName}:`, error);
+      return { detected: 0, removed: 0 };
+    }
   }
 }

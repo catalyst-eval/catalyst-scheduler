@@ -705,8 +705,9 @@ if (!assignedOffice) {
     console.log("  Skipping age-based rule for telehealth appointment");
   } else if (clientAge !== null) {
     console.log(`  Client age is ${clientAge} years old`);
-    if (clientAge >= 11 && clientAge <= 17) {
-      console.log(`  MATCH! Client is ${clientAge} years old (11-17), should use Older Children/Teens rule`);
+    // Modified to only apply to 11-15 year olds, 16-17 year olds should use adult rules
+    if (clientAge >= 11 && clientAge <= 15) {
+      console.log(`  MATCH! Client is ${clientAge} years old (11-15), should use Older Children/Teens rule`);
       console.log(`  Checking C-1 availability first`);
       
       // First try C-1 (primary for older children/teens)
@@ -726,8 +727,10 @@ if (!assignedOffice) {
       } else {
         console.log(`  C-1 office not found in active offices list`);
       }
+    } else if (clientAge >= 16 && clientAge <= 17) {
+      console.log(`  Client is ${clientAge} years old (16-17), treating like adult - skipping child/teen rule`);
     } else {
-      console.log(`  Client age ${clientAge} is not 11-17, skipping Older Children/Teens rule`);
+      console.log(`  Client age ${clientAge} is not 11-15, skipping Older Children/Teens rule`);
     }
   } else {
     console.log(`  Client age is unknown, skipping Older Children/Teens rule`);
@@ -744,6 +747,7 @@ if (!assignedOffice) {
     console.log("  Skipping age-based rule for telehealth appointment");
   } else if (clientAge !== null) {
     console.log(`  Client age is ${clientAge} years old`);
+    // This rule only applies to children 11-15 years old
     if (clientAge >= 11 && clientAge <= 15) {
       console.log(`  Client is ${clientAge} years old (11-15), checking if B-5 is available as secondary option`);
       
@@ -764,6 +768,8 @@ if (!assignedOffice) {
       } else {
         console.log(`  B-5 office not found in active offices list`);
       }
+    } else if (clientAge >= 16 && clientAge <= 17) {
+      console.log(`  Client is ${clientAge} years old (16-17), treating like adult - skipping B-5 Secondary rule`);
     } else {
       console.log(`  Client age ${clientAge} is not 11-15, skipping B-5 Secondary for Older Children rule`);
     }
@@ -820,6 +826,7 @@ if (!assignedOffice) {
     console.log("  Skipping age-based rule for telehealth appointment");
   } else if (clientAge !== null) {
     // For all children (both ≤10 and 11-15), B-2 as tertiary option
+    // Exclude 16-17 year olds who should be treated like adults
     if (clientAge <= 15) {
       console.log(`  Client is ${clientAge} years old (≤15), checking if B-2 is available as tertiary option`);
       
@@ -838,6 +845,8 @@ if (!assignedOffice) {
       } else {
         console.log(`  B-2 office not found in active offices list`);
       }
+    } else if (clientAge >= 16 && clientAge <= 17) {
+      console.log(`  Client is ${clientAge} years old (16-17), treating like adult - skipping B-2 Tertiary rule`);
     } else {
       console.log(`  Client age ${clientAge} is > 15, skipping B-2 Tertiary Option rule`);
     }

@@ -1,4 +1,33 @@
 // src/lib/util/date-helpers.ts
+// NOTE: This file is being maintained for backward compatibility.
+// Future development should use date-utils.ts which has improved error handling and additional functionality.
+
+import { logger } from './logger';
+
+/**
+ * Safely handle errors for logging
+ */
+function handleError(error: unknown): { message: string, details?: any } {
+  if (error instanceof Error) {
+    return {
+      message: error.message,
+      details: error.stack
+    };
+  } else if (typeof error === 'string') {
+    return {
+      message: error
+    };
+  } else if (error && typeof error === 'object') {
+    return {
+      message: String(error),
+      details: error
+    };
+  } else {
+    return {
+      message: 'Unknown error'
+    };
+  }
+}
 
 /**
  * Convert a date to Eastern Time
@@ -40,6 +69,8 @@ export function toEST(date: string | Date): Date {
     // Month is 0-indexed in JavaScript Date
     return new Date(year, month - 1, day, hour, minute, second);
   } catch (error) {
+    const errorInfo = handleError(error);
+    logger.error('Error in toEST:', errorInfo);
     console.error('Error in toEST:', error);
     return new Date(); // Return current date as fallback
   }
@@ -52,6 +83,8 @@ export function formatESTTime(isoDateString: string): string {
   try {
     // Ensure we're working with a valid date string
     if (!isoDateString || typeof isoDateString !== 'string') {
+      const errorInfo = handleError(`Invalid date string provided: ${isoDateString}`);
+      logger.error('Invalid date string provided to formatESTTime:', errorInfo);
       console.error('Invalid date string provided to formatESTTime:', isoDateString);
       return 'Invalid Date';
     }
@@ -61,6 +94,8 @@ export function formatESTTime(isoDateString: string): string {
     
     // Check if date is valid
     if (isNaN(date.getTime())) {
+      const errorInfo = handleError(`Invalid date created from string: ${isoDateString}`);
+      logger.error('Invalid date created from string:', errorInfo);
       console.error('Invalid date created from string:', isoDateString);
       return 'Invalid Date';
     }
@@ -73,6 +108,8 @@ export function formatESTTime(isoDateString: string): string {
       hour12: true 
     });
   } catch (error) {
+    const errorInfo = handleError(error);
+    logger.error('Error formatting EST time:', errorInfo);
     console.error('Error formatting EST time:', error, { input: isoDateString });
     return 'Invalid Date';
   }
@@ -90,6 +127,8 @@ export function standardizeDate(date: Date | string): string {
     const dateObj = typeof date === 'string' ? new Date(date) : date;
     return dateObj.toISOString();
   } catch (error) {
+    const errorInfo = handleError(error);
+    logger.error('Error standardizing date:', errorInfo);
     console.error('Error standardizing date:', error);
     // Return original string if it's a string, or empty string
     return typeof date === 'string' ? date : '';
@@ -115,6 +154,8 @@ export function formatDateForDisplay(date: Date | string): string {
     
     return `${year}-${month}-${day} ${hours}:${minutes}`;
   } catch (error) {
+    const errorInfo = handleError(error);
+    logger.error('Error formatting date for display:', errorInfo);
     console.error('Error formatting date for display:', error);
     // Return original string if it's a string, or empty string
     return typeof date === 'string' ? date : '';
@@ -154,6 +195,8 @@ export function parseAnyDate(dateStr: string): Date | null {
     
     return null;
   } catch (error) {
+    const errorInfo = handleError(error);
+    logger.error('Error parsing date:', errorInfo);
     console.error('Error parsing date:', error);
     return null;
   }
@@ -216,6 +259,8 @@ export function getESTDayRange(dateString: string): { start: string; end: string
     // Parse the input date
     const inputDate = new Date(dateString);
     if (isNaN(inputDate.getTime())) {
+      const errorInfo = handleError(`Invalid date format: ${dateString}`);
+      logger.warn(`Invalid date format: ${dateString}, using current date`, errorInfo);
       console.warn(`Invalid date format: ${dateString}, using current date`);
       return getESTDayRange(new Date().toISOString());
     }
@@ -237,6 +282,8 @@ export function getESTDayRange(dateString: string): { start: string; end: string
       end: endOfDay.toISOString()
     };
   } catch (error) {
+    const errorInfo = handleError(error);
+    logger.error('Error in getESTDayRange:', errorInfo);
     console.error('Error in getESTDayRange:', error);
     
     // Fallback to current day
@@ -277,6 +324,8 @@ export function isSameESTDay(date1: string | Date, date2: string | Date): boolea
       d1.getDate() === d2.getDate()
     );
   } catch (error) {
+    const errorInfo = handleError(error);
+    logger.error('Error in isSameESTDay:', errorInfo);
     console.error('Error in isSameESTDay:', error);
     return false;
   }
@@ -307,6 +356,8 @@ export function doTimeRangesOverlap(
       (s1 <= s2 && e1 >= e2)   // range1 completely contains range2
     );
   } catch (error) {
+    const errorInfo = handleError(error);
+    logger.error('Error comparing time ranges:', errorInfo);
     console.error('Error comparing time ranges:', error);
     return false; // Assume no overlap on error
   }

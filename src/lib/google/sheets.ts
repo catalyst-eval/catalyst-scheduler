@@ -116,6 +116,20 @@ export class GoogleSheetsService implements IGoogleSheetsService {
   private readonly sheets;
   private readonly spreadsheetId: string;
   public readonly cache: SheetsCacheService;
+  
+  /**
+   * Get the spreadsheet ID used by this service
+   */
+  public getSpreadsheetId(): string {
+    return this.spreadsheetId;
+  }
+  
+  /**
+   * Get the Google Sheets API interface
+   */
+  public getSheetsApi(): any {
+    return this.sheets;
+  }
 
   constructor() {
     console.log('Google Sheets Service initializing...');
