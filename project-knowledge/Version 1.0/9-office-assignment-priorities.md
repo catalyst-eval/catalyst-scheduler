@@ -55,8 +55,8 @@ Clients who are 16 years or older follow the adult office assignment logic, whic
 ### Priority 78: Yoga Swing Assignment
 - **Description**: Clients requiring a yoga swing are assigned to offices with this feature
 - **Sources**: 
-  - `hasSensoryNeeds` flag in client accessibility
-  - "yoga-swing" mentioned in accessibility notes
+  - `hasSensoryNeeds` flag in client accessibility AND "yoga-swing" explicitly mentioned in notes or sensory details
+  - Not triggered by general sensory needs without explicit mention
 - **Office Order** (Age-dependent):
   - Ages ≤10: B-5 → C-1 → B-2
   - Ages 11-15: C-1 → B-5 → B-2
@@ -96,15 +96,22 @@ Clients who are 16 years or older follow the adult office assignment logic, whic
 - **Purpose**: Ensures adult clients are placed in appropriate therapeutic environments
 - **Example**: "Adult client assigned to B-4 which is suitable for adult therapy"
 
+### Priority 85: Telehealth Primary Assignment
+- **Description**: Telehealth appointments are assigned to clinician's primary office
+- **Applies**: Only to telehealth appointments
+- **Office**: Clinician's primary office (first in their preferred offices list)
+- **Purpose**: Ensures clinicians conduct telehealth sessions from their primary office
+- **Note**: Availability is not checked since multiple telehealth sessions can use the same physical office
+
 ### Priority 50: In-Person Session Default Assignment
 - **Description**: Last resort for any in-person session without an office
 - **Office Order**: B-4, B-5, C-1, C-2, C-3
 - **Purpose**: Ensures all in-person appointments have an office assignment
 - **Example**: "In-person session assigned to first available office when no other rules apply"
 
-### Priority 40: Telehealth to Preferred Office
+### Priority 40: Telehealth to Preferred Office (Fallback)
 - **Description**: Telehealth appointments use clinician's other preferred offices
-- **Applies**: Only to telehealth appointments
+- **Applies**: Only to telehealth appointments when primary office can't be used
 - **Offices**: Second and subsequent offices in clinician's preferred offices list
 - **Purpose**: When primary office is unavailable for telehealth, use other preferred offices
 - **Example**: "Telehealth session assigned to C-3 when clinician's primary office was unavailable"

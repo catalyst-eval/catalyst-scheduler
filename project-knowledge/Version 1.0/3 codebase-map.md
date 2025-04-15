@@ -78,12 +78,16 @@ catalyst-scheduler/
   - Resolves scheduling conflicts
   - Processes appointments for display in email
   - Filters duplicate appointments during rendering
+  - Enhanced duplicate detection with improved algorithms
+  - Comprehensive conflict detection for overlapping appointments
 
-- **`scheduler-service.ts`** - Scheduled tasks
+- **`scheduler-service.ts`** - Scheduled tasks (Singleton Implementation)
   - Manages daily report generation
   - Relies on webhook-driven updates instead of API refresh
   - Implements duplicate appointment cleanup
   - Contains locking mechanism to prevent concurrent execution
+  - Uses singleton pattern to ensure only one instance exists across the application
+  - Prevents duplicate scheduling of tasks and multiple daily emails
 
 - **`bulk-import-service.ts`** - Consolidated bulk import
   - Handles importing appointments in bulk
@@ -112,6 +116,24 @@ catalyst-scheduler/
   - Implements date range operations
   - Checks for overlapping time ranges
 
+- **`error-recovery.ts`** - Operation recovery system
+  - Tracks and retries failed operations
+  - Implements different recovery strategies
+  - Handles partial failures gracefully
+  - Provides status reporting
+
+- **`distributed-lock.ts`** - Concurrency management
+  - Prevents simultaneous execution of critical operations
+  - Implements time-based lock expiration
+  - Provides cross-instance locking capability
+  - Ensures data consistency in distributed environment
+
+- **`row-monitor.ts`** - Data change tracking
+  - Monitors specific rows for changes
+  - Detects modifications across system components
+  - Supports audit functionality
+  - Helps troubleshoot data inconsistencies
+
 - **`office-id.ts`** - Office ID standardization
   - Validates office ID formats
   - Normalizes different office ID representations
@@ -135,6 +157,12 @@ catalyst-scheduler/
   - Creates component-specific child loggers
   - Formats logs for readability
   - Handles both development and production environments
+
+- **`sheet-verification.ts`** - Database structure verification
+  - Validates sheet structures match expected format
+  - Checks for required columns and tabs
+  - Reports discrepancies for troubleshooting
+  - Helps maintain database integrity
 
 ### API Routes (`src/routes/`)
 
@@ -323,6 +351,44 @@ The office assignment process is central to the system and follows this sequence
    └── Return conflict information
 ```
 
+## Duplicate Detection and Cleanup Flow
+
+```
+1. scheduler-service.ts
+   └── cleanupDuplicateAppointments()
+       ├── Runs during daily processing
+       ├── Identifies duplicates by appointmentId
+       ├── Preserves most recently updated record
+       ├── Logs removed duplicates in Audit_Log
+       └── Reports statistics in daily email
+
+2. appointmentSync.processAppointmentEvent()
+   ├── Checks for existing appointments
+   ├── Implements per-appointment locking
+   ├── Prevents concurrent processing
+   └── Handles webhook idempotency
+
+3. daily-schedule-service.ts
+   └── Enhanced duplicate filtering during rendering
+       ├── Detects duplicate appointmentIds
+       ├── Filters out duplicate clinician-time combinations
+       └── Prioritizes most recently updated records
+```
+
+## Error Recovery Mechanism
+
+```
+1. error-recovery.ts
+   └── ErrorRecoveryService
+       ├── registerFailedOperation()
+       │   └── Records operation details for retry
+       ├── retryFailedOperations()
+       │   ├── Attempts to replay operations
+       │   └── Uses exponential backoff
+       └── getFailedOperationStatus()
+           └── Reports on retry status
+```
+
 ## Removed or Deprecated Components
 
 The following components have been removed or consolidated:
@@ -357,3 +423,13 @@ The following components have been removed or consolidated:
    - Added error recovery service
    - Implemented idempotency for webhook processing
    - Added locking mechanism for concurrent operations
+
+4. **Duplicate Handling**
+   - Enhanced duplicate detection algorithms
+   - Added comprehensive conflict detection
+   - Improved filtering for daily schedule emails
+
+5. **Scheduler Service**
+   - Implemented singleton pattern to prevent multiple instances
+   - Cleaned up initialization sequence
+   - Prevented redundant schedule generations and emails

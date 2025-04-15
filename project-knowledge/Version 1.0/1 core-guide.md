@@ -239,25 +239,29 @@ The office assignment follows a strict priority hierarchy defined by the Assignm
 7. **Priority 62**: Clinician Preferred Office
    - Use one of clinician's preferred offices when available
 
-8. **Priority 55**: In-Person Priority
+8. **Priority 85**: Telehealth Primary Assignment
+   - For telehealth, assign clinician's primary office
+   - Availability not checked since multiple telehealth sessions can use the same office
+
+9. **Priority 55**: In-Person Priority
    - In-person sessions to physical offices (B-4, B-5, C-1, C-2, C-3)
 
-9. **Priority 40**: Telehealth to Preferred Office
-   - For telehealth, use clinician's preferred office if available
+10. **Priority 40**: Telehealth to Preferred Office (Fallback)
+    - For telehealth, use clinician's other preferred offices when primary unavailable
 
-10. **Priority 35**: Special Features Match
+11. **Priority 35**: Special Features Match
     - Office has features that match client requirements
 
-11. **Priority 30**: Alternative Clinician Office
+12. **Priority 30**: Alternative Clinician Office
     - Office lists this clinician as alternative
 
-12. **Priority 20**: Available Office
+13. **Priority 20**: Available Office
     - Any office available during appointment time
 
-13. **Priority 15**: Break Room Last Resort
+14. **Priority 15**: Break Room Last Resort
     - Use break room (B-1) only when no other physical offices available
 
-14. **Priority 10**: Default Telehealth
+15. **Priority 10**: Default Telehealth
     - Virtual office (A-v) as last resort for telehealth sessions
 
 ## System Operation Sequence
@@ -265,7 +269,7 @@ The office assignment follows a strict priority hierarchy defined by the Assignm
 ### Daily Process Flow
 
 1. **5:45 AM EST**: Apps Script refreshes Active_Appointments tab and cleans up past appointments
-2. **6:00 AM EST**: Daily schedule report generation and email distribution
+2. **6:00 AM EST**: Daily schedule report generation and email distribution (singleton SchedulerService ensures only one report is generated)
 
 ### Webhook Processing Flow
 
@@ -302,7 +306,7 @@ The office assignment follows a strict priority hierarchy defined by the Assignm
 
 ## Duplicate Appointment Handling
 
-The system includes mechanisms to detect and manage duplicate appointments:
+The system includes enhanced mechanisms to detect and manage duplicate appointments:
 
 1. **Webhook Idempotency**:
    - Tracks processed webhooks to prevent duplication
@@ -314,11 +318,17 @@ The system includes mechanisms to detect and manage duplicate appointments:
    - Prevents concurrent processing of same appointment
    - Avoids race conditions during webhook processing
 
-3. **Cleanup Process**:
-   - `cleanupDuplicateAppointments()` runs during daily processing
+3. **Enhanced Cleanup Process**:
+   - `cleanupDuplicateAppointments()` runs during daily processing with improved detection
+   - Uses multiple criteria to identify duplicates (appointmentId, client-time combinations)
    - Preserves the most recently updated record
    - Logs removed duplicates in the Audit_Log
-   - Includes duplicate statistics in daily email
+   - Includes comprehensive duplicate statistics in daily email
+
+4. **Email Rendering Filters**:
+   - Additional filtering during email generation
+   - Removes duplicate appointments from daily schedules
+   - Provides cleaner schedule view for staff
 
 ## IntakeQ Integration
 
@@ -336,8 +346,10 @@ The system implements these reliability features:
 2. **Rate Limiting**: Exponential backoff for API rate limits (120 requests/minute)
 3. **Retry Logic**: Multiple retry attempts for transient failures
 4. **Fallbacks**: Default office assignments when preferences unavailable
-5. **Locking Mechanism**: Prevents concurrent execution of scheduled tasks
-6. **Error Recovery**: Tracks and retries failed operations
+5. **Distributed Locking**: Prevents concurrent execution across all components
+6. **Error Recovery Service**: Systematically tracks and retries failed operations
+7. **Scheduler Singleton**: Ensures only one instance of the scheduler runs at a time
+8. **Enhanced Duplicate Detection**: Improved algorithms for finding and filtering duplicates
 
 ## Google Sheets API Management
 
