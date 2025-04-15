@@ -636,12 +636,14 @@ if (!assignedOffice) {
 if (!assignedOffice) {
   console.log("Checking PRIORITY 78: Yoga Swing Assignment");
   
-  // Check if client has sensory needs or yoga-swing tag in notes
-  const hasSensoryNeeds = clientAccessibility?.hasSensoryNeeds || false;
-  const hasYogaSwingTag = clientAccessibility?.accessibilityNotes && 
-    clientAccessibility.accessibilityNotes.toLowerCase().includes('yoga-swing');
+  // Check if client has explicit yoga-swing mentions in notes or sensory details
+  // Only check for explicit "yoga-swing" mentions in notes or sensory details - not using hasSensoryNeeds flag
+  const hasYogaSwingInNotes = clientAccessibility?.additionalNotes && 
+    clientAccessibility.additionalNotes.toLowerCase().includes('yoga-swing');
+  const hasYogaSwingInSensoryDetails = clientAccessibility?.sensoryDetails && 
+    clientAccessibility.sensoryDetails.toLowerCase().includes('yoga-swing');
   
-  if (hasSensoryNeeds || hasYogaSwingTag) {
+  if (hasYogaSwingInNotes || hasYogaSwingInSensoryDetails) {
     console.log(`  Client requires a yoga swing`);
     
     // Define yoga swing offices by age group
