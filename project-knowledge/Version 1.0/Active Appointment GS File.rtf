@@ -375,7 +375,57 @@ function updateMenuWithAllOptions() {
     .addItem('Clean Up Main Appointments Sheet', 'cleanupAppointmentsSheet')
     .addItem('Clean Up Both Sheets', 'cleanupBothSheets')
     .addItem('Setup Daily Refresh', 'setupDailyTrigger')
+    .addSeparator()
+    .addSubMenu(ui.createMenu('Testing Tools')
+      .addItem('Test Morning Sequence', 'testMorningSequence')
+      .addItem('Test Duplicate Edit Handling', 'testDuplicateEdits')
+      .addItem('Debug Functions', 'debugTriggers')
+    )
     .addToUi();
+}
+
+/**
+ * Debug function to show all active triggers
+ */
+function debugTriggers() {
+  const ui = SpreadsheetApp.getUi();
+  
+  // Get all triggers
+  const triggers = ScriptApp.getProjectTriggers();
+  
+  if (triggers.length === 0) {
+    ui.alert('No Triggers', 'There are currently no triggers set up.', ui.ButtonSet.OK);
+    return;
+  }
+  
+  // Format trigger information
+  let triggerInfo = 'Currently active triggers:\n\n';
+  
+  triggers.forEach((trigger, index) => {
+    triggerInfo += `${index + 1}. Function: ${trigger.getHandlerFunction()}\n`;
+    
+    // Get trigger type
+    const eventType = trigger.getEventType();
+    triggerInfo += `   Type: ${eventType}\n`;
+    
+    // Get timing info for time-based triggers
+    if (eventType === ScriptApp.EventType.CLOCK) {
+      const timezone = Session.getScriptTimeZone();
+      const atHour = trigger.getAtHour();
+      const nearMinute = trigger.getNearMinute();
+      
+      triggerInfo += `   Time: ${atHour}:${nearMinute < 10 ? '0' + nearMinute : nearMinute} (${timezone})\n`;
+      
+      if (trigger.getTotalFailures() > 0) {
+        triggerInfo += `   Failures: ${trigger.getTotalFailures()}\n`;
+      }
+    }
+    
+    triggerInfo += '\n';
+  });
+  
+  // Show trigger information
+  ui.alert('Trigger Information', triggerInfo, ui.ButtonSet.OK);
 }
 
 /**
@@ -401,4 +451,192 @@ function initialize() {
   setupDailyTrigger();
   updateMenuWithAllOptions();
   Logger.log('Catalyst Scheduler script initialized');
+}
+
+/**
+ * Simulates the early morning task sequence for testing
+ * This function runs all the tasks in the order they would normally run:
+ * 1. Office assignment (5:30 AM)
+ * 2. Refresh Active_Appointments (5:45 AM)
+ * 3. Daily report tasks (6:00 AM)
+ * 4. Duplicate cleanup (6:15 AM)
+ * 
+ * Use this function to manually test the workflow without waiting for scheduled times
+ */
+function testMorningSequence() {
+  const ui = SpreadsheetApp.getUi();
+  
+  // Create a log sheet or clear it if it exists
+  let logSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Test Logs');
+  if (!logSheet) {
+    logSheet = SpreadsheetApp.getActiveSpreadsheet().insertSheet('Test Logs');
+    logSheet.appendRow(['Timestamp', 'Action', 'Details']);
+  } else {
+    // Clear existing logs but keep the header
+    const lastRow = logSheet.getLastRow();
+    if (lastRow > 1) {
+      logSheet.deleteRows(2, lastRow - 1);
+    }
+  }
+  
+  // Log function to both console and sheet
+  function logAction(action, details) {
+    Logger.log(`TEST: ${action} - ${details}`);
+    logSheet.appendRow([new Date(), action, details]);
+  }
+  
+  try {
+    // Step 1: Simulate creating a duplicate appointment for testing
+    logAction('SETUP', 'Creating test duplicate in Active_Appointments');
+    const activeSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Active_Appointments');
+    if (activeSheet) {
+      // Get an existing row to duplicate
+      const data = activeSheet.getDataRange().getValues();
+      if (data.length > 1) {
+        const rowToDuplicate = data[1]; // Use the first appointment
+        activeSheet.appendRow(rowToDuplicate); // Create duplicate
+        logAction('SETUP', `Created test duplicate for appointment ID: ${rowToDuplicate[0]}`);
+      }
+    }
+    
+    // Step 2: Simulate office assignment (5:30 AM)
+    logAction('STEP 1', 'Simulating office assignment task (5:30 AM)');
+    // Note: We can't directly run the backend task, but we can check appointment statuses
+    
+    // Step 3: Refresh Active_Appointments (5:45 AM)
+    logAction('STEP 2', 'Simulating Active_Appointments refresh (5:45 AM)');
+    refreshActiveAppointments();
+    
+    // Step 4: Simulate Daily Report (6:00 AM)
+    logAction('STEP 3', 'Simulating daily report generation (6:00 AM)');
+    // This is handled by the backend
+    
+    // Step 5: Run duplicate cleanup (6:15 AM)
+    logAction('STEP 4', 'Simulating duplicate cleanup task (6:15 AM)');
+    const duplicateResults = cleanupBothSheets();
+    
+    // Log results
+    logAction('RESULTS', `Duplicates found in Active sheet: ${duplicateResults.activeSheet?.duplicatesFound || 0}`);
+    logAction('RESULTS', `Duplicates removed from Active sheet: ${duplicateResults.activeSheet?.duplicatesRemoved || 0}`);
+    logAction('RESULTS', `Duplicates found in main Appointments: ${duplicateResults.mainSheet?.duplicatesFound || 0}`);
+    logAction('RESULTS', `Duplicates removed from main Appointments: ${duplicateResults.mainSheet?.duplicatesRemoved || 0}`);
+    
+    // Show test completion message
+    logAction('COMPLETE', 'Morning sequence simulation completed');
+    ui.alert('Test Completed', 
+             `Morning sequence simulation completed. Please check the Test Logs sheet for details.\n\n` +
+             `Active_Appointments duplicates found: ${duplicateResults.activeSheet?.duplicatesFound || 0}\n` +
+             `Active_Appointments duplicates removed: ${duplicateResults.activeSheet?.duplicatesRemoved || 0}\n` +
+             `Main Appointments duplicates found: ${duplicateResults.mainSheet?.duplicatesFound || 0}\n` + 
+             `Main Appointments duplicates removed: ${duplicateResults.mainSheet?.duplicatesRemoved || 0}`,
+             ui.ButtonSet.OK);
+  } catch (e) {
+    logAction('ERROR', e.toString());
+    ui.alert('Test Error', 'An error occurred during testing. Check the Test Logs sheet for details.', ui.ButtonSet.OK);
+  }
+}
+
+/**
+ * Simulates a series of edits that would typically create duplicates
+ * This function:
+ * 1. Creates a duplicate in the Appointments sheet
+ * 2. Triggers the onEdit function (manually since we can't simulate actual sheet edits)
+ * 3. Verifies that duplicates were cleaned up
+ */
+function testDuplicateEdits() {
+  const ui = SpreadsheetApp.getUi();
+  
+  // Create a log sheet or clear it if it exists
+  let logSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Test Logs');
+  if (!logSheet) {
+    logSheet = SpreadsheetApp.getActiveSpreadsheet().insertSheet('Test Logs');
+    logSheet.appendRow(['Timestamp', 'Action', 'Details']);
+  } else {
+    // Clear existing logs but keep the header
+    const lastRow = logSheet.getLastRow();
+    if (lastRow > 1) {
+      logSheet.deleteRows(2, lastRow - 1);
+    }
+  }
+  
+  // Log function to both console and sheet
+  function logAction(action, details) {
+    Logger.log(`TEST: ${action} - ${details}`);
+    logSheet.appendRow([new Date(), action, details]);
+  }
+  
+  try {
+    // Step 1: Make sure we have clean sheets to start with
+    logAction('SETUP', 'Initial cleanup to start with clean state');
+    cleanupBothSheets();
+    
+    // Step 2: Get the Appointments sheet
+    const mainSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Appointments');
+    if (!mainSheet) {
+      logAction('ERROR', 'Could not find Appointments sheet');
+      ui.alert('Test Error', 'Could not find Appointments sheet', ui.ButtonSet.OK);
+      return;
+    }
+    
+    // Step 3: Create a duplicate in the Appointments sheet
+    const data = mainSheet.getDataRange().getValues();
+    if (data.length <= 1) {
+      logAction('ERROR', 'No appointments found to duplicate');
+      ui.alert('Test Error', 'No appointments found to duplicate', ui.ButtonSet.OK);
+      return;
+    }
+    
+    // Find a row to duplicate (preferably today's appointment)
+    let rowToDuplicate = null;
+    const headers = data[0];
+    const startTimeCol = headers.indexOf('startTime');
+    const today = new Date();
+    const todayStr = Utilities.formatDate(today, 'America/New_York', 'yyyy-MM-dd');
+    
+    for (let i = 1; i < data.length; i++) {
+      const row = data[i];
+      if (row[startTimeCol] && row[startTimeCol].toString().includes(todayStr)) {
+        rowToDuplicate = row;
+        break;
+      }
+    }
+    
+    if (!rowToDuplicate) {
+      // If no today's appointment, just use the first one
+      rowToDuplicate = data[1];
+    }
+    
+    // Create a duplicate by appending the row
+    mainSheet.appendRow(rowToDuplicate);
+    const duplicatedId = rowToDuplicate[headers.indexOf('appointmentId')];
+    logAction('SETUP', `Created test duplicate for appointment ID: ${duplicatedId}`);
+    
+    // Step 4: Create a mock edit event
+    const mockEvent = {
+      source: SpreadsheetApp.getActiveSpreadsheet(),
+      range: mainSheet.getRange(mainSheet.getLastRow(), 1),
+      user: Session.getActiveUser().getEmail()
+    };
+    
+    // Step 5: Manually run onEdit function with our mock event
+    logAction('TEST', 'Running onEdit function with mock event');
+    onEdit(mockEvent);
+    
+    // Step 6: Check results
+    logAction('VERIFY', 'Checking for duplicates after onEdit');
+    const afterTestResults = cleanupBothSheets();
+    
+    // Log results and show alert
+    const message = `Edit test completed. Changes should have triggered duplicate cleanup.\n\n` +
+                    `Additional duplicates found in Active_Appointments: ${afterTestResults.activeSheet?.duplicatesFound || 0}\n` +
+                    `Additional duplicates found in main Appointments: ${afterTestResults.mainSheet?.duplicatesFound || 0}\n\n` +
+                    `If these numbers are 0, it means the automatic cleanup worked correctly.`;
+    
+    logAction('COMPLETE', message);
+    ui.alert('Test Completed', message, ui.ButtonSet.OK);
+    
+  } catch (e) {
+    logAction('ERROR', e.toString());
+    ui.alert('Test Error', 'An error occurred during testing. Check the Test Logs sheet for details.', ui.ButtonSet.OK);
+  }
 }
