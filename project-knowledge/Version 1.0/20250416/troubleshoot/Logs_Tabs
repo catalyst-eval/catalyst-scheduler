@@ -1,0 +1,2647 @@
+Appointments tab
+67fffc60567dcf7145fb6f9d	667	Test Seabolt	2017-10-25	T1	Tyler	TBD	in-person	2025-04-17 17:00	2025-04-17 17:50	scheduled	intakeq	2025-04-16T18:52:26.521Z	{"accessibility":true,"specialFeatures":[]}	Service: Individual Therapy (In-Person)	TBD	To be determined during daily schedule generation
+67fffc9bec6d472c417d3aae	667	Test Seabolt	2017-10-25	T1	Tyler	TBD	in-person	2025-04-18 12:00	2025-04-18 12:50	scheduled	intakeq	2025-04-16T18:53:21.238Z	{"accessibility":true,"specialFeatures":[]}	Service: Individual Therapy (In-Person)	TBD	To be determined during daily schedule generation
+67fffc9bec6d472c417d3ab5	667	Test Seabolt	2017-10-25	T1	Tyler	TBD	in-person	2025-04-19 17:00	2025-04-19 17:50	scheduled	intakeq	2025-04-16T18:53:21.991Z	{"accessibility":true,"specialFeatures":[]}	Service: Individual Therapy (In-Person)	TBD	To be determined during daily schedule generation
+67fffc9cec6d472c417d3ab9	667	Test Seabolt	2017-10-25	T1	Tyler	TBD	in-person	2025-04-20 17:00	2025-04-20 17:50	scheduled	intakeq	2025-04-16T18:53:22.456Z	{"accessibility":true,"specialFeatures":[]}	Service: Individual Therapy (In-Person)	TBD	To be determined during daily schedule generation
+67fffc9cec6d472c417d3abb	667	Test Seabolt	2017-10-25	T1	Tyler	TBD	in-person	2025-04-21 17:00	2025-04-21 17:50	scheduled	intakeq	2025-04-16T18:53:23.071Z	{"accessibility":true,"specialFeatures":[]}	Service: Individual Therapy (In-Person)	TBD	To be determined during daily schedule generation
+67fffc9dec6d472c417d3abe	667	Test Seabolt	2017-10-25	T1	Tyler	TBD	in-person	2025-04-22 17:00	2025-04-22 17:50	scheduled	intakeq	2025-04-16T18:53:23.470Z	{"accessibility":true,"specialFeatures":[]}	Service: Individual Therapy (In-Person)	TBD	To be determined during daily schedule generation
+67fffc9fec6d472c417d3ad0	667	Test Seabolt	2017-10-25	T1	Tyler	TBD	in-person	2025-04-25 17:00	2025-04-25 17:50	scheduled	intakeq	2025-04-16T18:53:25.907Z	{"accessibility":true,"specialFeatures":[]}	Service: Individual Therapy (In-Person)	TBD	To be determined during daily schedule generation
+67fffc9fec6d472c417d3ad4	667	Test Seabolt	2017-10-25	T1	Tyler	TBD	in-person	2025-04-26 17:00	2025-04-26 17:50	scheduled	intakeq	2025-04-16T18:53:31.185Z	{"accessibility":true,"specialFeatures":[]}	Service: Individual Therapy (In-Person)	TBD	To be determined during daily schedule generation
+67fffc9fec6d472c417d3ad0	667	Test Seabolt	2017-10-25	T1	Tyler	TBD	in-person	2025-04-25 17:00	2025-04-25 17:50	scheduled	intakeq	2025-04-16T18:53:25.907Z	{"accessibility":true,"specialFeatures":[]}	Service: Individual Therapy (In-Person)	TBD	To be determined during daily schedule generation
+67ffe324604b571d275bbd3d	1122	Thomas Henderson	2009-10-31	CU1	Cullen	TBD	telehealth	2025-04-21 19:00	2025-04-21 19:50	scheduled	intakeq	2025-04-16T19:24:41.160Z	{"accessibility":false,"specialFeatures":[]}	Service: Child/Minor Therapy (Telehealth)	TBD	To be determined during daily schedule generation
+
+Audit_Log tab
+2025-04-16T18:52:25.101Z	WEBHOOK_RECEIVED	Received AppointmentCreated webhook for appointment 67fffc60567dcf7145fb6f9d	INTAKEQ_WEBHOOK			{"appointmentId":"67fffc60567dcf7145fb6f9d","type":"AppointmentCreated","clientId":667,"processTime":"2025-04-16T18:52:25.101Z"}
+2025-04-16T18:52:27.906Z	APPOINTMENT_CREATED	Added appointment for Test Seabolt	SYSTEM		{"appointmentId":"67fffc60567dcf7145fb6f9d","clientId":"667","clientName":"Test Seabolt","clientDateOfBirth":"2017-10-25","clinicianId":"T1","clinicianName":"Tyler","sessionType":"in-person","startTime":"2025-04-17 17:00","endTime":"2025-04-17 17:50","status":"scheduled","lastUpdated":"2025-04-16T18:52:26.521Z","source":"intakeq","notes":"Service: Individual Therapy (In-Person)","tags":[],"requirements":{"accessibility":true,"specialFeatures":[]},"currentOfficeId":"TBD","assignedOfficeId":"TBD","officeId":"TBD","suggestedOfficeId":"TBD","assignmentReason":"To be determined during daily schedule generation"}	
+2025-04-16T18:52:27.906Z	APPOINTMENT_CREATED	Added appointment 67fffc60567dcf7145fb6f9d	SYSTEM			{"appointmentId":"67fffc60567dcf7145fb6f9d","officeId":"TBD","clientId":667,"deferredAssignment":true}
+2025-04-16T18:53:20.816Z	WEBHOOK_RECEIVED	Received AppointmentCreated webhook for appointment 67fffc9bec6d472c417d3aae	INTAKEQ_WEBHOOK			{"appointmentId":"67fffc9bec6d472c417d3aae","type":"AppointmentCreated","clientId":667,"processTime":"2025-04-16T18:53:20.816Z"}
+2025-04-16T18:53:21.750Z	WEBHOOK_RECEIVED	Received AppointmentCreated webhook for appointment 67fffc9bec6d472c417d3ab5	INTAKEQ_WEBHOOK			{"appointmentId":"67fffc9bec6d472c417d3ab5","type":"AppointmentCreated","clientId":667,"processTime":"2025-04-16T18:53:21.750Z"}
+2025-04-16T18:53:22.414Z	SYSTEM_ERROR	Partial verification for appointment 67fffc9bec6d472c417d3aae	SYSTEM			{"appointmentId":"67fffc9bec6d472c417d3aae","clientName":"Test Seabolt","mainVerification":false,"activeVerification":true,"isForToday":false}
+2025-04-16T18:53:22.161Z	WEBHOOK_RECEIVED	Received AppointmentCreated webhook for appointment 67fffc9cec6d472c417d3ab9	INTAKEQ_WEBHOOK			{"appointmentId":"67fffc9cec6d472c417d3ab9","type":"AppointmentCreated","clientId":667,"processTime":"2025-04-16T18:53:22.161Z"}
+2025-04-16T18:53:22.687Z	APPOINTMENT_CREATED	Added appointment for Test Seabolt	SYSTEM		{"appointmentId":"67fffc9bec6d472c417d3aae","clientId":"667","clientName":"Test Seabolt","clientDateOfBirth":"2017-10-25","clinicianId":"T1","clinicianName":"Tyler","sessionType":"in-person","startTime":"2025-04-18 12:00","endTime":"2025-04-18 12:50","status":"scheduled","lastUpdated":"2025-04-16T18:53:21.238Z","source":"intakeq","notes":"Service: Individual Therapy (In-Person)","tags":[],"requirements":{"accessibility":true,"specialFeatures":[]},"currentOfficeId":"TBD","assignedOfficeId":"TBD","officeId":"TBD","suggestedOfficeId":"TBD","assignmentReason":"To be determined during daily schedule generation"}	
+2025-04-16T18:53:22.688Z	APPOINTMENT_CREATED	Added appointment 67fffc9bec6d472c417d3aae	SYSTEM			{"appointmentId":"67fffc9bec6d472c417d3aae","officeId":"TBD","clientId":667,"deferredAssignment":true}
+2025-04-16T18:53:22.579Z	WEBHOOK_RECEIVED	Received AppointmentCreated webhook for appointment 67fffc9cec6d472c417d3abb	INTAKEQ_WEBHOOK			{"appointmentId":"67fffc9cec6d472c417d3abb","type":"AppointmentCreated","clientId":667,"processTime":"2025-04-16T18:53:22.579Z"}
+2025-04-16T18:53:23.230Z	SYSTEM_ERROR	Partial verification for appointment 67fffc9bec6d472c417d3ab5	SYSTEM			{"appointmentId":"67fffc9bec6d472c417d3ab5","clientName":"Test Seabolt","mainVerification":false,"activeVerification":true,"isForToday":false}
+2025-04-16T18:53:24.646Z	SYSTEM_ERROR	Partial verification for appointment 67fffc9cec6d472c417d3abb	SYSTEM			{"appointmentId":"67fffc9cec6d472c417d3abb","clientName":"Test Seabolt","mainVerification":false,"activeVerification":true,"isForToday":false}
+2025-04-16T18:53:23.195Z	WEBHOOK_RECEIVED	Received AppointmentCreated webhook for appointment 67fffc9dec6d472c417d3abe	INTAKEQ_WEBHOOK			{"appointmentId":"67fffc9dec6d472c417d3abe","type":"AppointmentCreated","clientId":667,"processTime":"2025-04-16T18:53:23.195Z"}
+2025-04-16T18:53:23.921Z	APPOINTMENT_CREATED	Added appointment for Test Seabolt	SYSTEM		{"appointmentId":"67fffc9bec6d472c417d3ab5","clientId":"667","clientName":"Test Seabolt","clientDateOfBirth":"2017-10-25","clinicianId":"T1","clinicianName":"Tyler","sessionType":"in-person","startTime":"2025-04-19 17:00","endTime":"2025-04-19 17:50","status":"scheduled","lastUpdated":"2025-04-16T18:53:21.991Z","source":"intakeq","notes":"Service: Individual Therapy (In-Person)","tags":[],"requirements":{"accessibility":true,"specialFeatures":[]},"currentOfficeId":"TBD","assignedOfficeId":"TBD","officeId":"TBD","suggestedOfficeId":"TBD","assignmentReason":"To be determined during daily schedule generation"}	
+2025-04-16T18:53:23.921Z	APPOINTMENT_CREATED	Added appointment 67fffc9bec6d472c417d3ab5	SYSTEM			{"appointmentId":"67fffc9bec6d472c417d3ab5","officeId":"TBD","clientId":667,"deferredAssignment":true}
+2025-04-16T18:53:24.247Z	SYSTEM_ERROR	Partial verification for appointment 67fffc9cec6d472c417d3ab9	SYSTEM			{"appointmentId":"67fffc9cec6d472c417d3ab9","clientName":"Test Seabolt","mainVerification":false,"activeVerification":true,"isForToday":false}
+2025-04-16T18:53:25.038Z	SYSTEM_ERROR	Partial verification for appointment 67fffc9dec6d472c417d3abe	SYSTEM			{"appointmentId":"67fffc9dec6d472c417d3abe","clientName":"Test Seabolt","mainVerification":false,"activeVerification":true,"isForToday":false}
+2025-04-16T18:53:24.163Z	WEBHOOK_RECEIVED	Received AppointmentCreated webhook for appointment 67fffc9eec6d472c417d3ac4	INTAKEQ_WEBHOOK			{"appointmentId":"67fffc9eec6d472c417d3ac4","type":"AppointmentCreated","clientId":667,"processTime":"2025-04-16T18:53:24.163Z"}
+2025-04-16T18:53:24.570Z	WEBHOOK_RECEIVED	Received AppointmentCreated webhook for appointment 67fffc9eec6d472c417d3acb	INTAKEQ_WEBHOOK			{"appointmentId":"67fffc9eec6d472c417d3acb","type":"AppointmentCreated","clientId":667,"processTime":"2025-04-16T18:53:24.570Z"}
+2025-04-16T18:53:25.597Z	APPOINTMENT_CREATED	Added appointment for Test Seabolt	SYSTEM		{"appointmentId":"67fffc9cec6d472c417d3abb","clientId":"667","clientName":"Test Seabolt","clientDateOfBirth":"2017-10-25","clinicianId":"T1","clinicianName":"Tyler","sessionType":"in-person","startTime":"2025-04-21 17:00","endTime":"2025-04-21 17:50","status":"scheduled","lastUpdated":"2025-04-16T18:53:23.071Z","source":"intakeq","notes":"Service: Individual Therapy (In-Person)","tags":[],"requirements":{"accessibility":true,"specialFeatures":[]},"currentOfficeId":"TBD","assignedOfficeId":"TBD","officeId":"TBD","suggestedOfficeId":"TBD","assignmentReason":"To be determined during daily schedule generation"}	
+2025-04-16T18:53:25.597Z	APPOINTMENT_CREATED	Added appointment 67fffc9cec6d472c417d3abb	SYSTEM			{"appointmentId":"67fffc9cec6d472c417d3abb","officeId":"TBD","clientId":667,"deferredAssignment":true}
+2025-04-16T18:53:25.739Z	APPOINTMENT_CREATED	Added appointment for Test Seabolt	SYSTEM		{"appointmentId":"67fffc9cec6d472c417d3ab9","clientId":"667","clientName":"Test Seabolt","clientDateOfBirth":"2017-10-25","clinicianId":"T1","clinicianName":"Tyler","sessionType":"in-person","startTime":"2025-04-20 17:00","endTime":"2025-04-20 17:50","status":"scheduled","lastUpdated":"2025-04-16T18:53:22.456Z","source":"intakeq","notes":"Service: Individual Therapy (In-Person)","tags":[],"requirements":{"accessibility":true,"specialFeatures":[]},"currentOfficeId":"TBD","assignedOfficeId":"TBD","officeId":"TBD","suggestedOfficeId":"TBD","assignmentReason":"To be determined during daily schedule generation"}	
+2025-04-16T18:53:25.739Z	APPOINTMENT_CREATED	Added appointment 67fffc9cec6d472c417d3ab9	SYSTEM			{"appointmentId":"67fffc9cec6d472c417d3ab9","officeId":"TBD","clientId":667,"deferredAssignment":true}
+2025-04-16T18:53:25.003Z	WEBHOOK_RECEIVED	Received AppointmentCreated webhook for appointment 67fffc9fec6d472c417d3ad0	INTAKEQ_WEBHOOK			{"appointmentId":"67fffc9fec6d472c417d3ad0","type":"AppointmentCreated","clientId":667,"processTime":"2025-04-16T18:53:25.003Z"}
+2025-04-16T18:53:26.258Z	APPOINTMENT_CREATED	Added appointment for Test Seabolt	SYSTEM		{"appointmentId":"67fffc9dec6d472c417d3abe","clientId":"667","clientName":"Test Seabolt","clientDateOfBirth":"2017-10-25","clinicianId":"T1","clinicianName":"Tyler","sessionType":"in-person","startTime":"2025-04-22 17:00","endTime":"2025-04-22 17:50","status":"scheduled","lastUpdated":"2025-04-16T18:53:23.470Z","source":"intakeq","notes":"Service: Individual Therapy (In-Person)","tags":[],"requirements":{"accessibility":true,"specialFeatures":[]},"currentOfficeId":"TBD","assignedOfficeId":"TBD","officeId":"TBD","suggestedOfficeId":"TBD","assignmentReason":"To be determined during daily schedule generation"}	
+2025-04-16T18:53:26.258Z	APPOINTMENT_CREATED	Added appointment 67fffc9dec6d472c417d3abe	SYSTEM			{"appointmentId":"67fffc9dec6d472c417d3abe","officeId":"TBD","clientId":667,"deferredAssignment":true}
+2025-04-16T18:53:25.536Z	WEBHOOK_RECEIVED	Received AppointmentCreated webhook for appointment 67fffc9fec6d472c417d3ad4	INTAKEQ_WEBHOOK			{"appointmentId":"67fffc9fec6d472c417d3ad4","type":"AppointmentCreated","clientId":667,"processTime":"2025-04-16T18:53:25.536Z"}
+2025-04-16T18:53:27.513Z	SYSTEM_ERROR	Partial verification for appointment 67fffc9eec6d472c417d3acb	SYSTEM			{"appointmentId":"67fffc9eec6d472c417d3acb","clientName":"Test Seabolt","mainVerification":false,"activeVerification":true,"isForToday":false}
+2025-04-16T18:53:27.397Z	SYSTEM_ERROR	Partial verification for appointment 67fffc9eec6d472c417d3ac4	SYSTEM			{"appointmentId":"67fffc9eec6d472c417d3ac4","clientName":"Test Seabolt","mainVerification":false,"activeVerification":true,"isForToday":false}
+2025-04-16T18:53:28.243Z	APPOINTMENT_CREATED	Added appointment for Test Seabolt	SYSTEM		{"appointmentId":"67fffc9eec6d472c417d3acb","clientId":"667","clientName":"Test Seabolt","clientDateOfBirth":"2017-10-25","clinicianId":"T1","clinicianName":"Tyler","sessionType":"in-person","startTime":"2025-04-24 17:00","endTime":"2025-04-24 17:50","status":"scheduled","lastUpdated":"2025-04-16T18:53:25.488Z","source":"intakeq","notes":"Service: Individual Therapy (In-Person)","tags":[],"requirements":{"accessibility":true,"specialFeatures":[]},"currentOfficeId":"TBD","assignedOfficeId":"TBD","officeId":"TBD","suggestedOfficeId":"TBD","assignmentReason":"To be determined during daily schedule generation"}	
+2025-04-16T18:53:28.243Z	APPOINTMENT_CREATED	Added appointment 67fffc9eec6d472c417d3acb	SYSTEM			{"appointmentId":"67fffc9eec6d472c417d3acb","officeId":"TBD","clientId":667,"deferredAssignment":true}
+2025-04-16T18:53:28.362Z	APPOINTMENT_CREATED	Added appointment for Test Seabolt	SYSTEM		{"appointmentId":"67fffc9eec6d472c417d3ac4","clientId":"667","clientName":"Test Seabolt","clientDateOfBirth":"2017-10-25","clinicianId":"T1","clinicianName":"Tyler","sessionType":"in-person","startTime":"2025-04-23 17:00","endTime":"2025-04-23 17:50","status":"scheduled","lastUpdated":"2025-04-16T18:53:25.147Z","source":"intakeq","notes":"Service: Individual Therapy (In-Person)","tags":[],"requirements":{"accessibility":true,"specialFeatures":[]},"currentOfficeId":"TBD","assignedOfficeId":"TBD","officeId":"TBD","suggestedOfficeId":"TBD","assignmentReason":"To be determined during daily schedule generation"}	
+2025-04-16T18:53:28.363Z	APPOINTMENT_CREATED	Added appointment 67fffc9eec6d472c417d3ac4	SYSTEM			{"appointmentId":"67fffc9eec6d472c417d3ac4","officeId":"TBD","clientId":667,"deferredAssignment":true}
+2025-04-16T18:53:28.858Z	APPOINTMENT_CREATED	Added appointment for Test Seabolt	SYSTEM		{"appointmentId":"67fffc9fec6d472c417d3ad0","clientId":"667","clientName":"Test Seabolt","clientDateOfBirth":"2017-10-25","clinicianId":"T1","clinicianName":"Tyler","sessionType":"in-person","startTime":"2025-04-25 17:00","endTime":"2025-04-25 17:50","status":"scheduled","lastUpdated":"2025-04-16T18:53:25.907Z","source":"intakeq","notes":"Service: Individual Therapy (In-Person)","tags":[],"requirements":{"accessibility":true,"specialFeatures":[]},"currentOfficeId":"TBD","assignedOfficeId":"TBD","officeId":"TBD","suggestedOfficeId":"TBD","assignmentReason":"To be determined during daily schedule generation"}	
+2025-04-16T18:53:28.859Z	APPOINTMENT_CREATED	Added appointment 67fffc9fec6d472c417d3ad0	SYSTEM			{"appointmentId":"67fffc9fec6d472c417d3ad0","officeId":"TBD","clientId":667,"deferredAssignment":true}
+2025-04-16T18:53:32.362Z	SYSTEM_ERROR	Partial verification for appointment 67fffc9fec6d472c417d3ad4	SYSTEM			{"appointmentId":"67fffc9fec6d472c417d3ad4","clientName":"Test Seabolt","mainVerification":false,"activeVerification":true,"isForToday":false}
+2025-04-16T18:53:32.545Z	APPOINTMENT_CREATED	Added appointment for Test Seabolt	SYSTEM		{"appointmentId":"67fffc9fec6d472c417d3ad4","clientId":"667","clientName":"Test Seabolt","clientDateOfBirth":"2017-10-25","clinicianId":"T1","clinicianName":"Tyler","sessionType":"in-person","startTime":"2025-04-26 17:00","endTime":"2025-04-26 17:50","status":"scheduled","lastUpdated":"2025-04-16T18:53:31.185Z","source":"intakeq","notes":"Service: Individual Therapy (In-Person)","tags":[],"requirements":{"accessibility":true,"specialFeatures":[]},"currentOfficeId":"TBD","assignedOfficeId":"TBD","officeId":"TBD","suggestedOfficeId":"TBD","assignmentReason":"To be determined during daily schedule generation"}	
+2025-04-16T18:53:32.546Z	APPOINTMENT_CREATED	Added appointment 67fffc9fec6d472c417d3ad4	SYSTEM			{"appointmentId":"67fffc9fec6d472c417d3ad4","officeId":"TBD","clientId":667,"deferredAssignment":true}
+2025-04-16T19:05:14.410Z	WEBHOOK_RECEIVED	Received AppointmentDeleted webhook for appointment 67fffc9cec6d472c417d3ab9	INTAKEQ_WEBHOOK			{"appointmentId":"67fffc9cec6d472c417d3ab9","type":"AppointmentDeleted","clientId":667,"processTime":"2025-04-16T19:05:14.410Z"}
+2025-04-16T19:05:14.408Z	WEBHOOK_RECEIVED	Received AppointmentDeleted webhook for appointment 67fffc9fec6d472c417d3ad0	INTAKEQ_WEBHOOK			{"appointmentId":"67fffc9fec6d472c417d3ad0","type":"AppointmentDeleted","clientId":667,"processTime":"2025-04-16T19:05:14.408Z"}
+2025-04-16T19:05:14.413Z	WEBHOOK_RECEIVED	Received AppointmentDeleted webhook for appointment 67fffc9dec6d472c417d3abe	INTAKEQ_WEBHOOK			{"appointmentId":"67fffc9dec6d472c417d3abe","type":"AppointmentDeleted","clientId":667,"processTime":"2025-04-16T19:05:14.413Z"}
+2025-04-16T19:05:14.415Z	WEBHOOK_RECEIVED	Received AppointmentDeleted webhook for appointment 67fffc9fec6d472c417d3ad4	INTAKEQ_WEBHOOK			{"appointmentId":"67fffc9fec6d472c417d3ad4","type":"AppointmentDeleted","clientId":667,"processTime":"2025-04-16T19:05:14.415Z"}
+2025-04-16T19:05:14.419Z	WEBHOOK_RECEIVED	Received AppointmentDeleted webhook for appointment 67fffc9eec6d472c417d3ac4	INTAKEQ_WEBHOOK			{"appointmentId":"67fffc9eec6d472c417d3ac4","type":"AppointmentDeleted","clientId":667,"processTime":"2025-04-16T19:05:14.419Z"}
+2025-04-16T19:05:14.427Z	WEBHOOK_RECEIVED	Received AppointmentDeleted webhook for appointment 67fffc9cec6d472c417d3abb	INTAKEQ_WEBHOOK			{"appointmentId":"67fffc9cec6d472c417d3abb","type":"AppointmentDeleted","clientId":667,"processTime":"2025-04-16T19:05:14.427Z"}
+2025-04-16T19:05:14.405Z	WEBHOOK_RECEIVED	Received AppointmentDeleted webhook for appointment 67fffc9eec6d472c417d3acb	INTAKEQ_WEBHOOK			{"appointmentId":"67fffc9eec6d472c417d3acb","type":"AppointmentDeleted","clientId":667,"processTime":"2025-04-16T19:05:14.405Z"}
+2025-04-16T19:05:19.256Z	APPOINTMENT_DELETED	Deleted appointment 67fffc9dec6d472c417d3abe	SYSTEM			{"appointmentId":"67fffc9dec6d472c417d3abe","rowIndex":354,"deletionMethod":"row_removal"}
+2025-04-16T19:05:19.257Z	APPOINTMENT_DELETED	Deleted appointment 67fffc9dec6d472c417d3abe	SYSTEM			{"appointmentId":"67fffc9dec6d472c417d3abe","clientId":667,"deletionMethod":"row_removal_with_status_fallback","appointmentDate":"2025-04-22T17:00:00.0000000Z"}
+2025-04-16T19:05:19.976Z	APPOINTMENT_DELETED	Deleted appointment 67fffc9cec6d472c417d3abb	SYSTEM			{"appointmentId":"67fffc9cec6d472c417d3abb","rowIndex":353,"deletionMethod":"row_removal"}
+2025-04-16T19:05:20.465Z	APPOINTMENT_DELETED	Deleted appointment 67fffc9cec6d472c417d3abb	SYSTEM			{"appointmentId":"67fffc9cec6d472c417d3abb","clientId":667,"deletionMethod":"row_removal_with_status_fallback","appointmentDate":"2025-04-21T17:00:00.0000000Z"}
+2025-04-16T19:05:20.470Z	APPOINTMENT_DELETED	Deleted appointment 67fffc9fec6d472c417d3ad4	SYSTEM			{"appointmentId":"67fffc9fec6d472c417d3ad4","rowIndex":355,"deletionMethod":"row_removal"}
+2025-04-16T19:05:20.471Z	APPOINTMENT_DELETED	Deleted appointment 67fffc9fec6d472c417d3ad4	SYSTEM			{"appointmentId":"67fffc9fec6d472c417d3ad4","clientId":667,"deletionMethod":"row_removal_with_status_fallback","appointmentDate":"2025-04-26T17:00:00.0000000Z"}
+2025-04-16T19:05:20.473Z	APPOINTMENT_DELETED	Deleted appointment 67fffc9cec6d472c417d3ab9	SYSTEM			{"appointmentId":"67fffc9cec6d472c417d3ab9","rowIndex":352,"deletionMethod":"row_removal"}
+2025-04-16T19:05:20.473Z	APPOINTMENT_DELETED	Deleted appointment 67fffc9cec6d472c417d3ab9	SYSTEM			{"appointmentId":"67fffc9cec6d472c417d3ab9","clientId":667,"deletionMethod":"row_removal_with_status_fallback","appointmentDate":"2025-04-20T17:00:00.0000000Z"}
+2025-04-16T19:05:21.131Z	APPOINTMENT_DELETED	Deleted appointment 67fffc9fec6d472c417d3ad0	SYSTEM			{"appointmentId":"67fffc9fec6d472c417d3ad0","rowIndex":354,"deletionMethod":"row_removal"}
+2025-04-16T19:05:21.131Z	APPOINTMENT_DELETED	Deleted appointment 67fffc9fec6d472c417d3ad0	SYSTEM			{"appointmentId":"67fffc9fec6d472c417d3ad0","clientId":667,"deletionMethod":"row_removal_with_status_fallback","appointmentDate":"2025-04-25T17:00:00.0000000Z"}
+2025-04-16T19:05:23.415Z	APPOINTMENT_DELETED	Deleted appointment 67fffc9eec6d472c417d3acb	SYSTEM			{"appointmentId":"67fffc9eec6d472c417d3acb","clientId":667,"deletionMethod":"row_removal_with_status_fallback","appointmentDate":"2025-04-24T17:00:00.0000000Z"}
+2025-04-16T19:05:23.426Z	APPOINTMENT_DELETED	Deleted appointment 67fffc9eec6d472c417d3ac4	SYSTEM			{"appointmentId":"67fffc9eec6d472c417d3ac4","clientId":667,"deletionMethod":"row_removal_with_status_fallback","appointmentDate":"2025-04-23T17:00:00.0000000Z"}
+2025-04-16T19:06:00.549Z	WEBHOOK_RECEIVED	Received AppointmentCanceled webhook for appointment 67fffc9bec6d472c417d3ab5	INTAKEQ_WEBHOOK			{"appointmentId":"67fffc9bec6d472c417d3ab5","type":"AppointmentCanceled","clientId":667,"processTime":"2025-04-16T19:06:00.549Z"}
+2025-04-16T19:06:01.554Z	APPOINTMENT_DELETED	Deleted appointment 67fffc9bec6d472c417d3ab5	SYSTEM			{"appointmentId":"67fffc9bec6d472c417d3ab5","rowIndex":351,"deletionMethod":"row_removal"}
+2025-04-16T19:06:01.554Z	APPOINTMENT_CANCELLED	Cancelled appointment 67fffc9bec6d472c417d3ab5	SYSTEM			{"appointmentId":"67fffc9bec6d472c417d3ab5","clientId":667,"reason":"No reason provided","deletionMethod":"row_removal_with_status_fallback","cancellationDate":"2025-04-16T19:05:55.4370000Z"}
+2025-04-16T19:08:10.841Z	WEBHOOK_RECEIVED	Received AppointmentDeleted webhook for appointment 67fffc9bec6d472c417d3aae	INTAKEQ_WEBHOOK			{"appointmentId":"67fffc9bec6d472c417d3aae","type":"AppointmentDeleted","clientId":667,"processTime":"2025-04-16T19:08:10.841Z"}
+2025-04-16T19:08:12.455Z	APPOINTMENT_DELETED	Deleted appointment 67fffc9bec6d472c417d3aae	SYSTEM			{"appointmentId":"67fffc9bec6d472c417d3aae","rowIndex":350,"deletionMethod":"row_removal"}
+2025-04-16T19:08:12.455Z	APPOINTMENT_DELETED	Deleted appointment 67fffc9bec6d472c417d3aae	SYSTEM			{"appointmentId":"67fffc9bec6d472c417d3aae","clientId":667,"deletionMethod":"row_removal_with_status_fallback","appointmentDate":"2025-04-18T12:00:00.0000000Z"}
+2025-04-16T19:24:39.800Z	WEBHOOK_RECEIVED	Received AppointmentConfirmed webhook for appointment 67ffe324604b571d275bbd3d	INTAKEQ_WEBHOOK			{"appointmentId":"67ffe324604b571d275bbd3d","type":"AppointmentConfirmed","clientId":1122,"processTime":"2025-04-16T19:24:39.800Z"}
+2025-04-16T19:24:43.079Z	APPOINTMENT_CREATED	Added appointment for Thomas Henderson	SYSTEM		{"appointmentId":"67ffe324604b571d275bbd3d","clientId":"1122","clientName":"Thomas Henderson","clientDateOfBirth":"2009-10-31","clinicianId":"CU1","clinicianName":"Cullen","sessionType":"telehealth","startTime":"2025-04-21 19:00","endTime":"2025-04-21 19:50","status":"scheduled","lastUpdated":"2025-04-16T19:24:41.160Z","source":"intakeq","notes":"Service: Child/Minor Therapy (Telehealth)","tags":[],"requirements":{"accessibility":false,"specialFeatures":[]},"currentOfficeId":"TBD","assignedOfficeId":"TBD","officeId":"TBD","suggestedOfficeId":"TBD","assignmentReason":"To be determined during daily schedule generation"}	
+2025-04-16T19:24:43.079Z	APPOINTMENT_CREATED	Added appointment 67ffe324604b571d275bbd3d	SYSTEM			{"appointmentId":"67ffe324604b571d275bbd3d","officeId":"TBD","clientId":1122,"deferredAssignment":true}
+2025-04-16T19:24:46.051Z	WEBHOOK_RECEIVED	Received AppointmentCanceled webhook for appointment 67fffc60567dcf7145fb6f9d	INTAKEQ_WEBHOOK			{"appointmentId":"67fffc60567dcf7145fb6f9d","type":"AppointmentCanceled","clientId":667,"processTime":"2025-04-16T19:24:46.051Z"}
+2025-04-16T19:24:47.077Z	APPOINTMENT_DELETED	Deleted appointment 67fffc60567dcf7145fb6f9d	SYSTEM			{"appointmentId":"67fffc60567dcf7145fb6f9d","rowIndex":349,"deletionMethod":"row_removal"}
+2025-04-16T19:24:47.077Z	APPOINTMENT_CANCELLED	Cancelled appointment 67fffc60567dcf7145fb6f9d	SYSTEM			{"appointmentId":"67fffc60567dcf7145fb6f9d","clientId":667,"reason":"No reason provided","deletionMethod":"row_removal_with_status_fallback","cancellationDate":"2025-04-16T19:24:40.8800000Z"}
+
+Webhook_Log tab
+AppointmentCreated_67ffdd4bd70e2cdfc2c38a9a_1744821784711	2025-04-16T16:43:05.242Z	AppointmentCreated	67ffdd4bd70e2cdfc2c38a9a	processing	0		
+AppointmentCreated_67ffe324604b571d275bbd3d_1744823081623	2025-04-16T17:04:42.129Z	AppointmentCreated	67ffe324604b571d275bbd3d	processing	0		
+AppointmentCanceled_67ffdd4bd70e2cdfc2c38a9a_1744826307901	2025-04-16T17:58:28.375Z	AppointmentCanceled	67ffdd4bd70e2cdfc2c38a9a	processing	0		
+AppointmentCreated_67fff040771d092225b9447f_1744826438469	2025-04-16T18:00:38.708Z	AppointmentCreated	67fff040771d092225b9447f	processing	0		
+AppointmentCreated_67fffc60567dcf7145fb6f9d_1744829545101	2025-04-16T18:52:25.657Z	AppointmentCreated	67fffc60567dcf7145fb6f9d	processing	0		
+AppointmentCreated_67fffc9bec6d472c417d3aae_1744829600816	2025-04-16T18:53:20.816Z	AppointmentCreated	67fffc9bec6d472c417d3aae	processing	0		
+AppointmentCreated_67fffc9bec6d472c417d3ab5_1744829601750	2025-04-16T18:53:21.750Z	AppointmentCreated	67fffc9bec6d472c417d3ab5	processing	0		
+AppointmentCreated_67fffc9cec6d472c417d3ab9_1744829602161	2025-04-16T18:53:22.162Z	AppointmentCreated	67fffc9cec6d472c417d3ab9	processing	0		
+AppointmentCreated_67fffc9cec6d472c417d3abb_1744829602579	2025-04-16T18:53:22.579Z	AppointmentCreated	67fffc9cec6d472c417d3abb	processing	0		
+AppointmentCreated_67fffc9dec6d472c417d3abe_1744829603195	2025-04-16T18:53:23.195Z	AppointmentCreated	67fffc9dec6d472c417d3abe	processing	0		
+AppointmentCreated_67fffc9eec6d472c417d3acb_1744829604570	2025-04-16T18:53:24.570Z	AppointmentCreated	67fffc9eec6d472c417d3acb	processing	0		
+AppointmentCreated_67fffc9fec6d472c417d3ad4_1744829605536	2025-04-16T18:53:25.536Z	AppointmentCreated	67fffc9fec6d472c417d3ad4	completed	0	2025-04-16T18:53:28.857Z	
+AppointmentCreated_67fffc9dec6d472c417d3abe_1744829603195	2025-04-16T18:53:26.258Z			completed	0	2025-04-16T18:53:32.546Z	
+AppointmentCreated_67fffc9eec6d472c417d3ac4_1744829604163	2025-04-16T18:53:28.859Z			completed	0	2025-04-16T18:53:28.859Z	
+AppointmentDeleted_67fffc9cec6d472c417d3ab9_1744830314410	2025-04-16T19:05:14.846Z	AppointmentDeleted	67fffc9cec6d472c417d3ab9	processing	0		
+AppointmentDeleted_67fffc9eec6d472c417d3acb_1744830314405	2025-04-16T19:05:14.852Z	AppointmentDeleted	67fffc9eec6d472c417d3acb	completed	0	2025-04-16T19:05:20.473Z	
+AppointmentDeleted_67fffc9dec6d472c417d3abe_1744830314413	2025-04-16T19:05:19.448Z			completed	0	2025-04-16T19:05:23.416Z	
+AppointmentDeleted_67fffc9fec6d472c417d3ad4_1744830314415	2025-04-16T19:05:20.471Z			completed	0	2025-04-16T19:05:20.471Z	
+AppointmentDeleted_67fffc9fec6d472c417d3ad0_1744830314408	2025-04-16T19:05:21.131Z			completed	0	2025-04-16T19:05:21.131Z	
+AppointmentDeleted_67fffc9eec6d472c417d3ac4_1744830314419	2025-04-16T19:05:23.426Z			completed	0	2025-04-16T19:05:23.426Z	
+AppointmentCanceled_67fffc9bec6d472c417d3ab5_1744830360549	2025-04-16T19:06:00.550Z	AppointmentCanceled	67fffc9bec6d472c417d3ab5	processing	0		
+AppointmentCanceled_67fffc9bec6d472c417d3ab5_1744830360549	2025-04-16T19:06:01.554Z			completed	0	2025-04-16T19:06:01.554Z	
+AppointmentDeleted_67fffc9bec6d472c417d3aae_1744830490841	2025-04-16T19:08:10.999Z	AppointmentDeleted	67fffc9bec6d472c417d3aae	processing	0		
+AppointmentConfirmed_67ffe324604b571d275bbd3d_1744831479800	2025-04-16T19:24:40.210Z	AppointmentConfirmed	67ffe324604b571d275bbd3d	processing	0		
+AppointmentCanceled_67fffc60567dcf7145fb6f9d_1744831486051	2025-04-16T19:24:46.051Z	AppointmentCanceled	67fffc60567dcf7145fb6f9d	processing	0		
+AppointmentCanceled_67fffc60567dcf7145fb6f9d_1744831486051	2025-04-16T19:24:47.078Z			completed	0	2025-04-16T19:24:47.078Z	
+
+Render Log
+Flushed 2 audit log entries
+Successfully appended rows to range: Audit_Log!A:G
+Appending rows to range: Audit_Log!A:G
+}
+  processingTime: '7194ms'
+  },
+    deferredAssignment: true
+    action: 'created',
+    officeId: 'TBD',
+    appointmentId: '67fffc9fec6d472c417d3ad4',
+  details: {
+  success: true,
+Webhook event processed: {
+Invalidated 0 cache entries matching pattern: appointments:67fffc9fec6d472c417d3ad4
+Invalidating cache keys matching pattern: appointments:67fffc9fec6d472c417d3ad4
+Flushed 7 audit log entries
+Successfully appended rows to range: Audit_Log!A:G
+Appending rows to range: Audit_Log!A:G
+Partial verification for appointment 67fffc9fec6d472c417d3ad4: main=false, active=true
+Appointment 67fffc9fec6d472c417d3ad4 verification: partial (main=false, active=true)
+Successfully appended rows to range: Appointments!A:R
+Appending rows to range: Appointments!A:R
+Successfully read sheet range: Client_Accessibility_Info!A2:P - Retrieved 72 rows
+Reading sheet range: Client_Accessibility_Info!A2:P
+Getting accessibility info for client 667
+Mapped clinician: M1, Name: Mikah, IntakeQ ID: 664dfe02cb608b781464fc75
+Mapped clinician: B1, Name: Bailey, IntakeQ ID: 664768dd7f0a7504555fe675
+Mapped clinician: JE1, Name: Jessica, IntakeQ ID: 66f18ba27c60a68152dd49db
+Mapped clinician: S1, Name: Samantha, IntakeQ ID: 664dfe343235ce1ba45fa81e
+Mapped clinician: CU1, Name: Cullen, IntakeQ ID: 64bfa6f0467529f6ff5e89ba
+Mapped clinician: J1, Name: Julia, IntakeQ ID: 664dfde17e20ae61a52be71e
+Mapped clinician: C1, Name: Carlisle, IntakeQ ID: 64beaf6a6b3ef6e0e60ae502
+Mapped clinician: T1, Name: Tyler, IntakeQ ID: 64a319db9173cb32157ea065
+Retrieved 8 clinician records
+Successfully read sheet range: Clinicians_Configuration!A2:M - Retrieved 8 rows
+Reading sheet range: Clinicians_Configuration!A2:M
+Reading clinicians from Clinicians_Configuration!A2:M
+Final dates - StartDateIso: 2025-04-26T17:00:00.0000000Z, EndDateIso: 2025-04-26T17:50:00.0000000Z
+Date validation complete for appointment 67fffc9fec6d472c417d3ad4
+Using valid EndDateIso: 2025-04-26T17:50:00.0000000Z
+Using valid StartDateIso: 2025-04-26T17:00:00.0000000Z
+Additional date info - StartDate: 1745686800000, EndDate: 1745689800000, Duration: 50
+Validating dates for appointment 67fffc9fec6d472c417d3ad4, StartDateIso: 2025-04-26T17:00:00.0000000Z, EndDateIso: 2025-04-26T17:50:00.0000000Z
+Processing new appointment: 67fffc9fec6d472c417d3ad4, client: Test Seabolt
+Successfully read sheet range: Appointments!A2:R - Retrieved 354 rows
+}
+  processingTime: '6611ms'
+  },
+    deferredAssignment: true
+    action: 'created',
+    officeId: 'TBD',
+    appointmentId: '67fffc9eec6d472c417d3ac4',
+  details: {
+  success: true,
+Webhook event processed: {
+Successfully appended rows to range: Webhook_Log!A:H
+}
+  processingTime: '4793ms'
+  },
+    deferredAssignment: true
+    action: 'created',
+    officeId: 'TBD',
+    appointmentId: '67fffc9fec6d472c417d3ad0',
+  details: {
+  success: true,
+Webhook event processed: {
+Successfully appended rows to range: Webhook_Log!A:H
+}
+  processingTime: '5076ms'
+  },
+    deferredAssignment: true
+    action: 'created',
+    officeId: 'TBD',
+    appointmentId: '67fffc9eec6d472c417d3acb',
+  details: {
+  success: true,
+Webhook event processed: {
+Appending rows to range: Webhook_Log!A:H
+Successfully read sheet range: Webhook_Log!A:A - Retrieved 531 rows
+Appending rows to range: Webhook_Log!A:H
+Invalidated 0 cache entries matching pattern: appointments:67fffc9fec6d472c417d3ad0
+Invalidating cache keys matching pattern: appointments:67fffc9fec6d472c417d3ad0
+Appointment 67fffc9fec6d472c417d3ad0 verification: full (main=true, active=true)
+Successfully read sheet range: Appointments!A:A - Retrieved 355 rows
+Successfully read sheet range: Webhook_Log!A:A - Retrieved 531 rows
+Reading sheet range: Appointments!A2:R
+Successfully read sheet range: Active_Appointments!A2:R - Retrieved 11 rows
+Reading sheet range: Appointments!A:A
+Reading sheet range: Webhook_Log!A:A
+Invalidated 0 cache entries matching pattern: appointments:67fffc9eec6d472c417d3ac4
+Invalidating cache keys matching pattern: appointments:67fffc9eec6d472c417d3ac4
+Flushed 1 audit log entries
+Successfully appended rows to range: Audit_Log!A:G
+Reading sheet range: Webhook_Log!A:A
+Invalidated 0 cache entries matching pattern: appointments:67fffc9eec6d472c417d3acb
+Invalidating cache keys matching pattern: appointments:67fffc9eec6d472c417d3acb
+Flushed 1 audit log entries
+Successfully appended rows to range: Audit_Log!A:G
+Reading sheet range: Active_Appointments!A2:R
+Flushed 10 audit log entries
+Successfully appended rows to range: Audit_Log!A:G
+}
+  processingTime: '4598ms'
+  },
+    deferredAssignment: true
+    action: 'created',
+    officeId: 'TBD',
+    appointmentId: '67fffc9dec6d472c417d3abe',
+  details: {
+  success: true,
+Webhook event processed: {
+Successfully appended rows to range: Webhook_Log!A:H
+Successfully appended rows to range: Appointments!A:R
+Appending rows to range: Audit_Log!A:G
+Partial verification for appointment 67fffc9eec6d472c417d3acb: main=false, active=true
+Appointment 67fffc9eec6d472c417d3acb verification: partial (main=false, active=true)
+Appending rows to range: Audit_Log!A:G
+Partial verification for appointment 67fffc9eec6d472c417d3ac4: main=false, active=true
+Appointment 67fffc9eec6d472c417d3ac4 verification: partial (main=false, active=true)
+}
+  processingTime: '4627ms'
+  },
+    deferredAssignment: true
+    action: 'created',
+    officeId: 'TBD',
+    appointmentId: '67fffc9cec6d472c417d3abb',
+  details: {
+  success: true,
+Webhook event processed: {
+Successfully appended rows to range: Webhook_Log!A:H
+}
+  processingTime: '4850ms'
+  },
+    deferredAssignment: true
+    action: 'created',
+    officeId: 'TBD',
+    appointmentId: '67fffc9cec6d472c417d3ab9',
+  details: {
+  success: true,
+Webhook event processed: {
+Successfully appended rows to range: Webhook_Log!A:H
+Appending rows to range: Audit_Log!A:G
+Status field: Confirmed
+EndDateIso type: string, value: 2025-04-26T17:50:00.0000000Z
+StartDateIso type: string, value: 2025-04-26T17:00:00.0000000Z
+Appointment fields: Id, ClientName, ClientEmail, ClientPhone, ClientDateOfBirth, ClientId, Status, StartDate, EndDate, Duration, ServiceName, ServiceId, LocationName, LocationId, Price, PractitionerName, PractitionerEmail, IntakeId, DateCreated, CreatedBy, BookedByClient, StartDateIso, EndDateIso, StartDateLocal, EndDateLocal, StartDateLocalFormatted, PractitionerId, InvoiceId, InvoiceNumber, ClientNote, PractitionerNote, TelehealthInfo, AttendanceConfirmationResponse, ReminderType, CustomFields, SessionStart, SessionEnd, ExternalClientId, ExternalPractitionerId, ExternalServiceId, LastModified, AdditionalClients, PlaceOfService, FullCancellationReason, CancellationReasonNote, CancellationDate
+}
+  "ExternalPracticeId": null
+  "PracticeId": "64a319db9173cb32157ea065",
+  "ExternalClientId": "9582269",
+  "ClientId": 667,
+  "ActionPerformedByClient": false,
+  },
+    "CancellationDate": ""
+    "CancellationReasonNote": null,
+    "FullCancellationReason": "",
+    "PlaceOfService": null,
+    "AdditionalClients": [],
+    "LastModified": 1744829600417,
+    "ExternalServiceId": null,
+    "ExternalPractitionerId": null,
+    "ExternalClientId": "9582269",
+    "SessionEnd": null,
+    "SessionStart": null,
+    "CustomFields": [],
+    "ReminderType": "Email",
+    "AttendanceConfirmationResponse": "None",
+    "TelehealthInfo": null,
+    "PractitionerNote": null,
+    "ClientNote": null,
+    "InvoiceNumber": null,
+    "InvoiceId": null,
+    "PractitionerId": "64a319db9173cb32157ea065",
+    "StartDateLocalFormatted": "4/26/2025 at 01:00:00 PM",
+    "EndDateLocal": "2025-04-26T13:50:00.0000000",
+    "StartDateLocal": "2025-04-26T13:00:00.0000000",
+    "EndDateIso": "2025-04-26T17:50:00.0000000Z",
+    "StartDateIso": "2025-04-26T17:00:00.0000000Z",
+    "BookedByClient": false,
+    "CreatedBy": "Tyler Seabolt",
+    "DateCreated": 1744829599875,
+    "IntakeId": null,
+    "PractitionerEmail": "tyler@bridgefamilytherapy.com",
+    "PractitionerName": "Tyler Seabolt",
+    "Price": 0,
+    "LocationId": "1",
+    "LocationName": "2340 Prince Ave, Suite C",
+    "ServiceId": "971d857c-2d93-4b5e-92fb-8d7e442e2cac",
+    "ServiceName": "Individual Therapy (In-Person)",
+    "Duration": 50,
+    "EndDate": 1745689800000,
+    "StartDate": 1745686800000,
+    "Status": "Confirmed",
+    "ClientId": 667,
+    "ClientDateOfBirth": "2017-10-25",
+    "ClientPhone": "[REDACTED]",
+    "ClientEmail": "[REDACTED]",
+    "ClientName": "Test Seabolt",
+    "Id": "67fffc9fec6d472c417d3ad4",
+  "Appointment": {
+  "EventType": "AppointmentCreated",
+WEBHOOK PAYLOAD STRUCTURE for AppointmentCreated: {
+Successfully appended rows to range: Webhook_Log!A:H
+Successfully appended rows to range: Appointments!A:R
+Successfully appended rows to range: Appointments!A:R
+Appending rows to range: Webhook_Log!A:H
+Invalidated 0 cache entries matching pattern: appointments:67fffc9dec6d472c417d3abe
+Invalidating cache keys matching pattern: appointments:67fffc9dec6d472c417d3abe
+Flushed 1 audit log entries
+Successfully appended rows to range: Audit_Log!A:G
+Appending rows to range: Appointments!A:R
+Getting accessibility info for client 667
+Mapped clinician: M1, Name: Mikah, IntakeQ ID: 664dfe02cb608b781464fc75
+Mapped clinician: B1, Name: Bailey, IntakeQ ID: 664768dd7f0a7504555fe675
+Mapped clinician: JE1, Name: Jessica, IntakeQ ID: 66f18ba27c60a68152dd49db
+Mapped clinician: S1, Name: Samantha, IntakeQ ID: 664dfe343235ce1ba45fa81e
+Mapped clinician: CU1, Name: Cullen, IntakeQ ID: 64bfa6f0467529f6ff5e89ba
+Mapped clinician: J1, Name: Julia, IntakeQ ID: 664dfde17e20ae61a52be71e
+Mapped clinician: C1, Name: Carlisle, IntakeQ ID: 64beaf6a6b3ef6e0e60ae502
+Mapped clinician: T1, Name: Tyler, IntakeQ ID: 64a319db9173cb32157ea065
+Retrieved 8 clinician records
+Reading clinicians from Clinicians_Configuration!A2:M
+Final dates - StartDateIso: 2025-04-25T17:00:00.0000000Z, EndDateIso: 2025-04-25T17:50:00.0000000Z
+Date validation complete for appointment 67fffc9fec6d472c417d3ad0
+Using valid EndDateIso: 2025-04-25T17:50:00.0000000Z
+Using valid StartDateIso: 2025-04-25T17:00:00.0000000Z
+Additional date info - StartDate: 1745600400000, EndDate: 1745603400000, Duration: 50
+Validating dates for appointment 67fffc9fec6d472c417d3ad0, StartDateIso: 2025-04-25T17:00:00.0000000Z, EndDateIso: 2025-04-25T17:50:00.0000000Z
+Processing new appointment: 67fffc9fec6d472c417d3ad0, client: Test Seabolt
+Status field: Confirmed
+EndDateIso type: string, value: 2025-04-25T17:50:00.0000000Z
+StartDateIso type: string, value: 2025-04-25T17:00:00.0000000Z
+Appointment fields: Id, ClientName, ClientEmail, ClientPhone, ClientDateOfBirth, ClientId, Status, StartDate, EndDate, Duration, ServiceName, ServiceId, LocationName, LocationId, Price, PractitionerName, PractitionerEmail, IntakeId, DateCreated, CreatedBy, BookedByClient, StartDateIso, EndDateIso, StartDateLocal, EndDateLocal, StartDateLocalFormatted, PractitionerId, InvoiceId, InvoiceNumber, ClientNote, PractitionerNote, TelehealthInfo, AttendanceConfirmationResponse, ReminderType, CustomFields, SessionStart, SessionEnd, ExternalClientId, ExternalPractitionerId, ExternalServiceId, LastModified, AdditionalClients, PlaceOfService, FullCancellationReason, CancellationReasonNote, CancellationDate
+}
+  "ExternalPracticeId": null
+  "PracticeId": "64a319db9173cb32157ea065",
+  "ExternalClientId": "9582269",
+  "ClientId": 667,
+  "ActionPerformedByClient": false,
+  },
+    "CancellationDate": ""
+    "CancellationReasonNote": null,
+    "FullCancellationReason": "",
+    "PlaceOfService": null,
+    "AdditionalClients": [],
+    "LastModified": 1744829599799,
+    "ExternalServiceId": null,
+    "ExternalPractitionerId": null,
+    "ExternalClientId": "9582269",
+    "SessionEnd": null,
+    "SessionStart": null,
+    "CustomFields": [],
+    "ReminderType": "Email",
+    "AttendanceConfirmationResponse": "None",
+    "TelehealthInfo": null,
+    "PractitionerNote": null,
+    "ClientNote": null,
+    "InvoiceNumber": null,
+    "InvoiceId": null,
+    "PractitionerId": "64a319db9173cb32157ea065",
+    "StartDateLocalFormatted": "4/25/2025 at 01:00:00 PM",
+    "EndDateLocal": "2025-04-25T13:50:00.0000000",
+    "StartDateLocal": "2025-04-25T13:00:00.0000000",
+    "EndDateIso": "2025-04-25T17:50:00.0000000Z",
+    "StartDateIso": "2025-04-25T17:00:00.0000000Z",
+    "BookedByClient": false,
+    "CreatedBy": "Tyler Seabolt",
+    "DateCreated": 1744829599381,
+    "IntakeId": null,
+    "PractitionerEmail": "tyler@bridgefamilytherapy.com",
+    "PractitionerName": "Tyler Seabolt",
+    "Price": 0,
+    "LocationId": "1",
+    "LocationName": "2340 Prince Ave, Suite C",
+    "ServiceId": "971d857c-2d93-4b5e-92fb-8d7e442e2cac",
+    "ServiceName": "Individual Therapy (In-Person)",
+    "Duration": 50,
+    "EndDate": 1745603400000,
+    "StartDate": 1745600400000,
+    "Status": "Confirmed",
+    "ClientId": 667,
+    "ClientDateOfBirth": "2017-10-25",
+    "ClientPhone": "[REDACTED]",
+    "ClientEmail": "[REDACTED]",
+    "ClientName": "Test Seabolt",
+    "Id": "67fffc9fec6d472c417d3ad0",
+  "Appointment": {
+  "EventType": "AppointmentCreated",
+WEBHOOK PAYLOAD STRUCTURE for AppointmentCreated: {
+Successfully appended rows to range: Webhook_Log!A:H
+Appending rows to range: Webhook_Log!A:H
+Invalidated 0 cache entries matching pattern: appointments:67fffc9cec6d472c417d3ab9
+Invalidating cache keys matching pattern: appointments:67fffc9cec6d472c417d3ab9
+Flushed 4 audit log entries
+Successfully appended rows to range: Audit_Log!A:G
+Appending rows to range: Webhook_Log!A:H
+Invalidated 0 cache entries matching pattern: appointments:67fffc9cec6d472c417d3abb
+Invalidating cache keys matching pattern: appointments:67fffc9cec6d472c417d3abb
+Flushed 1 audit log entries
+Successfully appended rows to range: Audit_Log!A:G
+Appending rows to range: Webhook_Log!A:H
+Processing AppointmentCreated event for appointment 67fffc9fec6d472c417d3ad4
+}
+  timestamp: '2025-04-16T18:53:25.536Z'
+  appointmentId: '67fffc9fec6d472c417d3ad4',
+  clientId: 667,
+  type: 'AppointmentCreated',
+Received webhook: {
+[2025-04-16T18:53:25.536Z] Starting webhook processing
+}
+  timestamp: '2025-04-16T18:53:25.535Z'
+  hasSignature: false,
+  clientId: 667,
+  type: 'AppointmentCreated',
+Webhook received: {
+Missing webhook signature in production environment
+Appending rows to range: Appointments!A:R
+Getting accessibility info for client 667
+Mapped clinician: M1, Name: Mikah, IntakeQ ID: 664dfe02cb608b781464fc75
+Mapped clinician: B1, Name: Bailey, IntakeQ ID: 664768dd7f0a7504555fe675
+Mapped clinician: JE1, Name: Jessica, IntakeQ ID: 66f18ba27c60a68152dd49db
+Mapped clinician: S1, Name: Samantha, IntakeQ ID: 664dfe343235ce1ba45fa81e
+Mapped clinician: CU1, Name: Cullen, IntakeQ ID: 64bfa6f0467529f6ff5e89ba
+Mapped clinician: J1, Name: Julia, IntakeQ ID: 664dfde17e20ae61a52be71e
+Mapped clinician: C1, Name: Carlisle, IntakeQ ID: 64beaf6a6b3ef6e0e60ae502
+Mapped clinician: T1, Name: Tyler, IntakeQ ID: 64a319db9173cb32157ea065
+Retrieved 8 clinician records
+Reading clinicians from Clinicians_Configuration!A2:M
+Final dates - StartDateIso: 2025-04-24T17:00:00.0000000Z, EndDateIso: 2025-04-24T17:50:00.0000000Z
+Date validation complete for appointment 67fffc9eec6d472c417d3acb
+Using valid EndDateIso: 2025-04-24T17:50:00.0000000Z
+Using valid StartDateIso: 2025-04-24T17:00:00.0000000Z
+Additional date info - StartDate: 1745514000000, EndDate: 1745517000000, Duration: 50
+Validating dates for appointment 67fffc9eec6d472c417d3acb, StartDateIso: 2025-04-24T17:00:00.0000000Z, EndDateIso: 2025-04-24T17:50:00.0000000Z
+Processing new appointment: 67fffc9eec6d472c417d3acb, client: Test Seabolt
+Status field: Confirmed
+EndDateIso type: string, value: 2025-04-24T17:50:00.0000000Z
+StartDateIso type: string, value: 2025-04-24T17:00:00.0000000Z
+Appointment fields: Id, ClientName, ClientEmail, ClientPhone, ClientDateOfBirth, ClientId, Status, StartDate, EndDate, Duration, ServiceName, ServiceId, LocationName, LocationId, Price, PractitionerName, PractitionerEmail, IntakeId, DateCreated, CreatedBy, BookedByClient, StartDateIso, EndDateIso, StartDateLocal, EndDateLocal, StartDateLocalFormatted, PractitionerId, InvoiceId, InvoiceNumber, ClientNote, PractitionerNote, TelehealthInfo, AttendanceConfirmationResponse, ReminderType, CustomFields, SessionStart, SessionEnd, ExternalClientId, ExternalPractitionerId, ExternalServiceId, LastModified, AdditionalClients, PlaceOfService, FullCancellationReason, CancellationReasonNote, CancellationDate
+}
+  "ExternalPracticeId": null
+  "PracticeId": "64a319db9173cb32157ea065",
+  "ExternalClientId": "9582269",
+  "ClientId": 667,
+  "ActionPerformedByClient": false,
+  },
+    "CancellationDate": ""
+    "CancellationReasonNote": null,
+    "FullCancellationReason": "",
+    "PlaceOfService": null,
+    "AdditionalClients": [],
+    "LastModified": 1744829599300,
+    "ExternalServiceId": null,
+    "ExternalPractitionerId": null,
+    "ExternalClientId": "9582269",
+    "SessionEnd": null,
+    "SessionStart": null,
+    "CustomFields": [],
+    "ReminderType": "Email",
+    "AttendanceConfirmationResponse": "None",
+    "TelehealthInfo": null,
+    "PractitionerNote": null,
+    "ClientNote": null,
+    "InvoiceNumber": null,
+    "InvoiceId": null,
+    "PractitionerId": "64a319db9173cb32157ea065",
+    "StartDateLocalFormatted": "4/24/2025 at 01:00:00 PM",
+    "EndDateLocal": "2025-04-24T13:50:00.0000000",
+    "StartDateLocal": "2025-04-24T13:00:00.0000000",
+    "EndDateIso": "2025-04-24T17:50:00.0000000Z",
+    "StartDateIso": "2025-04-24T17:00:00.0000000Z",
+    "BookedByClient": false,
+    "CreatedBy": "Tyler Seabolt",
+    "DateCreated": 1744829598770,
+    "IntakeId": null,
+    "PractitionerEmail": "tyler@bridgefamilytherapy.com",
+    "PractitionerName": "Tyler Seabolt",
+    "Price": 0,
+    "LocationId": "1",
+    "LocationName": "2340 Prince Ave, Suite C",
+    "ServiceId": "971d857c-2d93-4b5e-92fb-8d7e442e2cac",
+    "ServiceName": "Individual Therapy (In-Person)",
+    "Duration": 50,
+    "EndDate": 1745517000000,
+    "StartDate": 1745514000000,
+    "Status": "Confirmed",
+    "ClientId": 667,
+    "ClientDateOfBirth": "2017-10-25",
+    "ClientPhone": "[REDACTED]",
+    "ClientEmail": "[REDACTED]",
+    "ClientName": "Test Seabolt",
+    "Id": "67fffc9eec6d472c417d3acb",
+  "Appointment": {
+  "EventType": "AppointmentCreated",
+WEBHOOK PAYLOAD STRUCTURE for AppointmentCreated: {
+Successfully appended rows to range: Webhook_Log!A:H
+}
+  processingTime: '3591ms'
+  },
+    deferredAssignment: true
+    action: 'created',
+    officeId: 'TBD',
+    appointmentId: '67fffc9bec6d472c417d3ab5',
+  details: {
+  success: true,
+Webhook event processed: {
+Successfully appended rows to range: Webhook_Log!A:H
+Appending rows to range: Appointments!A:R
+Getting accessibility info for client 667
+Mapped clinician: M1, Name: Mikah, IntakeQ ID: 664dfe02cb608b781464fc75
+Mapped clinician: B1, Name: Bailey, IntakeQ ID: 664768dd7f0a7504555fe675
+Mapped clinician: JE1, Name: Jessica, IntakeQ ID: 66f18ba27c60a68152dd49db
+Mapped clinician: S1, Name: Samantha, IntakeQ ID: 664dfe343235ce1ba45fa81e
+Mapped clinician: CU1, Name: Cullen, IntakeQ ID: 64bfa6f0467529f6ff5e89ba
+Mapped clinician: J1, Name: Julia, IntakeQ ID: 664dfde17e20ae61a52be71e
+Mapped clinician: C1, Name: Carlisle, IntakeQ ID: 64beaf6a6b3ef6e0e60ae502
+Mapped clinician: T1, Name: Tyler, IntakeQ ID: 64a319db9173cb32157ea065
+Retrieved 8 clinician records
+Reading clinicians from Clinicians_Configuration!A2:M
+Final dates - StartDateIso: 2025-04-23T17:00:00.0000000Z, EndDateIso: 2025-04-23T17:50:00.0000000Z
+Date validation complete for appointment 67fffc9eec6d472c417d3ac4
+Using valid EndDateIso: 2025-04-23T17:50:00.0000000Z
+Using valid StartDateIso: 2025-04-23T17:00:00.0000000Z
+Additional date info - StartDate: 1745427600000, EndDate: 1745430600000, Duration: 50
+Validating dates for appointment 67fffc9eec6d472c417d3ac4, StartDateIso: 2025-04-23T17:00:00.0000000Z, EndDateIso: 2025-04-23T17:50:00.0000000Z
+Processing new appointment: 67fffc9eec6d472c417d3ac4, client: Test Seabolt
+Status field: Confirmed
+EndDateIso type: string, value: 2025-04-23T17:50:00.0000000Z
+StartDateIso type: string, value: 2025-04-23T17:00:00.0000000Z
+Appointment fields: Id, ClientName, ClientEmail, ClientPhone, ClientDateOfBirth, ClientId, Status, StartDate, EndDate, Duration, ServiceName, ServiceId, LocationName, LocationId, Price, PractitionerName, PractitionerEmail, IntakeId, DateCreated, CreatedBy, BookedByClient, StartDateIso, EndDateIso, StartDateLocal, EndDateLocal, StartDateLocalFormatted, PractitionerId, InvoiceId, InvoiceNumber, ClientNote, PractitionerNote, TelehealthInfo, AttendanceConfirmationResponse, ReminderType, CustomFields, SessionStart, SessionEnd, ExternalClientId, ExternalPractitionerId, ExternalServiceId, LastModified, AdditionalClients, PlaceOfService, FullCancellationReason, CancellationReasonNote, CancellationDate
+}
+  "ExternalPracticeId": null
+  "PracticeId": "64a319db9173cb32157ea065",
+  "ExternalClientId": "9582269",
+  "ClientId": 667,
+  "ActionPerformedByClient": false,
+  },
+    "CancellationDate": ""
+    "CancellationReasonNote": null,
+    "FullCancellationReason": "",
+    "PlaceOfService": null,
+    "AdditionalClients": [],
+    "LastModified": 1744829598685,
+    "ExternalServiceId": null,
+    "ExternalPractitionerId": null,
+    "ExternalClientId": "9582269",
+    "SessionEnd": null,
+    "SessionStart": null,
+    "CustomFields": [],
+    "ReminderType": "Email",
+    "AttendanceConfirmationResponse": "None",
+    "TelehealthInfo": null,
+    "PractitionerNote": null,
+    "ClientNote": null,
+    "InvoiceNumber": null,
+    "InvoiceId": null,
+    "PractitionerId": "64a319db9173cb32157ea065",
+    "StartDateLocalFormatted": "4/23/2025 at 01:00:00 PM",
+    "EndDateLocal": "2025-04-23T13:50:00.0000000",
+    "StartDateLocal": "2025-04-23T13:00:00.0000000",
+    "EndDateIso": "2025-04-23T17:50:00.0000000Z",
+    "StartDateIso": "2025-04-23T17:00:00.0000000Z",
+    "BookedByClient": false,
+    "CreatedBy": "Tyler Seabolt",
+    "DateCreated": 1744829598169,
+    "IntakeId": null,
+    "PractitionerEmail": "tyler@bridgefamilytherapy.com",
+    "PractitionerName": "Tyler Seabolt",
+    "Price": 0,
+    "LocationId": "1",
+    "LocationName": "2340 Prince Ave, Suite C",
+    "ServiceId": "971d857c-2d93-4b5e-92fb-8d7e442e2cac",
+    "ServiceName": "Individual Therapy (In-Person)",
+    "Duration": 50,
+    "EndDate": 1745430600000,
+    "StartDate": 1745427600000,
+    "Status": "Confirmed",
+    "ClientId": 667,
+    "ClientDateOfBirth": "2017-10-25",
+    "ClientPhone": "[REDACTED]",
+    "ClientEmail": "[REDACTED]",
+    "ClientName": "Test Seabolt",
+    "Id": "67fffc9eec6d472c417d3ac4",
+  "Appointment": {
+  "EventType": "AppointmentCreated",
+WEBHOOK PAYLOAD STRUCTURE for AppointmentCreated: {
+Successfully appended rows to range: Webhook_Log!A:H
+Appending rows to range: Audit_Log!A:G
+Partial verification for appointment 67fffc9dec6d472c417d3abe: main=false, active=true
+Appointment 67fffc9dec6d472c417d3abe verification: partial (main=false, active=true)
+Appending rows to range: Webhook_Log!A:H
+Processing AppointmentCreated event for appointment 67fffc9fec6d472c417d3ad0
+}
+  timestamp: '2025-04-16T18:53:25.003Z'
+  appointmentId: '67fffc9fec6d472c417d3ad0',
+  clientId: 667,
+  type: 'AppointmentCreated',
+Received webhook: {
+[2025-04-16T18:53:25.003Z] Starting webhook processing
+Missing webhook signature in production environment
+}
+  timestamp: '2025-04-16T18:53:25.002Z'
+  hasSignature: false,
+  clientId: 667,
+  type: 'AppointmentCreated',
+Webhook received: {
+Appending rows to range: Audit_Log!A:G
+Appointment 67fffc9cec6d472c417d3abb verification: partial (main=false, active=true)
+Partial verification for appointment 67fffc9cec6d472c417d3abb: main=false, active=true
+Appending rows to range: Webhook_Log!A:H
+Processing AppointmentCreated event for appointment 67fffc9eec6d472c417d3acb
+}
+  timestamp: '2025-04-16T18:53:24.570Z'
+  appointmentId: '67fffc9eec6d472c417d3acb',
+  clientId: 667,
+  type: 'AppointmentCreated',
+Received webhook: {
+[2025-04-16T18:53:24.570Z] Starting webhook processing
+}
+  timestamp: '2025-04-16T18:53:24.570Z'
+  hasSignature: false,
+  clientId: 667,
+Missing webhook signature in production environment
+  type: 'AppointmentCreated',
+Webhook received: {
+Appending rows to range: Audit_Log!A:G
+Partial verification for appointment 67fffc9cec6d472c417d3ab9: main=false, active=true
+Appointment 67fffc9cec6d472c417d3ab9 verification: partial (main=false, active=true)
+Appending rows to range: Webhook_Log!A:H
+Processing AppointmentCreated event for appointment 67fffc9eec6d472c417d3ac4
+}
+  timestamp: '2025-04-16T18:53:24.163Z'
+  appointmentId: '67fffc9eec6d472c417d3ac4',
+  clientId: 667,
+  type: 'AppointmentCreated',
+Received webhook: {
+[2025-04-16T18:53:24.163Z] Starting webhook processing
+}
+  timestamp: '2025-04-16T18:53:24.163Z'
+  hasSignature: false,
+  clientId: 667,
+  type: 'AppointmentCreated',
+Webhook received: {
+Missing webhook signature in production environment
+Successfully appended rows to range: Appointments!A:R
+Appending rows to range: Webhook_Log!A:H
+Invalidated 0 cache entries matching pattern: appointments:67fffc9bec6d472c417d3ab5
+Invalidating cache keys matching pattern: appointments:67fffc9bec6d472c417d3ab5
+Flushed 5 audit log entries
+Successfully appended rows to range: Audit_Log!A:G
+Successfully appended rows to range: Appointments!A:R
+Appending rows to range: Appointments!A:R
+Getting accessibility info for client 667
+Mapped clinician: M1, Name: Mikah, IntakeQ ID: 664dfe02cb608b781464fc75
+Mapped clinician: B1, Name: Bailey, IntakeQ ID: 664768dd7f0a7504555fe675
+Mapped clinician: JE1, Name: Jessica, IntakeQ ID: 66f18ba27c60a68152dd49db
+Mapped clinician: S1, Name: Samantha, IntakeQ ID: 664dfe343235ce1ba45fa81e
+Mapped clinician: CU1, Name: Cullen, IntakeQ ID: 64bfa6f0467529f6ff5e89ba
+Mapped clinician: J1, Name: Julia, IntakeQ ID: 664dfde17e20ae61a52be71e
+Mapped clinician: C1, Name: Carlisle, IntakeQ ID: 64beaf6a6b3ef6e0e60ae502
+Mapped clinician: T1, Name: Tyler, IntakeQ ID: 64a319db9173cb32157ea065
+Retrieved 8 clinician records
+Reading clinicians from Clinicians_Configuration!A2:M
+Final dates - StartDateIso: 2025-04-22T17:00:00.0000000Z, EndDateIso: 2025-04-22T17:50:00.0000000Z
+Date validation complete for appointment 67fffc9dec6d472c417d3abe
+Using valid EndDateIso: 2025-04-22T17:50:00.0000000Z
+Using valid StartDateIso: 2025-04-22T17:00:00.0000000Z
+Additional date info - StartDate: 1745341200000, EndDate: 1745344200000, Duration: 50
+Validating dates for appointment 67fffc9dec6d472c417d3abe, StartDateIso: 2025-04-22T17:00:00.0000000Z, EndDateIso: 2025-04-22T17:50:00.0000000Z
+Processing new appointment: 67fffc9dec6d472c417d3abe, client: Test Seabolt
+Status field: Confirmed
+EndDateIso type: string, value: 2025-04-22T17:50:00.0000000Z
+StartDateIso type: string, value: 2025-04-22T17:00:00.0000000Z
+Appointment fields: Id, ClientName, ClientEmail, ClientPhone, ClientDateOfBirth, ClientId, Status, StartDate, EndDate, Duration, ServiceName, ServiceId, LocationName, LocationId, Price, PractitionerName, PractitionerEmail, IntakeId, DateCreated, CreatedBy, BookedByClient, StartDateIso, EndDateIso, StartDateLocal, EndDateLocal, StartDateLocalFormatted, PractitionerId, InvoiceId, InvoiceNumber, ClientNote, PractitionerNote, TelehealthInfo, AttendanceConfirmationResponse, ReminderType, CustomFields, SessionStart, SessionEnd, ExternalClientId, ExternalPractitionerId, ExternalServiceId, LastModified, AdditionalClients, PlaceOfService, FullCancellationReason, CancellationReasonNote, CancellationDate
+}
+  "ExternalPracticeId": null
+  "PracticeId": "64a319db9173cb32157ea065",
+  "ExternalClientId": "9582269",
+  "ClientId": 667,
+  "ActionPerformedByClient": false,
+  },
+    "CancellationDate": ""
+    "CancellationReasonNote": null,
+    "FullCancellationReason": "",
+    "PlaceOfService": null,
+    "AdditionalClients": [],
+    "LastModified": 1744829598069,
+    "ExternalServiceId": null,
+    "ExternalPractitionerId": null,
+    "ExternalClientId": "9582269",
+    "SessionEnd": null,
+    "SessionStart": null,
+    "CustomFields": [],
+    "ReminderType": "Email",
+    "AttendanceConfirmationResponse": "None",
+    "TelehealthInfo": null,
+    "PractitionerNote": null,
+    "ClientNote": null,
+    "InvoiceNumber": null,
+    "InvoiceId": null,
+    "PractitionerId": "64a319db9173cb32157ea065",
+    "StartDateLocalFormatted": "4/22/2025 at 01:00:00 PM",
+    "EndDateLocal": "2025-04-22T13:50:00.0000000",
+    "StartDateLocal": "2025-04-22T13:00:00.0000000",
+    "EndDateIso": "2025-04-22T17:50:00.0000000Z",
+    "StartDateIso": "2025-04-22T17:00:00.0000000Z",
+    "BookedByClient": false,
+    "CreatedBy": "Tyler Seabolt",
+    "DateCreated": 1744829597545,
+    "IntakeId": null,
+    "PractitionerEmail": "tyler@bridgefamilytherapy.com",
+    "PractitionerName": "Tyler Seabolt",
+    "Price": 0,
+    "LocationId": "1",
+    "LocationName": "2340 Prince Ave, Suite C",
+    "ServiceId": "971d857c-2d93-4b5e-92fb-8d7e442e2cac",
+    "ServiceName": "Individual Therapy (In-Person)",
+    "Duration": 50,
+    "EndDate": 1745344200000,
+    "StartDate": 1745341200000,
+    "Status": "Confirmed",
+    "ClientId": 667,
+    "ClientDateOfBirth": "2017-10-25",
+    "ClientPhone": "[REDACTED]",
+    "ClientEmail": "[REDACTED]",
+    "ClientName": "Test Seabolt",
+    "Id": "67fffc9dec6d472c417d3abe",
+  "Appointment": {
+  "EventType": "AppointmentCreated",
+WEBHOOK PAYLOAD STRUCTURE for AppointmentCreated: {
+Successfully appended rows to range: Webhook_Log!A:H
+Successfully appended rows to range: Appointments!A:R
+Appending rows to range: Audit_Log!A:G
+Partial verification for appointment 67fffc9bec6d472c417d3ab5: main=false, active=true
+Appointment 67fffc9bec6d472c417d3ab5 verification: partial (main=false, active=true)
+Appending rows to range: Webhook_Log!A:H
+Processing AppointmentCreated event for appointment 67fffc9dec6d472c417d3abe
+}
+  timestamp: '2025-04-16T18:53:23.195Z'
+  appointmentId: '67fffc9dec6d472c417d3abe',
+  clientId: 667,
+  type: 'AppointmentCreated',
+Received webhook: {
+[2025-04-16T18:53:23.195Z] Starting webhook processing
+}
+  timestamp: '2025-04-16T18:53:23.195Z'
+  hasSignature: false,
+  clientId: 667,
+  type: 'AppointmentCreated',
+Missing webhook signature in production environment
+Webhook received: {
+Appending rows to range: Appointments!A:R
+Getting accessibility info for client 667
+Mapped clinician: M1, Name: Mikah, IntakeQ ID: 664dfe02cb608b781464fc75
+Mapped clinician: B1, Name: Bailey, IntakeQ ID: 664768dd7f0a7504555fe675
+Mapped clinician: JE1, Name: Jessica, IntakeQ ID: 66f18ba27c60a68152dd49db
+Mapped clinician: S1, Name: Samantha, IntakeQ ID: 664dfe343235ce1ba45fa81e
+Mapped clinician: CU1, Name: Cullen, IntakeQ ID: 64bfa6f0467529f6ff5e89ba
+Mapped clinician: J1, Name: Julia, IntakeQ ID: 664dfde17e20ae61a52be71e
+Mapped clinician: C1, Name: Carlisle, IntakeQ ID: 64beaf6a6b3ef6e0e60ae502
+Mapped clinician: T1, Name: Tyler, IntakeQ ID: 64a319db9173cb32157ea065
+Retrieved 8 clinician records
+Reading clinicians from Clinicians_Configuration!A2:M
+Final dates - StartDateIso: 2025-04-21T17:00:00.0000000Z, EndDateIso: 2025-04-21T17:50:00.0000000Z
+Date validation complete for appointment 67fffc9cec6d472c417d3abb
+Using valid EndDateIso: 2025-04-21T17:50:00.0000000Z
+Using valid StartDateIso: 2025-04-21T17:00:00.0000000Z
+Additional date info - StartDate: 1745254800000, EndDate: 1745257800000, Duration: 50
+Validating dates for appointment 67fffc9cec6d472c417d3abb, StartDateIso: 2025-04-21T17:00:00.0000000Z, EndDateIso: 2025-04-21T17:50:00.0000000Z
+Processing new appointment: 67fffc9cec6d472c417d3abb, client: Test Seabolt
+Status field: Confirmed
+EndDateIso type: string, value: 2025-04-21T17:50:00.0000000Z
+StartDateIso type: string, value: 2025-04-21T17:00:00.0000000Z
+Appointment fields: Id, ClientName, ClientEmail, ClientPhone, ClientDateOfBirth, ClientId, Status, StartDate, EndDate, Duration, ServiceName, ServiceId, LocationName, LocationId, Price, PractitionerName, PractitionerEmail, IntakeId, DateCreated, CreatedBy, BookedByClient, StartDateIso, EndDateIso, StartDateLocal, EndDateLocal, StartDateLocalFormatted, PractitionerId, InvoiceId, InvoiceNumber, ClientNote, PractitionerNote, TelehealthInfo, AttendanceConfirmationResponse, ReminderType, CustomFields, SessionStart, SessionEnd, ExternalClientId, ExternalPractitionerId, ExternalServiceId, LastModified, AdditionalClients, PlaceOfService, FullCancellationReason, CancellationReasonNote, CancellationDate
+}
+  "ExternalPracticeId": null
+  "PracticeId": "64a319db9173cb32157ea065",
+  "ExternalClientId": "9582269",
+  "ClientId": 667,
+  "ActionPerformedByClient": false,
+  },
+    "CancellationDate": ""
+    "CancellationReasonNote": null,
+    "FullCancellationReason": "",
+    "PlaceOfService": null,
+    "AdditionalClients": [],
+    "LastModified": 1744829597446,
+    "ExternalServiceId": null,
+    "ExternalPractitionerId": null,
+    "ExternalClientId": "9582269",
+    "SessionEnd": null,
+    "SessionStart": null,
+    "CustomFields": [],
+    "ReminderType": "Email",
+    "AttendanceConfirmationResponse": "None",
+    "TelehealthInfo": null,
+    "PractitionerNote": null,
+    "ClientNote": null,
+    "InvoiceNumber": null,
+    "InvoiceId": null,
+    "PractitionerId": "64a319db9173cb32157ea065",
+    "StartDateLocalFormatted": "4/21/2025 at 01:00:00 PM",
+    "EndDateLocal": "2025-04-21T13:50:00.0000000",
+    "StartDateLocal": "2025-04-21T13:00:00.0000000",
+    "EndDateIso": "2025-04-21T17:50:00.0000000Z",
+    "StartDateIso": "2025-04-21T17:00:00.0000000Z",
+    "BookedByClient": false,
+    "CreatedBy": "Tyler Seabolt",
+    "DateCreated": 1744829596951,
+    "IntakeId": null,
+    "PractitionerEmail": "tyler@bridgefamilytherapy.com",
+    "PractitionerName": "Tyler Seabolt",
+    "Price": 0,
+    "LocationId": "1",
+    "LocationName": "2340 Prince Ave, Suite C",
+    "ServiceId": "971d857c-2d93-4b5e-92fb-8d7e442e2cac",
+    "ServiceName": "Individual Therapy (In-Person)",
+    "Duration": 50,
+    "EndDate": 1745257800000,
+    "StartDate": 1745254800000,
+    "Status": "Confirmed",
+    "ClientId": 667,
+    "ClientDateOfBirth": "2017-10-25",
+    "ClientPhone": "[REDACTED]",
+    "ClientEmail": "[REDACTED]",
+    "ClientName": "Test Seabolt",
+    "Id": "67fffc9cec6d472c417d3abb",
+  "Appointment": {
+  "EventType": "AppointmentCreated",
+WEBHOOK PAYLOAD STRUCTURE for AppointmentCreated: {
+Successfully appended rows to range: Webhook_Log!A:H
+}
+  processingTime: '2098ms'
+  },
+    deferredAssignment: true
+    action: 'created',
+    officeId: 'TBD',
+    appointmentId: '67fffc9bec6d472c417d3aae',
+  details: {
+  success: true,
+Webhook event processed: {
+Successfully appended rows to range: Webhook_Log!A:H
+Appending rows to range: Webhook_Log!A:H
+Invalidated 0 cache entries matching pattern: appointments:67fffc9bec6d472c417d3aae
+Invalidating cache keys matching pattern: appointments:67fffc9bec6d472c417d3aae
+Flushed 3 audit log entries
+Successfully appended rows to range: Audit_Log!A:G
+Appending rows to range: Webhook_Log!A:H
+Processing AppointmentCreated event for appointment 67fffc9cec6d472c417d3abb
+}
+  timestamp: '2025-04-16T18:53:22.579Z'
+  appointmentId: '67fffc9cec6d472c417d3abb',
+  clientId: 667,
+  type: 'AppointmentCreated',
+Received webhook: {
+[2025-04-16T18:53:22.579Z] Starting webhook processing
+}
+  timestamp: '2025-04-16T18:53:22.579Z'
+  hasSignature: false,
+  clientId: 667,
+Missing webhook signature in production environment
+  type: 'AppointmentCreated',
+Webhook received: {
+Appending rows to range: Appointments!A:R
+Getting accessibility info for client 667
+Mapped clinician: M1, Name: Mikah, IntakeQ ID: 664dfe02cb608b781464fc75
+Mapped clinician: B1, Name: Bailey, IntakeQ ID: 664768dd7f0a7504555fe675
+Mapped clinician: JE1, Name: Jessica, IntakeQ ID: 66f18ba27c60a68152dd49db
+Mapped clinician: S1, Name: Samantha, IntakeQ ID: 664dfe343235ce1ba45fa81e
+Mapped clinician: CU1, Name: Cullen, IntakeQ ID: 64bfa6f0467529f6ff5e89ba
+Mapped clinician: J1, Name: Julia, IntakeQ ID: 664dfde17e20ae61a52be71e
+Mapped clinician: C1, Name: Carlisle, IntakeQ ID: 64beaf6a6b3ef6e0e60ae502
+Mapped clinician: T1, Name: Tyler, IntakeQ ID: 64a319db9173cb32157ea065
+Retrieved 8 clinician records
+Reading clinicians from Clinicians_Configuration!A2:M
+Final dates - StartDateIso: 2025-04-20T17:00:00.0000000Z, EndDateIso: 2025-04-20T17:50:00.0000000Z
+Date validation complete for appointment 67fffc9cec6d472c417d3ab9
+Using valid EndDateIso: 2025-04-20T17:50:00.0000000Z
+Using valid StartDateIso: 2025-04-20T17:00:00.0000000Z
+Additional date info - StartDate: 1745168400000, EndDate: 1745171400000, Duration: 50
+Validating dates for appointment 67fffc9cec6d472c417d3ab9, StartDateIso: 2025-04-20T17:00:00.0000000Z, EndDateIso: 2025-04-20T17:50:00.0000000Z
+Processing new appointment: 67fffc9cec6d472c417d3ab9, client: Test Seabolt
+Status field: Confirmed
+EndDateIso type: string, value: 2025-04-20T17:50:00.0000000Z
+StartDateIso type: string, value: 2025-04-20T17:00:00.0000000Z
+Appointment fields: Id, ClientName, ClientEmail, ClientPhone, ClientDateOfBirth, ClientId, Status, StartDate, EndDate, Duration, ServiceName, ServiceId, LocationName, LocationId, Price, PractitionerName, PractitionerEmail, IntakeId, DateCreated, CreatedBy, BookedByClient, StartDateIso, EndDateIso, StartDateLocal, EndDateLocal, StartDateLocalFormatted, PractitionerId, InvoiceId, InvoiceNumber, ClientNote, PractitionerNote, TelehealthInfo, AttendanceConfirmationResponse, ReminderType, CustomFields, SessionStart, SessionEnd, ExternalClientId, ExternalPractitionerId, ExternalServiceId, LastModified, AdditionalClients, PlaceOfService, FullCancellationReason, CancellationReasonNote, CancellationDate
+}
+  "ExternalPracticeId": null
+  "PracticeId": "64a319db9173cb32157ea065",
+  "ExternalClientId": "9582269",
+  "ClientId": 667,
+  "ActionPerformedByClient": false,
+  },
+    "CancellationDate": ""
+    "CancellationReasonNote": null,
+    "FullCancellationReason": "",
+    "PlaceOfService": null,
+    "AdditionalClients": [],
+    "LastModified": 1744829596875,
+    "ExternalServiceId": null,
+    "ExternalPractitionerId": null,
+    "ExternalClientId": "9582269",
+    "SessionEnd": null,
+    "SessionStart": null,
+    "CustomFields": [],
+    "ReminderType": "Email",
+    "AttendanceConfirmationResponse": "None",
+    "TelehealthInfo": null,
+    "PractitionerNote": null,
+    "ClientNote": null,
+    "InvoiceNumber": null,
+    "InvoiceId": null,
+    "PractitionerId": "64a319db9173cb32157ea065",
+    "StartDateLocalFormatted": "4/20/2025 at 01:00:00 PM",
+    "EndDateLocal": "2025-04-20T13:50:00.0000000",
+    "StartDateLocal": "2025-04-20T13:00:00.0000000",
+    "EndDateIso": "2025-04-20T17:50:00.0000000Z",
+    "StartDateIso": "2025-04-20T17:00:00.0000000Z",
+    "BookedByClient": false,
+    "CreatedBy": "Tyler Seabolt",
+    "DateCreated": 1744829596387,
+    "IntakeId": null,
+    "PractitionerEmail": "tyler@bridgefamilytherapy.com",
+    "PractitionerName": "Tyler Seabolt",
+    "Price": 0,
+    "LocationId": "1",
+    "LocationName": "2340 Prince Ave, Suite C",
+    "ServiceId": "971d857c-2d93-4b5e-92fb-8d7e442e2cac",
+    "ServiceName": "Individual Therapy (In-Person)",
+    "Duration": 50,
+    "EndDate": 1745171400000,
+    "StartDate": 1745168400000,
+    "Status": "Confirmed",
+    "ClientId": 667,
+    "ClientDateOfBirth": "2017-10-25",
+    "ClientPhone": "[REDACTED]",
+    "ClientEmail": "[REDACTED]",
+    "ClientName": "Test Seabolt",
+    "Id": "67fffc9cec6d472c417d3ab9",
+  "Appointment": {
+  "EventType": "AppointmentCreated",
+WEBHOOK PAYLOAD STRUCTURE for AppointmentCreated: {
+Successfully appended rows to range: Webhook_Log!A:H
+Appending rows to range: Audit_Log!A:G
+Appointment 67fffc9bec6d472c417d3aae verification: partial (main=false, active=true)
+Partial verification for appointment 67fffc9bec6d472c417d3aae: main=false, active=true
+Successfully appended rows to range: Appointments!A:R
+Appending rows to range: Webhook_Log!A:H
+Processing AppointmentCreated event for appointment 67fffc9cec6d472c417d3ab9
+}
+  timestamp: '2025-04-16T18:53:22.161Z'
+  appointmentId: '67fffc9cec6d472c417d3ab9',
+  clientId: 667,
+  type: 'AppointmentCreated',
+Received webhook: {
+[2025-04-16T18:53:22.161Z] Starting webhook processing
+Missing webhook signature in production environment
+}
+  timestamp: '2025-04-16T18:53:22.159Z'
+  hasSignature: false,
+  clientId: 667,
+  type: 'AppointmentCreated',
+Webhook received: {
+Appending rows to range: Appointments!A:R
+Getting accessibility info for client 667
+Mapped clinician: M1, Name: Mikah, IntakeQ ID: 664dfe02cb608b781464fc75
+Mapped clinician: B1, Name: Bailey, IntakeQ ID: 664768dd7f0a7504555fe675
+Mapped clinician: JE1, Name: Jessica, IntakeQ ID: 66f18ba27c60a68152dd49db
+Mapped clinician: S1, Name: Samantha, IntakeQ ID: 664dfe343235ce1ba45fa81e
+Mapped clinician: CU1, Name: Cullen, IntakeQ ID: 64bfa6f0467529f6ff5e89ba
+Mapped clinician: J1, Name: Julia, IntakeQ ID: 664dfde17e20ae61a52be71e
+Mapped clinician: C1, Name: Carlisle, IntakeQ ID: 64beaf6a6b3ef6e0e60ae502
+Mapped clinician: T1, Name: Tyler, IntakeQ ID: 64a319db9173cb32157ea065
+Retrieved 8 clinician records
+Reading clinicians from Clinicians_Configuration!A2:M
+Final dates - StartDateIso: 2025-04-19T17:00:00.0000000Z, EndDateIso: 2025-04-19T17:50:00.0000000Z
+Date validation complete for appointment 67fffc9bec6d472c417d3ab5
+Using valid EndDateIso: 2025-04-19T17:50:00.0000000Z
+Using valid StartDateIso: 2025-04-19T17:00:00.0000000Z
+Additional date info - StartDate: 1745082000000, EndDate: 1745085000000, Duration: 50
+Validating dates for appointment 67fffc9bec6d472c417d3ab5, StartDateIso: 2025-04-19T17:00:00.0000000Z, EndDateIso: 2025-04-19T17:50:00.0000000Z
+Processing new appointment: 67fffc9bec6d472c417d3ab5, client: Test Seabolt
+Status field: Confirmed
+EndDateIso type: string, value: 2025-04-19T17:50:00.0000000Z
+StartDateIso type: string, value: 2025-04-19T17:00:00.0000000Z
+Appointment fields: Id, ClientName, ClientEmail, ClientPhone, ClientDateOfBirth, ClientId, Status, StartDate, EndDate, Duration, ServiceName, ServiceId, LocationName, LocationId, Price, PractitionerName, PractitionerEmail, IntakeId, DateCreated, CreatedBy, BookedByClient, StartDateIso, EndDateIso, StartDateLocal, EndDateLocal, StartDateLocalFormatted, PractitionerId, InvoiceId, InvoiceNumber, ClientNote, PractitionerNote, TelehealthInfo, AttendanceConfirmationResponse, ReminderType, CustomFields, SessionStart, SessionEnd, ExternalClientId, ExternalPractitionerId, ExternalServiceId, LastModified, AdditionalClients, PlaceOfService, FullCancellationReason, CancellationReasonNote, CancellationDate
+}
+  "ExternalPracticeId": null
+  "PracticeId": "64a319db9173cb32157ea065",
+  "ExternalClientId": "9582269",
+  "ClientId": 667,
+  "ActionPerformedByClient": false,
+  },
+    "CancellationDate": ""
+    "CancellationReasonNote": null,
+    "FullCancellationReason": "",
+    "PlaceOfService": null,
+    "AdditionalClients": [],
+    "LastModified": 1744829596297,
+    "ExternalServiceId": null,
+    "ExternalPractitionerId": null,
+    "ExternalClientId": "9582269",
+    "SessionEnd": null,
+    "SessionStart": null,
+    "CustomFields": [],
+    "ReminderType": "Email",
+    "AttendanceConfirmationResponse": "None",
+    "TelehealthInfo": null,
+    "PractitionerNote": null,
+    "ClientNote": null,
+    "InvoiceNumber": null,
+    "InvoiceId": null,
+    "PractitionerId": "64a319db9173cb32157ea065",
+    "StartDateLocalFormatted": "4/19/2025 at 01:00:00 PM",
+    "EndDateLocal": "2025-04-19T13:50:00.0000000",
+    "StartDateLocal": "2025-04-19T13:00:00.0000000",
+    "EndDateIso": "2025-04-19T17:50:00.0000000Z",
+    "StartDateIso": "2025-04-19T17:00:00.0000000Z",
+    "BookedByClient": false,
+    "CreatedBy": "Tyler Seabolt",
+    "DateCreated": 1744829595799,
+    "IntakeId": null,
+    "PractitionerEmail": "tyler@bridgefamilytherapy.com",
+    "PractitionerName": "Tyler Seabolt",
+    "Price": 0,
+    "LocationId": "1",
+    "LocationName": "2340 Prince Ave, Suite C",
+    "ServiceId": "971d857c-2d93-4b5e-92fb-8d7e442e2cac",
+    "ServiceName": "Individual Therapy (In-Person)",
+    "Duration": 50,
+    "EndDate": 1745085000000,
+    "StartDate": 1745082000000,
+    "Status": "Confirmed",
+    "ClientId": 667,
+    "ClientDateOfBirth": "2017-10-25",
+    "ClientPhone": "[REDACTED]",
+    "ClientEmail": "[REDACTED]",
+    "ClientName": "Test Seabolt",
+    "Id": "67fffc9bec6d472c417d3ab5",
+  "Appointment": {
+  "EventType": "AppointmentCreated",
+WEBHOOK PAYLOAD STRUCTURE for AppointmentCreated: {
+Successfully appended rows to range: Webhook_Log!A:H
+Appending rows to range: Webhook_Log!A:H
+Processing AppointmentCreated event for appointment 67fffc9bec6d472c417d3ab5
+}
+  timestamp: '2025-04-16T18:53:21.749Z'
+  appointmentId: '67fffc9bec6d472c417d3ab5',
+  clientId: 667,
+  type: 'AppointmentCreated',
+Received webhook: {
+[2025-04-16T18:53:21.749Z] Starting webhook processing
+Missing webhook signature in production environment
+}
+  timestamp: '2025-04-16T18:53:21.748Z'
+  hasSignature: false,
+  clientId: 667,
+  type: 'AppointmentCreated',
+Webhook received: {
+Successfully appended rows to range: Appointments!A:R
+Appending rows to range: Appointments!A:R
+Getting accessibility info for client 667
+Mapped clinician: M1, Name: Mikah, IntakeQ ID: 664dfe02cb608b781464fc75
+Mapped clinician: B1, Name: Bailey, IntakeQ ID: 664768dd7f0a7504555fe675
+Mapped clinician: JE1, Name: Jessica, IntakeQ ID: 66f18ba27c60a68152dd49db
+Mapped clinician: S1, Name: Samantha, IntakeQ ID: 664dfe343235ce1ba45fa81e
+Mapped clinician: CU1, Name: Cullen, IntakeQ ID: 64bfa6f0467529f6ff5e89ba
+Mapped clinician: J1, Name: Julia, IntakeQ ID: 664dfde17e20ae61a52be71e
+Mapped clinician: C1, Name: Carlisle, IntakeQ ID: 64beaf6a6b3ef6e0e60ae502
+Mapped clinician: T1, Name: Tyler, IntakeQ ID: 64a319db9173cb32157ea065
+Retrieved 8 clinician records
+Reading clinicians from Clinicians_Configuration!A2:M
+Final dates - StartDateIso: 2025-04-18T12:00:00.0000000Z, EndDateIso: 2025-04-18T12:50:00.0000000Z
+Date validation complete for appointment 67fffc9bec6d472c417d3aae
+Using valid EndDateIso: 2025-04-18T12:50:00.0000000Z
+Using valid StartDateIso: 2025-04-18T12:00:00.0000000Z
+Additional date info - StartDate: 1744977600000, EndDate: 1744980600000, Duration: 50
+Validating dates for appointment 67fffc9bec6d472c417d3aae, StartDateIso: 2025-04-18T12:00:00.0000000Z, EndDateIso: 2025-04-18T12:50:00.0000000Z
+Processing new appointment: 67fffc9bec6d472c417d3aae, client: Test Seabolt
+Status field: Confirmed
+EndDateIso type: string, value: 2025-04-18T12:50:00.0000000Z
+StartDateIso type: string, value: 2025-04-18T12:00:00.0000000Z
+Appointment fields: Id, ClientName, ClientEmail, ClientPhone, ClientDateOfBirth, ClientId, Status, StartDate, EndDate, Duration, ServiceName, ServiceId, LocationName, LocationId, Price, PractitionerName, PractitionerEmail, IntakeId, DateCreated, CreatedBy, BookedByClient, StartDateIso, EndDateIso, StartDateLocal, EndDateLocal, StartDateLocalFormatted, PractitionerId, InvoiceId, InvoiceNumber, ClientNote, PractitionerNote, TelehealthInfo, AttendanceConfirmationResponse, ReminderType, CustomFields, SessionStart, SessionEnd, ExternalClientId, ExternalPractitionerId, ExternalServiceId, LastModified, AdditionalClients, PlaceOfService, FullCancellationReason, CancellationReasonNote, CancellationDate
+}
+  "ExternalPracticeId": null
+  "PracticeId": "64a319db9173cb32157ea065",
+  "ExternalClientId": "9582269",
+  "ClientId": 667,
+  "ActionPerformedByClient": false,
+  },
+    "CancellationDate": ""
+    "CancellationReasonNote": null,
+    "FullCancellationReason": "",
+    "PlaceOfService": null,
+    "AdditionalClients": [],
+    "LastModified": 1744829595714,
+    "ExternalServiceId": null,
+    "ExternalPractitionerId": null,
+    "ExternalClientId": "9582269",
+    "SessionEnd": null,
+    "SessionStart": null,
+    "CustomFields": [],
+    "ReminderType": "Email",
+    "AttendanceConfirmationResponse": "None",
+    "TelehealthInfo": null,
+    "PractitionerNote": null,
+    "ClientNote": null,
+    "InvoiceNumber": null,
+    "InvoiceId": null,
+    "PractitionerId": "64a319db9173cb32157ea065",
+    "StartDateLocalFormatted": "4/18/2025 at 08:00:00 AM",
+    "EndDateLocal": "2025-04-18T08:50:00.0000000",
+    "StartDateLocal": "2025-04-18T08:00:00.0000000",
+    "EndDateIso": "2025-04-18T12:50:00.0000000Z",
+    "StartDateIso": "2025-04-18T12:00:00.0000000Z",
+    "BookedByClient": false,
+    "CreatedBy": "Tyler Seabolt",
+    "DateCreated": 1744829595270,
+    "IntakeId": null,
+    "PractitionerEmail": "tyler@bridgefamilytherapy.com",
+    "PractitionerName": "Tyler Seabolt",
+    "Price": 0,
+    "LocationId": "1",
+    "LocationName": "2340 Prince Ave, Suite C",
+    "ServiceId": "971d857c-2d93-4b5e-92fb-8d7e442e2cac",
+    "ServiceName": "Individual Therapy (In-Person)",
+    "Duration": 50,
+    "EndDate": 1744980600000,
+    "StartDate": 1744977600000,
+    "Status": "Confirmed",
+    "ClientId": 667,
+    "ClientDateOfBirth": "2017-10-25",
+    "ClientPhone": "[REDACTED]",
+    "ClientEmail": "[REDACTED]",
+    "ClientName": "Test Seabolt",
+    "Id": "67fffc9bec6d472c417d3aae",
+  "Appointment": {
+  "EventType": "AppointmentCreated",
+WEBHOOK PAYLOAD STRUCTURE for AppointmentCreated: {
+Successfully appended rows to range: Webhook_Log!A:H
+Appending rows to range: Webhook_Log!A:H
+Processing AppointmentCreated event for appointment 67fffc9bec6d472c417d3aae
+}
+  timestamp: '2025-04-16T18:53:20.815Z'
+  appointmentId: '67fffc9bec6d472c417d3aae',
+  clientId: 667,
+  type: 'AppointmentCreated',
+Received webhook: {
+[2025-04-16T18:53:20.815Z] Starting webhook processing
+}
+  timestamp: '2025-04-16T18:53:20.815Z'
+  hasSignature: false,
+  clientId: 667,
+  type: 'AppointmentCreated',
+Missing webhook signature in production environment
+Webhook received: {
+Flushed 3 audit log entries
+Successfully appended rows to range: Audit_Log!A:G
+Appending rows to range: Audit_Log!A:G
+}
+  processingTime: '3142ms'
+  },
+    deferredAssignment: true
+    action: 'created',
+    officeId: 'TBD',
+    appointmentId: '67fffc60567dcf7145fb6f9d',
+  details: {
+  success: true,
+Webhook event processed: {
+Successfully read sheet range: Webhook_Log!A:A - Retrieved 523 rows
+Reading sheet range: Webhook_Log!A:A
+Invalidated 0 cache entries matching pattern: appointments:67fffc60567dcf7145fb6f9d
+Invalidating cache keys matching pattern: appointments:67fffc60567dcf7145fb6f9d
+Appointment 67fffc60567dcf7145fb6f9d verification: full (main=true, active=true)
+Successfully read sheet range: Appointments!A:A - Retrieved 349 rows
+Reading sheet range: Appointments!A:A
+Successfully appended rows to range: Appointments!A:R
+Appending rows to range: Appointments!A:R
+Successfully read sheet range: Client_Accessibility_Info!A2:P - Retrieved 72 rows
+Reading sheet range: Client_Accessibility_Info!A2:P
+Getting accessibility info for client 667
+Mapped clinician: M1, Name: Mikah, IntakeQ ID: 664dfe02cb608b781464fc75
+Mapped clinician: B1, Name: Bailey, IntakeQ ID: 664768dd7f0a7504555fe675
+Mapped clinician: JE1, Name: Jessica, IntakeQ ID: 66f18ba27c60a68152dd49db
+Mapped clinician: S1, Name: Samantha, IntakeQ ID: 664dfe343235ce1ba45fa81e
+Mapped clinician: CU1, Name: Cullen, IntakeQ ID: 64bfa6f0467529f6ff5e89ba
+Mapped clinician: J1, Name: Julia, IntakeQ ID: 664dfde17e20ae61a52be71e
+Mapped clinician: C1, Name: Carlisle, IntakeQ ID: 64beaf6a6b3ef6e0e60ae502
+Mapped clinician: T1, Name: Tyler, IntakeQ ID: 64a319db9173cb32157ea065
+Retrieved 8 clinician records
+Successfully read sheet range: Clinicians_Configuration!A2:M - Retrieved 8 rows
+Reading sheet range: Clinicians_Configuration!A2:M
+Reading clinicians from Clinicians_Configuration!A2:M
+Final dates - StartDateIso: 2025-04-17T17:00:00.0000000Z, EndDateIso: 2025-04-17T17:50:00.0000000Z
+Date validation complete for appointment 67fffc60567dcf7145fb6f9d
+Using valid EndDateIso: 2025-04-17T17:50:00.0000000Z
+Using valid StartDateIso: 2025-04-17T17:00:00.0000000Z
+Additional date info - StartDate: 1744909200000, EndDate: 1744912200000, Duration: 50
+Validating dates for appointment 67fffc60567dcf7145fb6f9d, StartDateIso: 2025-04-17T17:00:00.0000000Z, EndDateIso: 2025-04-17T17:50:00.0000000Z
+Processing new appointment: 67fffc60567dcf7145fb6f9d, client: Test Seabolt
+Successfully read sheet range: Appointments!A2:R - Retrieved 347 rows
+Reading sheet range: Appointments!A2:R
+Successfully read sheet range: Active_Appointments!A2:R - Retrieved 11 rows
+Reading sheet range: Active_Appointments!A2:R
+Status field: Confirmed
+EndDateIso type: string, value: 2025-04-17T17:50:00.0000000Z
+StartDateIso type: string, value: 2025-04-17T17:00:00.0000000Z
+Appointment fields: Id, ClientName, ClientEmail, ClientPhone, ClientDateOfBirth, ClientId, Status, StartDate, EndDate, Duration, ServiceName, ServiceId, LocationName, LocationId, Price, PractitionerName, PractitionerEmail, IntakeId, DateCreated, CreatedBy, BookedByClient, StartDateIso, EndDateIso, StartDateLocal, EndDateLocal, StartDateLocalFormatted, PractitionerId, InvoiceId, InvoiceNumber, ClientNote, PractitionerNote, TelehealthInfo, AttendanceConfirmationResponse, ReminderType, CustomFields, SessionStart, SessionEnd, ExternalClientId, ExternalPractitionerId, ExternalServiceId, LastModified, AdditionalClients, PlaceOfService, FullCancellationReason, CancellationReasonNote, CancellationDate
+}
+  "ExternalPracticeId": null
+  "PracticeId": "64a319db9173cb32157ea065",
+  "ExternalClientId": "9582269",
+  "ClientId": 667,
+  "ActionPerformedByClient": false,
+  },
+    "CancellationDate": ""
+    "CancellationReasonNote": null,
+    "FullCancellationReason": "",
+    "PlaceOfService": "11",
+    "AdditionalClients": [],
+    "LastModified": 1744829537005,
+    "ExternalServiceId": null,
+    "ExternalPractitionerId": null,
+    "ExternalClientId": "9582269",
+    "SessionEnd": null,
+    "SessionStart": null,
+    "CustomFields": [],
+    "ReminderType": "Email",
+    "AttendanceConfirmationResponse": "None",
+    "TelehealthInfo": null,
+    "PractitionerNote": null,
+    "ClientNote": null,
+    "InvoiceNumber": null,
+    "InvoiceId": null,
+    "PractitionerId": "64a319db9173cb32157ea065",
+    "StartDateLocalFormatted": "4/17/2025 at 01:00:00 PM",
+    "EndDateLocal": "2025-04-17T13:50:00.0000000",
+    "StartDateLocal": "2025-04-17T13:00:00.0000000",
+    "EndDateIso": "2025-04-17T17:50:00.0000000Z",
+    "StartDateIso": "2025-04-17T17:00:00.0000000Z",
+    "BookedByClient": false,
+    "CreatedBy": "Tyler Seabolt",
+    "DateCreated": 1744829536388,
+    "IntakeId": null,
+    "PractitionerEmail": "tyler@bridgefamilytherapy.com",
+    "PractitionerName": "Tyler Seabolt",
+    "Price": 0,
+    "LocationId": "1",
+    "LocationName": "2340 Prince Ave, Suite C",
+    "ServiceId": "971d857c-2d93-4b5e-92fb-8d7e442e2cac",
+    "ServiceName": "Individual Therapy (In-Person)",
+    "Duration": 50,
+    "EndDate": 1744912200000,
+    "StartDate": 1744909200000,
+    "Status": "Confirmed",
+    "ClientId": 667,
+    "ClientDateOfBirth": "2017-10-25",
+    "ClientPhone": "[REDACTED]",
+    "ClientEmail": "[REDACTED]",
+    "ClientName": "Test Seabolt",
+    "Id": "67fffc60567dcf7145fb6f9d",
+  "Appointment": {
+  "EventType": "AppointmentCreated",
+WEBHOOK PAYLOAD STRUCTURE for AppointmentCreated: {
+Successfully appended rows to range: Webhook_Log!A:H
+Appending rows to range: Webhook_Log!A:H
+Processing AppointmentCreated event for appointment 67fffc60567dcf7145fb6f9d
+Successfully read sheet range: Webhook_Log!A:E - Retrieved 523 rows
+Reading sheet range: Webhook_Log!A:E
+}
+  timestamp: '2025-04-16T18:52:25.101Z'
+  appointmentId: '67fffc60567dcf7145fb6f9d',
+  clientId: 667,
+  type: 'AppointmentCreated',
+Received webhook: {
+[2025-04-16T18:52:25.101Z] Starting webhook processing
+Missing webhook signature in production environment
+}
+  timestamp: '2025-04-16T18:52:25.100Z'
+  hasSignature: false,
+  clientId: 667,
+  type: 'AppointmentCreated',
+Flushed 3 audit log entries
+Successfully appended rows to range: Audit_Log!A:G
+Appending rows to range: Audit_Log!A:G
+}
+  processingTime: '1209ms'
+  },
+    method: 'row_deletion'
+    action: 'cancelled_and_processed',
+    appointmentId: '67fffc60567dcf7145fb6f9d',
+  details: {
+  success: true,
+Webhook event processed: {
+Successfully appended rows to range: Webhook_Log!A:H
+Appending rows to range: Webhook_Log!A:H
+Successfully deleted appointment 67fffc60567dcf7145fb6f9d from sheet
+Successfully deleted appointment 67fffc60567dcf7145fb6f9d from row 349
+Invalidating cache key: sheet:Active_Appointments!A2:R
+Invalidating cache key: sheet:Appointments!A2:R
+Successfully read sheet range: Active_Appointments!A:A - Retrieved 12 rows
+Reading sheet range: Active_Appointments!A:A
+Successfully read sheet range: Active_Appointments!A1 - Retrieved 1 rows
+Reading sheet range: Active_Appointments!A1
+Successfully deleted appointment 67fffc60567dcf7145fb6f9d from main Appointments tab
+Found Appointments sheet with ID 476940410, deleting row at index 349
+Retrieving sheet metadata for spreadsheet ID: 1Z24JrO9bzn9wDDt8ii9ysuNZTVpDbZtHIMhivzEeu8Q
+Found appointment 67fffc60567dcf7145fb6f9d at row index 347 (Row 349 in sheet)
+Successfully read sheet range: Appointments!A2:R - Retrieved 350 rows
+Reading sheet range: Appointments!A2:R
+Invalidating cache key: sheet:Appointments!A:A
+Starting deletion process for appointment 67fffc60567dcf7145fb6f9d
+Invalidating cache key: sheet:Active_Appointments!A2:R
+Invalidated 0 cache entries matching pattern: daily:.*
+Invalidating cache keys matching pattern: daily:.*
+Invalidated 4 cache entries matching pattern: sheet:.*Appointments.*
+Invalidating cache keys matching pattern: sheet:.*Appointments.*
+Invalidating all appointment-related cache entries
+Attempting to delete appointment 67fffc60567dcf7145fb6f9d from sheet
+Found existing appointment 67fffc60567dcf7145fb6f9d in database
+Processing appointment cancellation: 67fffc60567dcf7145fb6f9d
+Found existing appointment 67fffc60567dcf7145fb6f9d in database
+Status field: Canceled
+EndDateIso type: string, value: 2025-04-17T17:50:00.0000000Z
+StartDateIso type: string, value: 2025-04-17T17:00:00.0000000Z
+Appointment fields: Id, ClientName, ClientEmail, ClientPhone, ClientDateOfBirth, ClientId, Status, StartDate, EndDate, Duration, ServiceName, ServiceId, LocationName, LocationId, Price, PractitionerName, PractitionerEmail, IntakeId, DateCreated, CreatedBy, BookedByClient, StartDateIso, EndDateIso, StartDateLocal, EndDateLocal, StartDateLocalFormatted, PractitionerId, InvoiceId, InvoiceNumber, ClientNote, PractitionerNote, TelehealthInfo, AttendanceConfirmationResponse, ReminderType, CustomFields, SessionStart, SessionEnd, ExternalClientId, ExternalPractitionerId, ExternalServiceId, LastModified, AdditionalClients, PlaceOfService, FullCancellationReason, CancellationReasonNote, CancellationDate
+}
+  "ExternalPracticeId": null
+  "PracticeId": "64a319db9173cb32157ea065",
+  "ExternalClientId": "9582269",
+  "ClientId": 667,
+  "ActionPerformedByClient": false,
+  },
+    "CancellationDate": "2025-04-16T19:24:40.8800000Z"
+    "CancellationReasonNote": null,
+    "FullCancellationReason": "Client Canceled - No Reason Given",
+    "PlaceOfService": "11",
+    "AdditionalClients": [],
+    "LastModified": 1744831480880,
+    "ExternalServiceId": null,
+    "ExternalPractitionerId": null,
+    "ExternalClientId": "9582269",
+    "SessionEnd": null,
+    "SessionStart": null,
+    "CustomFields": [],
+    "ReminderType": "Email",
+    "AttendanceConfirmationResponse": "None",
+    "TelehealthInfo": null,
+    "PractitionerNote": null,
+    "ClientNote": null,
+    "InvoiceNumber": null,
+    "InvoiceId": null,
+    "PractitionerId": "64a319db9173cb32157ea065",
+    "StartDateLocalFormatted": "4/17/2025 at 01:00:00 PM",
+    "EndDateLocal": "2025-04-17T13:50:00.0000000",
+    "StartDateLocal": "2025-04-17T13:00:00.0000000",
+    "EndDateIso": "2025-04-17T17:50:00.0000000Z",
+    "StartDateIso": "2025-04-17T17:00:00.0000000Z",
+    "BookedByClient": false,
+    "CreatedBy": "Tyler Seabolt",
+    "DateCreated": 1744829536388,
+    "IntakeId": null,
+    "PractitionerEmail": "tyler@bridgefamilytherapy.com",
+    "PractitionerName": "Tyler Seabolt",
+    "Price": 0,
+    "LocationId": "1",
+    "LocationName": "2340 Prince Ave, Suite C",
+    "ServiceId": "971d857c-2d93-4b5e-92fb-8d7e442e2cac",
+    "ServiceName": "Individual Therapy (In-Person)",
+    "Duration": 50,
+    "EndDate": 1744912200000,
+    "StartDate": 1744909200000,
+    "Status": "Canceled",
+    "ClientId": 667,
+    "ClientDateOfBirth": "2017-10-25",
+    "ClientPhone": "[REDACTED]",
+    "ClientEmail": "[REDACTED]",
+    "ClientName": "Test Seabolt",
+    "Id": "67fffc60567dcf7145fb6f9d",
+  "Appointment": {
+  "EventType": "AppointmentCanceled",
+WEBHOOK PAYLOAD STRUCTURE for AppointmentCanceled: {
+Successfully appended rows to range: Webhook_Log!A:H
+Appending rows to range: Webhook_Log!A:H
+Processing AppointmentCanceled event for appointment 67fffc60567dcf7145fb6f9d
+}
+  timestamp: '2025-04-16T19:24:46.051Z'
+  appointmentId: '67fffc60567dcf7145fb6f9d',
+  clientId: 667,
+  type: 'AppointmentCanceled',
+Received webhook: {
+[2025-04-16T19:24:46.051Z] Starting webhook processing
+}
+  timestamp: '2025-04-16T19:24:46.051Z'
+  hasSignature: false,
+Missing webhook signature in production environment
+  clientId: 667,
+  type: 'AppointmentCanceled',
+Webhook received: {
+Flushed 3 audit log entries
+Successfully appended rows to range: Audit_Log!A:G
+Appending rows to range: Audit_Log!A:G
+}
+  processingTime: '3662ms'
+  },
+    deferredAssignment: true
+    action: 'created',
+    officeId: 'TBD',
+    appointmentId: '67ffe324604b571d275bbd3d',
+  details: {
+  success: true,
+Webhook event processed: {
+Successfully read sheet range: Webhook_Log!A:A - Retrieved 542 rows
+Reading sheet range: Webhook_Log!A:A
+Invalidated 0 cache entries matching pattern: appointments:67ffe324604b571d275bbd3d
+Invalidating cache keys matching pattern: appointments:67ffe324604b571d275bbd3d
+Appointment 67ffe324604b571d275bbd3d verification: full (main=true, active=true)
+Successfully read sheet range: Appointments!A:A - Retrieved 351 rows
+Reading sheet range: Appointments!A:A
+Successfully appended rows to range: Appointments!A:R
+Appending rows to range: Appointments!A:R
+Successfully read sheet range: Client_Accessibility_Info!A2:P - Retrieved 72 rows
+Reading sheet range: Client_Accessibility_Info!A2:P
+Getting accessibility info for client 1122
+Mapped clinician: M1, Name: Mikah, IntakeQ ID: 664dfe02cb608b781464fc75
+Mapped clinician: B1, Name: Bailey, IntakeQ ID: 664768dd7f0a7504555fe675
+Mapped clinician: JE1, Name: Jessica, IntakeQ ID: 66f18ba27c60a68152dd49db
+Mapped clinician: S1, Name: Samantha, IntakeQ ID: 664dfe343235ce1ba45fa81e
+Mapped clinician: CU1, Name: Cullen, IntakeQ ID: 64bfa6f0467529f6ff5e89ba
+Mapped clinician: J1, Name: Julia, IntakeQ ID: 664dfde17e20ae61a52be71e
+Mapped clinician: C1, Name: Carlisle, IntakeQ ID: 64beaf6a6b3ef6e0e60ae502
+Mapped clinician: T1, Name: Tyler, IntakeQ ID: 64a319db9173cb32157ea065
+Retrieved 8 clinician records
+Successfully read sheet range: Clinicians_Configuration!A2:M - Retrieved 8 rows
+Reading sheet range: Clinicians_Configuration!A2:M
+Reading clinicians from Clinicians_Configuration!A2:M
+Final dates - StartDateIso: 2025-04-21T19:00:00.0000000Z, EndDateIso: 2025-04-21T19:50:00.0000000Z
+Date validation complete for appointment 67ffe324604b571d275bbd3d
+Using valid EndDateIso: 2025-04-21T19:50:00.0000000Z
+Using valid StartDateIso: 2025-04-21T19:00:00.0000000Z
+Additional date info - StartDate: 1745262000000, EndDate: 1745265000000, Duration: 50
+Validating dates for appointment 67ffe324604b571d275bbd3d, StartDateIso: 2025-04-21T19:00:00.0000000Z, EndDateIso: 2025-04-21T19:50:00.0000000Z
+Processing new appointment: 67ffe324604b571d275bbd3d, client: Thomas Henderson
+Final dates - StartDateIso: 2025-04-21T19:00:00.0000000Z, EndDateIso: 2025-04-21T19:50:00.0000000Z
+Date validation complete for appointment 67ffe324604b571d275bbd3d
+Using valid EndDateIso: 2025-04-21T19:50:00.0000000Z
+Using valid StartDateIso: 2025-04-21T19:00:00.0000000Z
+Additional date info - StartDate: 1745262000000, EndDate: 1745265000000, Duration: 50
+Validating dates for appointment 67ffe324604b571d275bbd3d, StartDateIso: 2025-04-21T19:00:00.0000000Z, EndDateIso: 2025-04-21T19:50:00.0000000Z
+Processing appointment update: 67ffe324604b571d275bbd3d
+Successfully read sheet range: Appointments!A2:R - Retrieved 349 rows
+Reading sheet range: Appointments!A2:R
+Successfully read sheet range: Active_Appointments!A2:R - Retrieved 11 rows
+Reading sheet range: Active_Appointments!A2:R
+Status field: Confirmed
+EndDateIso type: string, value: 2025-04-21T19:50:00.0000000Z
+StartDateIso type: string, value: 2025-04-21T19:00:00.0000000Z
+Appointment fields: Id, ClientName, ClientEmail, ClientPhone, ClientDateOfBirth, ClientId, Status, StartDate, EndDate, Duration, ServiceName, ServiceId, LocationName, LocationId, Price, PractitionerName, PractitionerEmail, IntakeId, DateCreated, CreatedBy, BookedByClient, StartDateIso, EndDateIso, StartDateLocal, EndDateLocal, StartDateLocalFormatted, PractitionerId, InvoiceId, InvoiceNumber, ClientNote, PractitionerNote, TelehealthInfo, AttendanceConfirmationResponse, ReminderType, CustomFields, SessionStart, SessionEnd, ExternalClientId, ExternalPractitionerId, ExternalServiceId, LastModified, AdditionalClients, PlaceOfService, FullCancellationReason, CancellationReasonNote, CancellationDate
+}
+  "ExternalPracticeId": null
+  "PracticeId": "64a319db9173cb32157ea065",
+  "ExternalClientId": null,
+  "ClientId": 1122,
+  "ActionPerformedByClient": false,
+  },
+    "CancellationDate": ""
+    "CancellationReasonNote": null,
+    "FullCancellationReason": "",
+    "PlaceOfService": "11",
+    "AdditionalClients": [],
+    "LastModified": 1744831477597,
+    "ExternalServiceId": null,
+    "ExternalPractitionerId": null,
+    "ExternalClientId": null,
+    "SessionEnd": null,
+    "SessionStart": null,
+    "CustomFields": [],
+    "ReminderType": "Sms",
+    "AttendanceConfirmationResponse": "None",
+    "TelehealthInfo": null,
+    "PractitionerNote": null,
+    "ClientNote": null,
+    "InvoiceNumber": null,
+    "InvoiceId": null,
+    "PractitionerId": "64bfa6f0467529f6ff5e89ba",
+    "StartDateLocalFormatted": "4/21/2025 at 03:00:00 PM",
+    "EndDateLocal": "2025-04-21T15:50:00.0000000",
+    "StartDateLocal": "2025-04-21T15:00:00.0000000",
+    "EndDateIso": "2025-04-21T19:50:00.0000000Z",
+    "StartDateIso": "2025-04-21T19:00:00.0000000Z",
+    "BookedByClient": true,
+    "CreatedBy": "Heather Henderson (Parent)",
+    "DateCreated": 1744823076165,
+    "IntakeId": null,
+    "PractitionerEmail": "cullen@bridgefamilytherapy.com",
+    "PractitionerName": "Cullen MacDonald",
+    "Price": 100,
+    "LocationId": "1",
+    "LocationName": "2340 Prince Ave, Suite C",
+    "ServiceId": "45a16e97-c57e-4729-a1cd-a9a3d6a22029",
+    "ServiceName": "Child/Minor Therapy (Telehealth)",
+    "Duration": 50,
+    "EndDate": 1745265000000,
+    "StartDate": 1745262000000,
+    "Status": "Confirmed",
+    "ClientId": 1122,
+    "ClientDateOfBirth": "2009-10-31",
+    "ClientPhone": "[REDACTED]",
+    "ClientEmail": "[REDACTED]",
+    "ClientName": "Thomas Henderson",
+    "Id": "67ffe324604b571d275bbd3d",
+  "Appointment": {
+  "EventType": "AppointmentConfirmed",
+WEBHOOK PAYLOAD STRUCTURE for AppointmentConfirmed: {
+Successfully appended rows to range: Webhook_Log!A:H
+Appending rows to range: Webhook_Log!A:H
+Processing AppointmentConfirmed event for appointment 67ffe324604b571d275bbd3d
+Successfully read sheet range: Webhook_Log!A:E - Retrieved 542 rows
+Reading sheet range: Webhook_Log!A:E
+}
+  timestamp: '2025-04-16T19:24:39.800Z'
+  appointmentId: '67ffe324604b571d275bbd3d',
+  clientId: 1122,
+  type: 'AppointmentConfirmed',
+Received webhook: {
+[2025-04-16T19:24:39.800Z] Starting webhook processing
+}
+  timestamp: '2025-04-16T19:24:39.800Z'
+  hasSignature: false,
+  clientId: 1122,
+  type: 'AppointmentConfirmed',
+Missing webhook signature in production environment
+Webhook received: {
+Flushed 3 audit log entries
+Successfully appended rows to range: Audit_Log!A:G
+Appending rows to range: Audit_Log!A:G
+}
+  processingTime: '1975ms'
+  },
+    method: 'row_deletion'
+    action: 'deleted',
+    appointmentId: '67fffc9bec6d472c417d3aae',
+  details: {
+  success: true,
+Webhook event processed: {
+Successfully read sheet range: Webhook_Log!A:A - Retrieved 541 rows
+Reading sheet range: Webhook_Log!A:A
+Successfully deleted appointment 67fffc9bec6d472c417d3aae
+Successfully deleted appointment 67fffc9bec6d472c417d3aae from row 350
+Invalidating cache key: sheet:Active_Appointments!A2:R
+Invalidating cache key: sheet:Appointments!A2:R
+Successfully read sheet range: Active_Appointments!A:A - Retrieved 12 rows
+Reading sheet range: Active_Appointments!A:A
+Successfully read sheet range: Active_Appointments!A1 - Retrieved 1 rows
+Reading sheet range: Active_Appointments!A1
+Successfully deleted appointment 67fffc9bec6d472c417d3aae from main Appointments tab
+Found Appointments sheet with ID 476940410, deleting row at index 350
+Retrieving sheet metadata for spreadsheet ID: 1Z24JrO9bzn9wDDt8ii9ysuNZTVpDbZtHIMhivzEeu8Q
+Found appointment 67fffc9bec6d472c417d3aae at row index 348 (Row 350 in sheet)
+Successfully read sheet range: Appointments!A2:R - Retrieved 350 rows
+Reading sheet range: Appointments!A2:R
+Invalidating cache key: sheet:Appointments!A:A
+Starting deletion process for appointment 67fffc9bec6d472c417d3aae
+Invalidating cache key: sheet:Active_Appointments!A2:R
+Invalidated 0 cache entries matching pattern: daily:.*
+Invalidating cache keys matching pattern: daily:.*
+Invalidated 3 cache entries matching pattern: sheet:.*Appointments.*
+Invalidating cache keys matching pattern: sheet:.*Appointments.*
+Invalidating all appointment-related cache entries
+Attempting to delete appointment 67fffc9bec6d472c417d3aae
+Found existing appointment 67fffc9bec6d472c417d3aae in database
+Processing appointment deletion: 67fffc9bec6d472c417d3aae
+Found existing appointment 67fffc9bec6d472c417d3aae in database
+Successfully read sheet range: Appointments!A2:R - Retrieved 350 rows
+Reading sheet range: Appointments!A2:R
+Successfully read sheet range: Active_Appointments!A2:R - Retrieved 11 rows
+Reading sheet range: Active_Appointments!A2:R
+Status field: Confirmed
+EndDateIso type: string, value: 2025-04-18T12:50:00.0000000Z
+StartDateIso type: string, value: 2025-04-18T12:00:00.0000000Z
+Appointment fields: Id, ClientName, ClientEmail, ClientPhone, ClientDateOfBirth, ClientId, Status, StartDate, EndDate, Duration, ServiceName, ServiceId, LocationName, LocationId, Price, PractitionerName, PractitionerEmail, IntakeId, DateCreated, CreatedBy, BookedByClient, StartDateIso, EndDateIso, StartDateLocal, EndDateLocal, StartDateLocalFormatted, PractitionerId, InvoiceId, InvoiceNumber, ClientNote, PractitionerNote, TelehealthInfo, AttendanceConfirmationResponse, ReminderType, CustomFields, SessionStart, SessionEnd, ExternalClientId, ExternalPractitionerId, ExternalServiceId, LastModified, AdditionalClients, PlaceOfService, FullCancellationReason, CancellationReasonNote, CancellationDate
+}
+  "ExternalPracticeId": null
+  "PracticeId": "64a319db9173cb32157ea065",
+  "ExternalClientId": "9582269",
+  "ClientId": 667,
+  "ActionPerformedByClient": false,
+  },
+    "CancellationDate": ""
+    "CancellationReasonNote": null,
+    "FullCancellationReason": "",
+    "PlaceOfService": null,
+    "AdditionalClients": [],
+    "LastModified": 1744830485467,
+    "ExternalServiceId": null,
+    "ExternalPractitionerId": null,
+    "ExternalClientId": "9582269",
+    "SessionEnd": null,
+    "SessionStart": null,
+    "CustomFields": [],
+    "ReminderType": "Email",
+    "AttendanceConfirmationResponse": "None",
+    "TelehealthInfo": null,
+    "PractitionerNote": null,
+    "ClientNote": null,
+    "InvoiceNumber": null,
+    "InvoiceId": null,
+    "PractitionerId": "64a319db9173cb32157ea065",
+    "StartDateLocalFormatted": "4/18/2025 at 08:00:00 AM",
+    "EndDateLocal": "2025-04-18T08:50:00.0000000",
+    "StartDateLocal": "2025-04-18T08:00:00.0000000",
+    "EndDateIso": "2025-04-18T12:50:00.0000000Z",
+    "StartDateIso": "2025-04-18T12:00:00.0000000Z",
+    "BookedByClient": false,
+    "CreatedBy": "Tyler Seabolt",
+    "DateCreated": 1744829595270,
+    "IntakeId": null,
+    "PractitionerEmail": "tyler@bridgefamilytherapy.com",
+    "PractitionerName": "Tyler Seabolt",
+    "Price": 0,
+    "LocationId": "1",
+    "LocationName": "2340 Prince Ave, Suite C",
+    "ServiceId": "971d857c-2d93-4b5e-92fb-8d7e442e2cac",
+    "ServiceName": "Individual Therapy (In-Person)",
+    "Duration": 50,
+    "EndDate": 1744980600000,
+    "StartDate": 1744977600000,
+    "Status": "Confirmed",
+    "ClientId": 667,
+    "ClientDateOfBirth": "2017-10-25",
+    "ClientPhone": "[REDACTED]",
+    "ClientEmail": "[REDACTED]",
+    "ClientName": "Test Seabolt",
+    "Id": "67fffc9bec6d472c417d3aae",
+  "Appointment": {
+  "EventType": "AppointmentDeleted",
+WEBHOOK PAYLOAD STRUCTURE for AppointmentDeleted: {
+Successfully appended rows to range: Webhook_Log!A:H
+Appending rows to range: Webhook_Log!A:H
+Processing AppointmentDeleted event for appointment 67fffc9bec6d472c417d3aae
+Successfully read sheet range: Webhook_Log!A:E - Retrieved 540 rows
+Reading sheet range: Webhook_Log!A:E
+}
+  timestamp: '2025-04-16T19:08:10.841Z'
+  appointmentId: '67fffc9bec6d472c417d3aae',
+  clientId: 667,
+  type: 'AppointmentDeleted',
+Received webhook: {
+[2025-04-16T19:08:10.841Z] Starting webhook processing
+}
+  timestamp: '2025-04-16T19:08:10.841Z'
+  hasSignature: false,
+  clientId: 667,
+  type: 'AppointmentDeleted',
+Webhook received: {
+Missing webhook signature in production environment
+Flushed 3 audit log entries
+Successfully appended rows to range: Audit_Log!A:G
+Appending rows to range: Audit_Log!A:G
+}
+  processingTime: '1177ms'
+  },
+    method: 'row_deletion'
+    action: 'cancelled_and_processed',
+    appointmentId: '67fffc9bec6d472c417d3ab5',
+  details: {
+  success: true,
+Webhook event processed: {
+Successfully appended rows to range: Webhook_Log!A:H
+Appending rows to range: Webhook_Log!A:H
+Successfully deleted appointment 67fffc9bec6d472c417d3ab5 from sheet
+Successfully deleted appointment 67fffc9bec6d472c417d3ab5 from row 351
+Invalidating cache key: sheet:Active_Appointments!A2:R
+Invalidating cache key: sheet:Appointments!A2:R
+Successfully read sheet range: Active_Appointments!A:A - Retrieved 12 rows
+Reading sheet range: Active_Appointments!A:A
+Successfully read sheet range: Active_Appointments!A1 - Retrieved 1 rows
+Reading sheet range: Active_Appointments!A1
+Successfully deleted appointment 67fffc9bec6d472c417d3ab5 from main Appointments tab
+Found Appointments sheet with ID 476940410, deleting row at index 351
+Retrieving sheet metadata for spreadsheet ID: 1Z24JrO9bzn9wDDt8ii9ysuNZTVpDbZtHIMhivzEeu8Q
+Found appointment 67fffc9bec6d472c417d3ab5 at row index 349 (Row 351 in sheet)
+Successfully read sheet range: Appointments!A2:R - Retrieved 351 rows
+Reading sheet range: Appointments!A2:R
+Invalidating cache key: sheet:Appointments!A:A
+Starting deletion process for appointment 67fffc9bec6d472c417d3ab5
+Invalidating cache key: sheet:Active_Appointments!A2:R
+Invalidated 0 cache entries matching pattern: daily:.*
+Invalidating cache keys matching pattern: daily:.*
+Invalidated 2 cache entries matching pattern: sheet:.*Appointments.*
+Invalidating cache keys matching pattern: sheet:.*Appointments.*
+Invalidating all appointment-related cache entries
+Attempting to delete appointment 67fffc9bec6d472c417d3ab5 from sheet
+Found existing appointment 67fffc9bec6d472c417d3ab5 in database
+Processing appointment cancellation: 67fffc9bec6d472c417d3ab5
+Found existing appointment 67fffc9bec6d472c417d3ab5 in database
+Status field: Canceled
+EndDateIso type: string, value: 2025-04-19T17:50:00.0000000Z
+StartDateIso type: string, value: 2025-04-19T17:00:00.0000000Z
+Appointment fields: Id, ClientName, ClientEmail, ClientPhone, ClientDateOfBirth, ClientId, Status, StartDate, EndDate, Duration, ServiceName, ServiceId, LocationName, LocationId, Price, PractitionerName, PractitionerEmail, IntakeId, DateCreated, CreatedBy, BookedByClient, StartDateIso, EndDateIso, StartDateLocal, EndDateLocal, StartDateLocalFormatted, PractitionerId, InvoiceId, InvoiceNumber, ClientNote, PractitionerNote, TelehealthInfo, AttendanceConfirmationResponse, ReminderType, CustomFields, SessionStart, SessionEnd, ExternalClientId, ExternalPractitionerId, ExternalServiceId, LastModified, AdditionalClients, PlaceOfService, FullCancellationReason, CancellationReasonNote, CancellationDate
+}
+  "ExternalPracticeId": null
+  "PracticeId": "64a319db9173cb32157ea065",
+  "ExternalClientId": "9582269",
+  "ClientId": 667,
+  "ActionPerformedByClient": false,
+  },
+    "CancellationDate": "2025-04-16T19:05:55.4370000Z"
+    "CancellationReasonNote": null,
+    "FullCancellationReason": "Client Canceled - No Reason Given",
+    "PlaceOfService": null,
+    "AdditionalClients": [],
+    "LastModified": 1744830355437,
+    "ExternalServiceId": null,
+    "ExternalPractitionerId": null,
+    "ExternalClientId": "9582269",
+    "SessionEnd": null,
+    "SessionStart": null,
+    "CustomFields": [],
+    "ReminderType": "Email",
+    "AttendanceConfirmationResponse": "None",
+    "TelehealthInfo": null,
+    "PractitionerNote": null,
+    "ClientNote": null,
+    "InvoiceNumber": null,
+    "InvoiceId": null,
+    "PractitionerId": "64a319db9173cb32157ea065",
+    "StartDateLocalFormatted": "4/19/2025 at 01:00:00 PM",
+    "EndDateLocal": "2025-04-19T13:50:00.0000000",
+    "StartDateLocal": "2025-04-19T13:00:00.0000000",
+    "EndDateIso": "2025-04-19T17:50:00.0000000Z",
+    "StartDateIso": "2025-04-19T17:00:00.0000000Z",
+    "BookedByClient": false,
+    "CreatedBy": "Tyler Seabolt",
+    "DateCreated": 1744829595799,
+    "IntakeId": null,
+    "PractitionerEmail": "tyler@bridgefamilytherapy.com",
+    "PractitionerName": "Tyler Seabolt",
+    "Price": 0,
+    "LocationId": "1",
+    "LocationName": "2340 Prince Ave, Suite C",
+    "ServiceId": "971d857c-2d93-4b5e-92fb-8d7e442e2cac",
+    "ServiceName": "Individual Therapy (In-Person)",
+    "Duration": 50,
+    "EndDate": 1745085000000,
+    "StartDate": 1745082000000,
+    "Status": "Canceled",
+    "ClientId": 667,
+    "ClientDateOfBirth": "2017-10-25",
+    "ClientPhone": "[REDACTED]",
+    "ClientEmail": "[REDACTED]",
+    "ClientName": "Test Seabolt",
+    "Id": "67fffc9bec6d472c417d3ab5",
+  "Appointment": {
+  "EventType": "AppointmentCanceled",
+WEBHOOK PAYLOAD STRUCTURE for AppointmentCanceled: {
+Successfully appended rows to range: Webhook_Log!A:H
+Appending rows to range: Webhook_Log!A:H
+Processing AppointmentCanceled event for appointment 67fffc9bec6d472c417d3ab5
+}
+  timestamp: '2025-04-16T19:06:00.549Z'
+  appointmentId: '67fffc9bec6d472c417d3ab5',
+  clientId: 667,
+  type: 'AppointmentCanceled',
+Missing webhook signature in production environment
+Received webhook: {
+[2025-04-16T19:06:00.549Z] Starting webhook processing
+}
+  timestamp: '2025-04-16T19:06:00.549Z'
+  hasSignature: false,
+  clientId: 667,
+  type: 'AppointmentCanceled',
+Webhook received: {
+Flushed 9 audit log entries
+Successfully appended rows to range: Audit_Log!A:G
+Appending rows to range: Audit_Log!A:G
+}
+  processingTime: '9309ms'
+  },
+    message: 'Appointment not found, but recorded deletion for recurring series'
+    action: 'deleted_recurring_appointment',
+    appointmentId: '67fffc9eec6d472c417d3acb',
+  details: {
+  success: true,
+Webhook event processed: {
+}
+  processingTime: '9167ms'
+  },
+    message: 'Appointment not found, but recorded deletion for recurring series'
+    action: 'deleted_recurring_appointment',
+    appointmentId: '67fffc9eec6d472c417d3ac4',
+  details: {
+  success: true,
+Webhook event processed: {
+Successfully appended rows to range: Webhook_Log!A:H
+Appending rows to range: Webhook_Log!A:H
+This appears to be part of a recurring series. Proceeding with deletion record anyway.
+Appointment 67fffc9eec6d472c417d3ac4 not found for deletion after 3 attempts
+Appointment 67fffc9eec6d472c417d3ac4 not found on attempt 3
+Successfully read sheet range: Appointments!A2:R - Retrieved 351 rows
+Appointment 67fffc9eec6d472c417d3acb not found for deletion after 3 attempts
+This appears to be part of a recurring series. Proceeding with deletion record anyway.
+Appointment 67fffc9eec6d472c417d3acb not found on attempt 3
+Successfully read sheet range: Appointments!A2:R - Retrieved 351 rows
+Reading sheet range: Appointments!A2:R
+Successfully read sheet range: Active_Appointments!A2:R - Retrieved 11 rows
+Reading sheet range: Appointments!A2:R
+Successfully read sheet range: Active_Appointments!A2:R - Retrieved 11 rows
+Reading sheet range: Active_Appointments!A2:R
+Reading sheet range: Active_Appointments!A2:R
+}
+  processingTime: '7149ms'
+  },
+    method: 'row_deletion'
+    action: 'deleted',
+    appointmentId: '67fffc9fec6d472c417d3ad0',
+  details: {
+  success: true,
+Webhook event processed: {
+Successfully appended rows to range: Webhook_Log!A:H
+Invalidating cache key: sheet:Active_Appointments!A2:R
+Invalidated 0 cache entries matching pattern: daily:.*
+Invalidating cache keys matching pattern: daily:.*
+Invalidated 1 cache entries matching pattern: sheet:.*Appointments.*
+Invalidating cache keys matching pattern: sheet:.*Appointments.*
+Invalidating all appointment-related cache entries
+Clearing cache before retry 3
+Appointment 67fffc9eec6d472c417d3ac4 not found on attempt 2
+Successfully read sheet range: Appointments!A2:R - Retrieved 351 rows
+Invalidating cache key: sheet:Active_Appointments!A2:R
+Invalidated 0 cache entries matching pattern: daily:.*
+Invalidating cache keys matching pattern: daily:.*
+Invalidated 2 cache entries matching pattern: sheet:.*Appointments.*
+Invalidating cache keys matching pattern: sheet:.*Appointments.*
+Invalidating all appointment-related cache entries
+Clearing cache before retry 3
+Appointment 67fffc9eec6d472c417d3acb not found on attempt 2
+Successfully read sheet range: Appointments!A2:R - Retrieved 351 rows
+Appending rows to range: Webhook_Log!A:H
+Successfully deleted appointment 67fffc9fec6d472c417d3ad0
+Successfully deleted appointment 67fffc9fec6d472c417d3ad0 from row 354
+Invalidating cache key: sheet:Active_Appointments!A2:R
+Invalidating cache key: sheet:Appointments!A2:R
+Successfully read sheet range: Active_Appointments!A:A - Retrieved 12 rows
+}
+  processingTime: '6661ms'
+  },
+    method: 'row_deletion'
+    action: 'deleted',
+    appointmentId: '67fffc9fec6d472c417d3ad4',
+  details: {
+  success: true,
+Webhook event processed: {
+Successfully appended rows to range: Webhook_Log!A:H
+}
+  processingTime: '6478ms'
+  },
+    method: 'row_deletion'
+    action: 'deleted',
+    appointmentId: '67fffc9cec6d472c417d3abb',
+  details: {
+  success: true,
+Webhook event processed: {
+Successfully appended rows to range: Webhook_Log!A:H
+}
+  processingTime: '6352ms'
+  },
+    method: 'row_deletion'
+    action: 'deleted',
+    appointmentId: '67fffc9cec6d472c417d3ab9',
+  details: {
+  success: true,
+Webhook event processed: {
+Reading sheet range: Appointments!A2:R
+Successfully read sheet range: Active_Appointments!A2:R - Retrieved 11 rows
+Reading sheet range: Appointments!A2:R
+Successfully read sheet range: Active_Appointments!A2:R - Retrieved 11 rows
+Successfully deleted appointment 67fffc9cec6d472c417d3ab9
+Successfully deleted appointment 67fffc9cec6d472c417d3ab9 from row 352
+Invalidating cache key: sheet:Active_Appointments!A2:R
+Invalidating cache key: sheet:Appointments!A2:R
+Successfully read sheet range: Active_Appointments!A:A - Retrieved 12 rows
+Appending rows to range: Webhook_Log!A:H
+Successfully deleted appointment 67fffc9fec6d472c417d3ad4
+Successfully deleted appointment 67fffc9fec6d472c417d3ad4 from row 355
+Invalidating cache key: sheet:Active_Appointments!A2:R
+Invalidating cache key: sheet:Appointments!A2:R
+Successfully read sheet range: Active_Appointments!A:A - Retrieved 12 rows
+Appending rows to range: Webhook_Log!A:H
+Successfully deleted appointment 67fffc9cec6d472c417d3abb
+Successfully deleted appointment 67fffc9cec6d472c417d3abb from row 353
+Flushed 10 audit log entries
+Successfully appended rows to range: Audit_Log!A:G
+Reading sheet range: Active_Appointments!A:A
+Successfully deleted appointment 67fffc9fec6d472c417d3ad0 from main Appointments tab
+Appending rows to range: Audit_Log!A:G
+Invalidating cache key: sheet:Active_Appointments!A2:R
+Invalidating cache key: sheet:Appointments!A2:R
+Successfully read sheet range: Active_Appointments!A:A - Retrieved 12 rows
+}
+  processingTime: '5514ms'
+  },
+    method: 'row_deletion'
+    action: 'deleted',
+    appointmentId: '67fffc9dec6d472c417d3abe',
+  details: {
+  success: true,
+Webhook event processed: {
+Successfully appended rows to range: Webhook_Log!A:H
+Reading sheet range: Active_Appointments!A2:R
+Reading sheet range: Active_Appointments!A2:R
+Reading sheet range: Active_Appointments!A:A
+Successfully deleted appointment 67fffc9cec6d472c417d3ab9 from main Appointments tab
+Reading sheet range: Active_Appointments!A:A
+Successfully deleted appointment 67fffc9fec6d472c417d3ad4 from main Appointments tab
+Appending rows to range: Webhook_Log!A:H
+Successfully read sheet range: Webhook_Log!A:A - Retrieved 534 rows
+Reading sheet range: Active_Appointments!A:A
+Successfully deleted appointment 67fffc9cec6d472c417d3abb from main Appointments tab
+Found Appointments sheet with ID 476940410, deleting row at index 354
+Found Appointments sheet with ID 476940410, deleting row at index 355
+Reading sheet range: Webhook_Log!A:A
+Successfully deleted appointment 67fffc9dec6d472c417d3abe
+Successfully deleted appointment 67fffc9dec6d472c417d3abe from row 354
+Invalidating cache key: sheet:Active_Appointments!A2:R
+Invalidating cache key: sheet:Appointments!A2:R
+Successfully read sheet range: Active_Appointments!A:A - Retrieved 12 rows
+Found Appointments sheet with ID 476940410, deleting row at index 352
+Reading sheet range: Active_Appointments!A:A
+Successfully read sheet range: Active_Appointments!A1 - Retrieved 1 rows
+Retrieving sheet metadata for spreadsheet ID: 1Z24JrO9bzn9wDDt8ii9ysuNZTVpDbZtHIMhivzEeu8Q
+Found appointment 67fffc9cec6d472c417d3ab9 at row index 350 (Row 352 in sheet)
+Successfully read sheet range: Appointments!A2:R - Retrieved 354 rows
+Retrieving sheet metadata for spreadsheet ID: 1Z24JrO9bzn9wDDt8ii9ysuNZTVpDbZtHIMhivzEeu8Q
+Found appointment 67fffc9fec6d472c417d3ad0 at row index 352 (Row 354 in sheet)
+Successfully read sheet range: Appointments!A2:R - Retrieved 354 rows
+Retrieving sheet metadata for spreadsheet ID: 1Z24JrO9bzn9wDDt8ii9ysuNZTVpDbZtHIMhivzEeu8Q
+Found appointment 67fffc9fec6d472c417d3ad4 at row index 353 (Row 355 in sheet)
+Successfully read sheet range: Appointments!A2:R - Retrieved 354 rows
+Found Appointments sheet with ID 476940410, deleting row at index 353
+Reading sheet range: Active_Appointments!A1
+Successfully deleted appointment 67fffc9dec6d472c417d3abe from main Appointments tab
+Invalidating cache key: sheet:Active_Appointments!A2:R
+Invalidated 0 cache entries matching pattern: daily:.*
+Invalidating cache keys matching pattern: daily:.*
+Invalidated 1 cache entries matching pattern: sheet:.*Appointments.*
+Invalidating cache keys matching pattern: sheet:.*Appointments.*
+Invalidating all appointment-related cache entries
+Clearing cache before retry 2
+Appointment 67fffc9eec6d472c417d3acb not found on attempt 1
+Successfully read sheet range: Appointments!A2:R - Retrieved 355 rows
+Retrieving sheet metadata for spreadsheet ID: 1Z24JrO9bzn9wDDt8ii9ysuNZTVpDbZtHIMhivzEeu8Q
+Found appointment 67fffc9cec6d472c417d3abb at row index 351 (Row 353 in sheet)
+Successfully read sheet range: Appointments!A2:R - Retrieved 355 rows
+Reading sheet range: Appointments!A2:R
+Invalidating cache key: sheet:Appointments!A:A
+Starting deletion process for appointment 67fffc9fec6d472c417d3ad4
+Invalidating cache key: sheet:Active_Appointments!A2:R
+Invalidated 0 cache entries matching pattern: daily:.*
+Invalidating cache keys matching pattern: daily:.*
+Invalidated 1 cache entries matching pattern: sheet:.*Appointments.*
+Invalidating cache keys matching pattern: sheet:.*Appointments.*
+Invalidating all appointment-related cache entries
+Attempting to delete appointment 67fffc9fec6d472c417d3ad4
+Found existing appointment 67fffc9fec6d472c417d3ad4 in database
+Successfully read sheet range: Appointments!A2:R - Retrieved 355 rows
+Invalidating cache key: sheet:Active_Appointments!A2:R
+Invalidated 0 cache entries matching pattern: daily:.*
+Invalidating cache keys matching pattern: daily:.*
+Invalidated 1 cache entries matching pattern: sheet:.*Appointments.*
+Invalidating cache keys matching pattern: sheet:.*Appointments.*
+Invalidating all appointment-related cache entries
+Clearing cache before retry 2
+Appointment 67fffc9eec6d472c417d3ac4 not found on attempt 1
+Successfully read sheet range: Appointments!A2:R - Retrieved 355 rows
+Reading sheet range: Appointments!A2:R
+Invalidating cache key: sheet:Appointments!A:A
+Starting deletion process for appointment 67fffc9fec6d472c417d3ad0
+Invalidating cache key: sheet:Active_Appointments!A2:R
+Invalidated 0 cache entries matching pattern: daily:.*
+Invalidating cache keys matching pattern: daily:.*
+Invalidated 1 cache entries matching pattern: sheet:.*Appointments.*
+Invalidating cache keys matching pattern: sheet:.*Appointments.*
+Invalidating all appointment-related cache entries
+Attempting to delete appointment 67fffc9fec6d472c417d3ad0
+Found existing appointment 67fffc9fec6d472c417d3ad0 in database
+Successfully read sheet range: Appointments!A2:R - Retrieved 355 rows
+Reading sheet range: Appointments!A2:R
+Invalidating cache key: sheet:Appointments!A:A
+Starting deletion process for appointment 67fffc9cec6d472c417d3ab9
+Invalidating cache key: sheet:Active_Appointments!A2:R
+Invalidated 0 cache entries matching pattern: daily:.*
+Invalidating cache keys matching pattern: daily:.*
+Invalidated 2 cache entries matching pattern: sheet:.*Appointments.*
+Invalidating cache keys matching pattern: sheet:.*Appointments.*
+Invalidating all appointment-related cache entries
+Attempting to delete appointment 67fffc9cec6d472c417d3ab9
+Found existing appointment 67fffc9cec6d472c417d3ab9 in database
+Successfully read sheet range: Appointments!A2:R - Retrieved 355 rows
+Found Appointments sheet with ID 476940410, deleting row at index 354
+Reading sheet range: Appointments!A2:R
+Successfully read sheet range: Active_Appointments!A2:R - Retrieved 11 rows
+Reading sheet range: Appointments!A2:R
+Successfully read sheet range: Active_Appointments!A2:R - Retrieved 11 rows
+Reading sheet range: Appointments!A2:R
+Successfully read sheet range: Active_Appointments!A2:R - Retrieved 11 rows
+Reading sheet range: Appointments!A2:R
+Successfully read sheet range: Active_Appointments!A2:R - Retrieved 11 rows
+Reading sheet range: Appointments!A2:R
+Successfully read sheet range: Active_Appointments!A2:R - Retrieved 11 rows
+Reading sheet range: Appointments!A2:R
+Invalidating cache key: sheet:Appointments!A:A
+Starting deletion process for appointment 67fffc9cec6d472c417d3abb
+Invalidating cache key: sheet:Active_Appointments!A2:R
+Invalidated 0 cache entries matching pattern: daily:.*
+Invalidating cache keys matching pattern: daily:.*
+Invalidated 2 cache entries matching pattern: sheet:.*Appointments.*
+Invalidating cache keys matching pattern: sheet:.*Appointments.*
+Invalidating all appointment-related cache entries
+Attempting to delete appointment 67fffc9cec6d472c417d3abb
+Found existing appointment 67fffc9cec6d472c417d3abb in database
+Successfully read sheet range: Active_Appointments!A2:R - Retrieved 11 rows
+Retrieving sheet metadata for spreadsheet ID: 1Z24JrO9bzn9wDDt8ii9ysuNZTVpDbZtHIMhivzEeu8Q
+Found appointment 67fffc9dec6d472c417d3abe at row index 352 (Row 354 in sheet)
+Successfully read sheet range: Appointments!A2:R - Retrieved 355 rows
+Reading sheet range: Active_Appointments!A2:R
+Processing appointment deletion: 67fffc9eec6d472c417d3acb
+Successfully read sheet range: Appointments!A2:R - Retrieved 355 rows
+Reading sheet range: Active_Appointments!A2:R
+Processing appointment deletion: 67fffc9cec6d472c417d3abb
+Found existing appointment 67fffc9cec6d472c417d3abb in database
+Successfully read sheet range: Appointments!A2:R - Retrieved 355 rows
+Reading sheet range: Active_Appointments!A2:R
+Processing appointment deletion: 67fffc9cec6d472c417d3ab9
+Found existing appointment 67fffc9cec6d472c417d3ab9 in database
+Successfully read sheet range: Appointments!A2:R - Retrieved 355 rows
+Reading sheet range: Active_Appointments!A2:R
+Processing appointment deletion: 67fffc9eec6d472c417d3ac4
+Successfully read sheet range: Appointments!A2:R - Retrieved 355 rows
+Reading sheet range: Active_Appointments!A2:R
+Processing appointment deletion: 67fffc9fec6d472c417d3ad0
+Found existing appointment 67fffc9fec6d472c417d3ad0 in database
+Successfully read sheet range: Appointments!A2:R - Retrieved 355 rows
+Reading sheet range: Active_Appointments!A2:R
+Processing appointment deletion: 67fffc9fec6d472c417d3ad4
+Found existing appointment 67fffc9fec6d472c417d3ad4 in database
+Successfully read sheet range: Appointments!A2:R - Retrieved 355 rows
+Reading sheet range: Appointments!A2:R
+Invalidating cache key: sheet:Appointments!A:A
+Starting deletion process for appointment 67fffc9dec6d472c417d3abe
+Invalidating cache key: sheet:Active_Appointments!A2:R
+Invalidated 0 cache entries matching pattern: daily:.*
+Invalidating cache keys matching pattern: daily:.*
+Invalidated 3 cache entries matching pattern: sheet:.*Appointments.*
+Invalidating cache keys matching pattern: sheet:.*Appointments.*
+Invalidating all appointment-related cache entries
+Attempting to delete appointment 67fffc9dec6d472c417d3abe
+Found existing appointment 67fffc9dec6d472c417d3abe in database
+Processing appointment deletion: 67fffc9dec6d472c417d3abe
+Found existing appointment 67fffc9dec6d472c417d3abe in database
+Successfully read sheet range: Appointments!A2:R - Retrieved 355 rows
+Reading sheet range: Appointments!A2:R
+Successfully read sheet range: Active_Appointments!A2:R - Retrieved 11 rows
+Reading sheet range: Appointments!A2:R
+Successfully read sheet range: Active_Appointments!A2:R - Retrieved 11 rows
+Reading sheet range: Appointments!A2:R
+Successfully read sheet range: Active_Appointments!A2:R - Retrieved 11 rows
+Reading sheet range: Appointments!A2:R
+Successfully read sheet range: Active_Appointments!A2:R - Retrieved 11 rows
+Reading sheet range: Appointments!A2:R
+Successfully read sheet range: Active_Appointments!A2:R - Retrieved 11 rows
+Reading sheet range: Appointments!A2:R
+Successfully read sheet range: Active_Appointments!A2:R - Retrieved 11 rows
+Reading sheet range: Appointments!A2:R
+Successfully read sheet range: Active_Appointments!A2:R - Retrieved 11 rows
+Reading sheet range: Active_Appointments!A2:R
+Status field: Confirmed
+EndDateIso type: string, value: 2025-04-24T17:50:00.0000000Z
+StartDateIso type: string, value: 2025-04-24T17:00:00.0000000Z
+Appointment fields: Id, ClientName, ClientEmail, ClientPhone, ClientDateOfBirth, ClientId, Status, StartDate, EndDate, Duration, ServiceName, ServiceId, LocationName, LocationId, Price, PractitionerName, PractitionerEmail, IntakeId, DateCreated, CreatedBy, BookedByClient, StartDateIso, EndDateIso, StartDateLocal, EndDateLocal, StartDateLocalFormatted, PractitionerId, InvoiceId, InvoiceNumber, ClientNote, PractitionerNote, TelehealthInfo, AttendanceConfirmationResponse, ReminderType, CustomFields, SessionStart, SessionEnd, ExternalClientId, ExternalPractitionerId, ExternalServiceId, LastModified, AdditionalClients, PlaceOfService, FullCancellationReason, CancellationReasonNote, CancellationDate
+}
+  "ExternalPracticeId": null
+  "PracticeId": "64a319db9173cb32157ea065",
+  "ExternalClientId": "9582269",
+  "ClientId": 667,
+  "ActionPerformedByClient": false,
+  },
+    "CancellationDate": ""
+    "CancellationReasonNote": null,
+    "FullCancellationReason": "",
+    "PlaceOfService": null,
+    "AdditionalClients": [],
+    "LastModified": 1744830306888,
+    "ExternalServiceId": null,
+    "ExternalPractitionerId": null,
+    "ExternalClientId": "9582269",
+    "SessionEnd": null,
+    "SessionStart": null,
+    "CustomFields": [],
+    "ReminderType": "Email",
+    "AttendanceConfirmationResponse": "None",
+    "TelehealthInfo": null,
+    "PractitionerNote": null,
+    "ClientNote": null,
+    "InvoiceNumber": null,
+    "InvoiceId": null,
+    "PractitionerId": "64a319db9173cb32157ea065",
+    "StartDateLocalFormatted": "4/24/2025 at 01:00:00 PM",
+    "EndDateLocal": "2025-04-24T13:50:00.0000000",
+    "StartDateLocal": "2025-04-24T13:00:00.0000000",
+    "EndDateIso": "2025-04-24T17:50:00.0000000Z",
+    "StartDateIso": "2025-04-24T17:00:00.0000000Z",
+    "BookedByClient": false,
+    "CreatedBy": "Tyler Seabolt",
+    "DateCreated": 1744829598770,
+    "IntakeId": null,
+    "PractitionerEmail": "tyler@bridgefamilytherapy.com",
+    "PractitionerName": "Tyler Seabolt",
+    "Price": 0,
+    "LocationId": "1",
+    "LocationName": "2340 Prince Ave, Suite C",
+    "ServiceId": "971d857c-2d93-4b5e-92fb-8d7e442e2cac",
+    "ServiceName": "Individual Therapy (In-Person)",
+    "Duration": 50,
+    "EndDate": 1745517000000,
+    "StartDate": 1745514000000,
+    "Status": "Confirmed",
+    "ClientId": 667,
+    "ClientDateOfBirth": "2017-10-25",
+    "ClientPhone": "[REDACTED]",
+    "ClientEmail": "[REDACTED]",
+    "ClientName": "Test Seabolt",
+    "Id": "67fffc9eec6d472c417d3acb",
+  "Appointment": {
+  "EventType": "AppointmentDeleted",
+WEBHOOK PAYLOAD STRUCTURE for AppointmentDeleted: {
+Successfully appended rows to range: Webhook_Log!A:H
+Reading sheet range: Active_Appointments!A2:R
+Status field: Confirmed
+EndDateIso type: string, value: 2025-04-21T17:50:00.0000000Z
+StartDateIso type: string, value: 2025-04-21T17:00:00.0000000Z
+Appointment fields: Id, ClientName, ClientEmail, ClientPhone, ClientDateOfBirth, ClientId, Status, StartDate, EndDate, Duration, ServiceName, ServiceId, LocationName, LocationId, Price, PractitionerName, PractitionerEmail, IntakeId, DateCreated, CreatedBy, BookedByClient, StartDateIso, EndDateIso, StartDateLocal, EndDateLocal, StartDateLocalFormatted, PractitionerId, InvoiceId, InvoiceNumber, ClientNote, PractitionerNote, TelehealthInfo, AttendanceConfirmationResponse, ReminderType, CustomFields, SessionStart, SessionEnd, ExternalClientId, ExternalPractitionerId, ExternalServiceId, LastModified, AdditionalClients, PlaceOfService, FullCancellationReason, CancellationReasonNote, CancellationDate
+}
+  "ExternalPracticeId": null
+  "PracticeId": "64a319db9173cb32157ea065",
+  "ExternalClientId": "9582269",
+  "ClientId": 667,
+  "ActionPerformedByClient": false,
+  },
+    "CancellationDate": ""
+    "CancellationReasonNote": null,
+    "FullCancellationReason": "",
+    "PlaceOfService": null,
+    "AdditionalClients": [],
+    "LastModified": 1744830304898,
+    "ExternalServiceId": null,
+    "ExternalPractitionerId": null,
+    "ExternalClientId": "9582269",
+    "SessionEnd": null,
+    "SessionStart": null,
+    "CustomFields": [],
+    "ReminderType": "Email",
+    "AttendanceConfirmationResponse": "None",
+    "TelehealthInfo": null,
+    "PractitionerNote": null,
+    "ClientNote": null,
+    "InvoiceNumber": null,
+    "InvoiceId": null,
+    "PractitionerId": "64a319db9173cb32157ea065",
+    "StartDateLocalFormatted": "4/21/2025 at 01:00:00 PM",
+    "EndDateLocal": "2025-04-21T13:50:00.0000000",
+    "StartDateLocal": "2025-04-21T13:00:00.0000000",
+    "EndDateIso": "2025-04-21T17:50:00.0000000Z",
+    "StartDateIso": "2025-04-21T17:00:00.0000000Z",
+    "BookedByClient": false,
+    "CreatedBy": "Tyler Seabolt",
+    "DateCreated": 1744829596951,
+    "IntakeId": null,
+    "PractitionerEmail": "tyler@bridgefamilytherapy.com",
+    "PractitionerName": "Tyler Seabolt",
+    "Price": 0,
+    "LocationId": "1",
+    "LocationName": "2340 Prince Ave, Suite C",
+    "ServiceId": "971d857c-2d93-4b5e-92fb-8d7e442e2cac",
+    "ServiceName": "Individual Therapy (In-Person)",
+    "Duration": 50,
+    "EndDate": 1745257800000,
+    "StartDate": 1745254800000,
+    "Status": "Confirmed",
+    "ClientId": 667,
+    "ClientDateOfBirth": "2017-10-25",
+    "ClientPhone": "[REDACTED]",
+    "ClientEmail": "[REDACTED]",
+    "ClientName": "Test Seabolt",
+    "Id": "67fffc9cec6d472c417d3abb",
+  "Appointment": {
+  "EventType": "AppointmentDeleted",
+WEBHOOK PAYLOAD STRUCTURE for AppointmentDeleted: {
+Successfully appended rows to range: Webhook_Log!A:H
+Reading sheet range: Active_Appointments!A2:R
+Status field: Confirmed
+EndDateIso type: string, value: 2025-04-23T17:50:00.0000000Z
+StartDateIso type: string, value: 2025-04-23T17:00:00.0000000Z
+Appointment fields: Id, ClientName, ClientEmail, ClientPhone, ClientDateOfBirth, ClientId, Status, StartDate, EndDate, Duration, ServiceName, ServiceId, LocationName, LocationId, Price, PractitionerName, PractitionerEmail, IntakeId, DateCreated, CreatedBy, BookedByClient, StartDateIso, EndDateIso, StartDateLocal, EndDateLocal, StartDateLocalFormatted, PractitionerId, InvoiceId, InvoiceNumber, ClientNote, PractitionerNote, TelehealthInfo, AttendanceConfirmationResponse, ReminderType, CustomFields, SessionStart, SessionEnd, ExternalClientId, ExternalPractitionerId, ExternalServiceId, LastModified, AdditionalClients, PlaceOfService, FullCancellationReason, CancellationReasonNote, CancellationDate
+}
+  "ExternalPracticeId": null
+  "PracticeId": "64a319db9173cb32157ea065",
+  "ExternalClientId": "9582269",
+  "ClientId": 667,
+  "ActionPerformedByClient": false,
+  },
+    "CancellationDate": ""
+    "CancellationReasonNote": null,
+    "FullCancellationReason": "",
+    "PlaceOfService": null,
+    "AdditionalClients": [],
+    "LastModified": 1744830305972,
+    "ExternalServiceId": null,
+    "ExternalPractitionerId": null,
+    "ExternalClientId": "9582269",
+    "SessionEnd": null,
+    "SessionStart": null,
+    "CustomFields": [],
+    "ReminderType": "Email",
+    "AttendanceConfirmationResponse": "None",
+    "TelehealthInfo": null,
+    "PractitionerNote": null,
+    "ClientNote": null,
+    "InvoiceNumber": null,
+    "InvoiceId": null,
+    "PractitionerId": "64a319db9173cb32157ea065",
+    "StartDateLocalFormatted": "4/23/2025 at 01:00:00 PM",
+    "EndDateLocal": "2025-04-23T13:50:00.0000000",
+    "StartDateLocal": "2025-04-23T13:00:00.0000000",
+    "EndDateIso": "2025-04-23T17:50:00.0000000Z",
+    "StartDateIso": "2025-04-23T17:00:00.0000000Z",
+    "BookedByClient": false,
+    "CreatedBy": "Tyler Seabolt",
+    "DateCreated": 1744829598169,
+    "IntakeId": null,
+    "PractitionerEmail": "tyler@bridgefamilytherapy.com",
+    "PractitionerName": "Tyler Seabolt",
+    "Price": 0,
+    "LocationId": "1",
+    "LocationName": "2340 Prince Ave, Suite C",
+    "ServiceId": "971d857c-2d93-4b5e-92fb-8d7e442e2cac",
+    "ServiceName": "Individual Therapy (In-Person)",
+    "Duration": 50,
+    "EndDate": 1745430600000,
+    "StartDate": 1745427600000,
+    "Status": "Confirmed",
+    "ClientId": 667,
+    "ClientDateOfBirth": "2017-10-25",
+    "ClientPhone": "[REDACTED]",
+    "ClientEmail": "[REDACTED]",
+    "ClientName": "Test Seabolt",
+    "Id": "67fffc9eec6d472c417d3ac4",
+  "Appointment": {
+  "EventType": "AppointmentDeleted",
+WEBHOOK PAYLOAD STRUCTURE for AppointmentDeleted: {
+Successfully appended rows to range: Webhook_Log!A:H
+Reading sheet range: Active_Appointments!A2:R
+Status field: Confirmed
+EndDateIso type: string, value: 2025-04-26T17:50:00.0000000Z
+StartDateIso type: string, value: 2025-04-26T17:00:00.0000000Z
+Appointment fields: Id, ClientName, ClientEmail, ClientPhone, ClientDateOfBirth, ClientId, Status, StartDate, EndDate, Duration, ServiceName, ServiceId, LocationName, LocationId, Price, PractitionerName, PractitionerEmail, IntakeId, DateCreated, CreatedBy, BookedByClient, StartDateIso, EndDateIso, StartDateLocal, EndDateLocal, StartDateLocalFormatted, PractitionerId, InvoiceId, InvoiceNumber, ClientNote, PractitionerNote, TelehealthInfo, AttendanceConfirmationResponse, ReminderType, CustomFields, SessionStart, SessionEnd, ExternalClientId, ExternalPractitionerId, ExternalServiceId, LastModified, AdditionalClients, PlaceOfService, FullCancellationReason, CancellationReasonNote, CancellationDate
+}
+  "ExternalPracticeId": null
+  "PracticeId": "64a319db9173cb32157ea065",
+  "ExternalClientId": "9582269",
+  "ClientId": 667,
+  "ActionPerformedByClient": false,
+  },
+    "CancellationDate": ""
+    "CancellationReasonNote": null,
+    "FullCancellationReason": "",
+    "PlaceOfService": null,
+    "AdditionalClients": [],
+    "LastModified": 1744830308220,
+    "ExternalServiceId": null,
+    "ExternalPractitionerId": null,
+    "ExternalClientId": "9582269",
+    "SessionEnd": null,
+    "SessionStart": null,
+    "CustomFields": [],
+    "ReminderType": "Email",
+    "AttendanceConfirmationResponse": "None",
+    "TelehealthInfo": null,
+    "PractitionerNote": null,
+    "ClientNote": null,
+    "InvoiceNumber": null,
+    "InvoiceId": null,
+    "PractitionerId": "64a319db9173cb32157ea065",
+    "StartDateLocalFormatted": "4/26/2025 at 01:00:00 PM",
+    "EndDateLocal": "2025-04-26T13:50:00.0000000",
+    "StartDateLocal": "2025-04-26T13:00:00.0000000",
+    "EndDateIso": "2025-04-26T17:50:00.0000000Z",
+    "StartDateIso": "2025-04-26T17:00:00.0000000Z",
+    "BookedByClient": false,
+    "CreatedBy": "Tyler Seabolt",
+    "DateCreated": 1744829599875,
+    "IntakeId": null,
+    "PractitionerEmail": "tyler@bridgefamilytherapy.com",
+    "PractitionerName": "Tyler Seabolt",
+    "Price": 0,
+    "LocationId": "1",
+    "LocationName": "2340 Prince Ave, Suite C",
+    "ServiceId": "971d857c-2d93-4b5e-92fb-8d7e442e2cac",
+    "ServiceName": "Individual Therapy (In-Person)",
+    "Duration": 50,
+    "EndDate": 1745689800000,
+    "StartDate": 1745686800000,
+    "Status": "Confirmed",
+    "ClientId": 667,
+    "ClientDateOfBirth": "2017-10-25",
+    "ClientPhone": "[REDACTED]",
+    "ClientEmail": "[REDACTED]",
+    "ClientName": "Test Seabolt",
+    "Id": "67fffc9fec6d472c417d3ad4",
+  "Appointment": {
+  "EventType": "AppointmentDeleted",
+WEBHOOK PAYLOAD STRUCTURE for AppointmentDeleted: {
+Successfully appended rows to range: Webhook_Log!A:H
+Reading sheet range: Active_Appointments!A2:R
+Status field: Confirmed
+EndDateIso type: string, value: 2025-04-22T17:50:00.0000000Z
+StartDateIso type: string, value: 2025-04-22T17:00:00.0000000Z
+Appointment fields: Id, ClientName, ClientEmail, ClientPhone, ClientDateOfBirth, ClientId, Status, StartDate, EndDate, Duration, ServiceName, ServiceId, LocationName, LocationId, Price, PractitionerName, PractitionerEmail, IntakeId, DateCreated, CreatedBy, BookedByClient, StartDateIso, EndDateIso, StartDateLocal, EndDateLocal, StartDateLocalFormatted, PractitionerId, InvoiceId, InvoiceNumber, ClientNote, PractitionerNote, TelehealthInfo, AttendanceConfirmationResponse, ReminderType, CustomFields, SessionStart, SessionEnd, ExternalClientId, ExternalPractitionerId, ExternalServiceId, LastModified, AdditionalClients, PlaceOfService, FullCancellationReason, CancellationReasonNote, CancellationDate
+}
+  "ExternalPracticeId": null
+  "PracticeId": "64a319db9173cb32157ea065",
+  "ExternalClientId": "9582269",
+  "ClientId": 667,
+  "ActionPerformedByClient": false,
+  },
+    "CancellationDate": ""
+    "CancellationReasonNote": null,
+    "FullCancellationReason": "",
+    "PlaceOfService": null,
+    "AdditionalClients": [],
+    "LastModified": 1744830305385,
+    "ExternalServiceId": null,
+    "ExternalPractitionerId": null,
+    "ExternalClientId": "9582269",
+    "SessionEnd": null,
+    "SessionStart": null,
+    "CustomFields": [],
+    "ReminderType": "Email",
+    "AttendanceConfirmationResponse": "None",
+    "TelehealthInfo": null,
+    "PractitionerNote": null,
+    "ClientNote": null,
+    "InvoiceNumber": null,
+    "InvoiceId": null,
+    "PractitionerId": "64a319db9173cb32157ea065",
+    "StartDateLocalFormatted": "4/22/2025 at 01:00:00 PM",
+    "EndDateLocal": "2025-04-22T13:50:00.0000000",
+    "StartDateLocal": "2025-04-22T13:00:00.0000000",
+    "EndDateIso": "2025-04-22T17:50:00.0000000Z",
+    "StartDateIso": "2025-04-22T17:00:00.0000000Z",
+    "BookedByClient": false,
+    "CreatedBy": "Tyler Seabolt",
+    "DateCreated": 1744829597545,
+    "IntakeId": null,
+    "PractitionerEmail": "tyler@bridgefamilytherapy.com",
+    "PractitionerName": "Tyler Seabolt",
+    "Price": 0,
+    "LocationId": "1",
+    "LocationName": "2340 Prince Ave, Suite C",
+    "ServiceId": "971d857c-2d93-4b5e-92fb-8d7e442e2cac",
+    "ServiceName": "Individual Therapy (In-Person)",
+    "Duration": 50,
+    "EndDate": 1745344200000,
+    "StartDate": 1745341200000,
+    "Status": "Confirmed",
+    "ClientId": 667,
+    "ClientDateOfBirth": "2017-10-25",
+    "ClientPhone": "[REDACTED]",
+    "ClientEmail": "[REDACTED]",
+    "ClientName": "Test Seabolt",
+    "Id": "67fffc9dec6d472c417d3abe",
+  "Appointment": {
+  "EventType": "AppointmentDeleted",
+WEBHOOK PAYLOAD STRUCTURE for AppointmentDeleted: {
+Successfully appended rows to range: Webhook_Log!A:H
+Reading sheet range: Active_Appointments!A2:R
+Status field: Confirmed
+EndDateIso type: string, value: 2025-04-25T17:50:00.0000000Z
+StartDateIso type: string, value: 2025-04-25T17:00:00.0000000Z
+Appointment fields: Id, ClientName, ClientEmail, ClientPhone, ClientDateOfBirth, ClientId, Status, StartDate, EndDate, Duration, ServiceName, ServiceId, LocationName, LocationId, Price, PractitionerName, PractitionerEmail, IntakeId, DateCreated, CreatedBy, BookedByClient, StartDateIso, EndDateIso, StartDateLocal, EndDateLocal, StartDateLocalFormatted, PractitionerId, InvoiceId, InvoiceNumber, ClientNote, PractitionerNote, TelehealthInfo, AttendanceConfirmationResponse, ReminderType, CustomFields, SessionStart, SessionEnd, ExternalClientId, ExternalPractitionerId, ExternalServiceId, LastModified, AdditionalClients, PlaceOfService, FullCancellationReason, CancellationReasonNote, CancellationDate
+}
+  "ExternalPracticeId": null
+  "PracticeId": "64a319db9173cb32157ea065",
+  "ExternalClientId": "9582269",
+  "ClientId": 667,
+  "ActionPerformedByClient": false,
+  },
+    "CancellationDate": ""
+    "CancellationReasonNote": null,
+    "FullCancellationReason": "",
+    "PlaceOfService": null,
+    "AdditionalClients": [],
+    "LastModified": 1744830307569,
+    "ExternalServiceId": null,
+    "ExternalPractitionerId": null,
+    "ExternalClientId": "9582269",
+    "SessionEnd": null,
+    "SessionStart": null,
+    "CustomFields": [],
+    "ReminderType": "Email",
+    "AttendanceConfirmationResponse": "None",
+    "TelehealthInfo": null,
+    "PractitionerNote": null,
+    "ClientNote": null,
+    "InvoiceNumber": null,
+    "InvoiceId": null,
+    "PractitionerId": "64a319db9173cb32157ea065",
+    "StartDateLocalFormatted": "4/25/2025 at 01:00:00 PM",
+    "EndDateLocal": "2025-04-25T13:50:00.0000000",
+    "StartDateLocal": "2025-04-25T13:00:00.0000000",
+    "EndDateIso": "2025-04-25T17:50:00.0000000Z",
+    "StartDateIso": "2025-04-25T17:00:00.0000000Z",
+    "BookedByClient": false,
+    "CreatedBy": "Tyler Seabolt",
+    "DateCreated": 1744829599381,
+    "IntakeId": null,
+    "PractitionerEmail": "tyler@bridgefamilytherapy.com",
+    "PractitionerName": "Tyler Seabolt",
+    "Price": 0,
+    "LocationId": "1",
+    "LocationName": "2340 Prince Ave, Suite C",
+    "ServiceId": "971d857c-2d93-4b5e-92fb-8d7e442e2cac",
+    "ServiceName": "Individual Therapy (In-Person)",
+    "Duration": 50,
+    "EndDate": 1745603400000,
+    "StartDate": 1745600400000,
+    "Status": "Confirmed",
+    "ClientId": 667,
+    "ClientDateOfBirth": "2017-10-25",
+    "ClientPhone": "[REDACTED]",
+    "ClientEmail": "[REDACTED]",
+    "ClientName": "Test Seabolt",
+    "Id": "67fffc9fec6d472c417d3ad0",
+  "Appointment": {
+  "EventType": "AppointmentDeleted",
+WEBHOOK PAYLOAD STRUCTURE for AppointmentDeleted: {
+Successfully appended rows to range: Webhook_Log!A:H
+Reading sheet range: Active_Appointments!A2:R
+Status field: Confirmed
+EndDateIso type: string, value: 2025-04-20T17:50:00.0000000Z
+StartDateIso type: string, value: 2025-04-20T17:00:00.0000000Z
+Appointment fields: Id, ClientName, ClientEmail, ClientPhone, ClientDateOfBirth, ClientId, Status, StartDate, EndDate, Duration, ServiceName, ServiceId, LocationName, LocationId, Price, PractitionerName, PractitionerEmail, IntakeId, DateCreated, CreatedBy, BookedByClient, StartDateIso, EndDateIso, StartDateLocal, EndDateLocal, StartDateLocalFormatted, PractitionerId, InvoiceId, InvoiceNumber, ClientNote, PractitionerNote, TelehealthInfo, AttendanceConfirmationResponse, ReminderType, CustomFields, SessionStart, SessionEnd, ExternalClientId, ExternalPractitionerId, ExternalServiceId, LastModified, AdditionalClients, PlaceOfService, FullCancellationReason, CancellationReasonNote, CancellationDate
+}
+  "ExternalPracticeId": null
+  "PracticeId": "64a319db9173cb32157ea065",
+  "ExternalClientId": "9582269",
+  "ClientId": 667,
+  "ActionPerformedByClient": false,
+  },
+    "CancellationDate": ""
+    "CancellationReasonNote": null,
+    "FullCancellationReason": "",
+    "PlaceOfService": null,
+    "AdditionalClients": [],
+    "LastModified": 1744830304360,
+    "ExternalServiceId": null,
+    "ExternalPractitionerId": null,
+    "ExternalClientId": "9582269",
+    "SessionEnd": null,
+    "SessionStart": null,
+    "CustomFields": [],
+    "ReminderType": "Email",
+    "AttendanceConfirmationResponse": "None",
+    "TelehealthInfo": null,
+    "PractitionerNote": null,
+    "ClientNote": null,
+    "InvoiceNumber": null,
+    "InvoiceId": null,
+    "PractitionerId": "64a319db9173cb32157ea065",
+    "StartDateLocalFormatted": "4/20/2025 at 01:00:00 PM",
+    "EndDateLocal": "2025-04-20T13:50:00.0000000",
+    "StartDateLocal": "2025-04-20T13:00:00.0000000",
+    "EndDateIso": "2025-04-20T17:50:00.0000000Z",
+    "StartDateIso": "2025-04-20T17:00:00.0000000Z",
+    "BookedByClient": false,
+    "CreatedBy": "Tyler Seabolt",
+    "DateCreated": 1744829596387,
+    "IntakeId": null,
+    "PractitionerEmail": "tyler@bridgefamilytherapy.com",
+    "PractitionerName": "Tyler Seabolt",
+    "Price": 0,
+    "LocationId": "1",
+    "LocationName": "2340 Prince Ave, Suite C",
+    "ServiceId": "971d857c-2d93-4b5e-92fb-8d7e442e2cac",
+    "ServiceName": "Individual Therapy (In-Person)",
+    "Duration": 50,
+    "EndDate": 1745171400000,
+    "StartDate": 1745168400000,
+    "Status": "Confirmed",
+    "ClientId": 667,
+    "ClientDateOfBirth": "2017-10-25",
+    "ClientPhone": "[REDACTED]",
+    "ClientEmail": "[REDACTED]",
+    "ClientName": "Test Seabolt",
+    "Id": "67fffc9cec6d472c417d3ab9",
+  "Appointment": {
+  "EventType": "AppointmentDeleted",
+WEBHOOK PAYLOAD STRUCTURE for AppointmentDeleted: {
+Successfully appended rows to range: Webhook_Log!A:H
+Appending rows to range: Webhook_Log!A:H
+Processing AppointmentDeleted event for appointment 67fffc9eec6d472c417d3ac4
+Successfully read sheet range: Webhook_Log!A:E - Retrieved 532 rows
+Appending rows to range: Webhook_Log!A:H
+Processing AppointmentDeleted event for appointment 67fffc9fec6d472c417d3ad4
+Successfully read sheet range: Webhook_Log!A:E - Retrieved 532 rows
+Appending rows to range: Webhook_Log!A:H
+Processing AppointmentDeleted event for appointment 67fffc9fec6d472c417d3ad0
+Successfully read sheet range: Webhook_Log!A:E - Retrieved 532 rows
+Appending rows to range: Webhook_Log!A:H
+Processing AppointmentDeleted event for appointment 67fffc9dec6d472c417d3abe
+Successfully read sheet range: Webhook_Log!A:E - Retrieved 532 rows
+Appending rows to range: Webhook_Log!A:H
+Processing AppointmentDeleted event for appointment 67fffc9eec6d472c417d3acb
+Successfully read sheet range: Webhook_Log!A:E - Retrieved 532 rows
+Appending rows to range: Webhook_Log!A:H
+Processing AppointmentDeleted event for appointment 67fffc9cec6d472c417d3abb
+Successfully read sheet range: Webhook_Log!A:E - Retrieved 532 rows
+Appending rows to range: Webhook_Log!A:H
+Processing AppointmentDeleted event for appointment 67fffc9cec6d472c417d3ab9
+Successfully read sheet range: Webhook_Log!A:E - Retrieved 532 rows
+Reading sheet range: Webhook_Log!A:E
+}
+  timestamp: '2025-04-16T19:05:14.427Z'
+  appointmentId: '67fffc9cec6d472c417d3abb',
+  clientId: 667,
+  type: 'AppointmentDeleted',
+Received webhook: {
+[2025-04-16T19:05:14.427Z] Starting webhook processing
+Missing webhook signature in production environment
+}
+  timestamp: '2025-04-16T19:05:14.426Z'
+  hasSignature: false,
+  clientId: 667,
+  type: 'AppointmentDeleted',
+Webhook received: {
+Reading sheet range: Webhook_Log!A:E
+}
+  timestamp: '2025-04-16T19:05:14.419Z'
+  appointmentId: '67fffc9eec6d472c417d3ac4',
+  clientId: 667,
+  type: 'AppointmentDeleted',
+Received webhook: {
+Missing webhook signature in production environment
+[2025-04-16T19:05:14.418Z] Starting webhook processing
+}
+  timestamp: '2025-04-16T19:05:14.418Z'
+  hasSignature: false,
+  clientId: 667,
+  type: 'AppointmentDeleted',
+Webhook received: {
+Reading sheet range: Webhook_Log!A:E
+}
+  timestamp: '2025-04-16T19:05:14.415Z'
+  appointmentId: '67fffc9fec6d472c417d3ad4',
+  clientId: 667,
+  type: 'AppointmentDeleted',
+Received webhook: {
+Missing webhook signature in production environment
+[2025-04-16T19:05:14.415Z] Starting webhook processing
+}
+  timestamp: '2025-04-16T19:05:14.415Z'
+  hasSignature: false,
+  clientId: 667,
+  type: 'AppointmentDeleted',
+Webhook received: {
+Reading sheet range: Webhook_Log!A:E
+}
+  timestamp: '2025-04-16T19:05:14.413Z'
+  appointmentId: '67fffc9dec6d472c417d3abe',
+  clientId: 667,
+  type: 'AppointmentDeleted',
+Received webhook: {
+[2025-04-16T19:05:14.413Z] Starting webhook processing
+Missing webhook signature in production environment
+}
+  timestamp: '2025-04-16T19:05:14.412Z'
+  hasSignature: false,
+  clientId: 667,
+  type: 'AppointmentDeleted',
+Webhook received: {
+Reading sheet range: Webhook_Log!A:E
+}
+  timestamp: '2025-04-16T19:05:14.410Z'
+  appointmentId: '67fffc9cec6d472c417d3ab9',
+  clientId: 667,
+  type: 'AppointmentDeleted',
+Received webhook: {
+[2025-04-16T19:05:14.410Z] Starting webhook processing
+}
+  timestamp: '2025-04-16T19:05:14.410Z'
+  hasSignature: false,
+  clientId: 667,
+Missing webhook signature in production environment
+  type: 'AppointmentDeleted',
+Webhook received: {
+Reading sheet range: Webhook_Log!A:E
+}
+  timestamp: '2025-04-16T19:05:14.408Z'
+  appointmentId: '67fffc9fec6d472c417d3ad0',
+  clientId: 667,
+  type: 'AppointmentDeleted',
+Received webhook: {
+[2025-04-16T19:05:14.408Z] Starting webhook processing
+}
+  timestamp: '2025-04-16T19:05:14.407Z'
+  hasSignature: false,
+  clientId: 667,
+  type: 'AppointmentDeleted',
+Webhook received: {
+Missing webhook signature in production environment
+Reading sheet range: Webhook_Log!A:E
+}
+  timestamp: '2025-04-16T19:05:14.405Z'
+  appointmentId: '67fffc9eec6d472c417d3acb',
+  clientId: 667,
+  type: 'AppointmentDeleted',
+Received webhook: {
+[2025-04-16T19:05:14.405Z] Starting webhook processing
+}
+  timestamp: '2025-04-16T19:05:14.404Z'
+  hasSignature: false,
+  clientId: 667,
+  type: 'AppointmentDeleted',
+Missing webhook signature in production environment
+Webhook received: {

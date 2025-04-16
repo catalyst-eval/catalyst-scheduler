@@ -466,6 +466,40 @@ private async handleNewAppointment(
   }
 
   /**
+ * Extract recurring series ID from appointment
+ * Used to identify appointments belonging to the same recurring series
+ */
+private getRecurringSeriesId(appointment: IntakeQAppointment): string | null {
+  // Check for direct recurring pattern
+  if (appointment.RecurrencePattern) {
+    // Hash the basic details to create a series ID
+    const seriesDetails = {
+      clientId: appointment.ClientId,
+      practitionerId: appointment.PractitionerId || '',
+      serviceId: appointment.ServiceId || '',
+      recurrencePattern: appointment.RecurrencePattern
+    };
+    
+    // Create deterministic hash
+    const crypto = require('crypto');
+    return crypto.createHash('md5')
+      .update(JSON.stringify(seriesDetails))
+      .digest('hex');
+  }
+  
+  // If no direct pattern but recurring indicators in notes/tags
+  if (appointment.Notes?.includes('recurring') || 
+      appointment.Tags?.includes('recurring') ||
+      appointment.Tags?.includes('series')) {
+    
+    // Use client-provider-service combo as series identifier
+    return `series_${appointment.ClientId}_${appointment.PractitionerId || 'unknown'}_${appointment.ServiceId || 'unknown'}`;
+  }
+  
+  return null;
+}
+
+/**
  * Handle appointment cancellation with improved reliability
  * Includes multiple fallback strategies and enhanced error handling
  */
@@ -474,6 +508,12 @@ private async handleAppointmentCancellation(
 ): Promise<WebhookResponse> {
   try {
     console.log('Processing appointment cancellation:', appointment.Id);
+    
+    // Check if this is part of a recurring series
+    const seriesId = this.getRecurringSeriesId(appointment);
+    if (seriesId) {
+      console.log(`Appointment ${appointment.Id} is part of recurring series ${seriesId}`);
+    }
     
     // Check if appointment exists
     let existingAppointment;
@@ -885,12 +925,11 @@ private async logDeletionEvent(appointment: IntakeQAppointment): Promise<void> {
 
 /**
  * Process recurring appointment series
- * Method to handle recurring appointments consistently
+ * Enhanced with comprehensive recurring series handling
  */
 async processRecurringAppointment(
   payload: IntakeQWebhookPayload
 ): Promise<WebhookResponse> {
-  // Keep the implementation the same, just change from private to public
   try {
     console.log('Processing recurring appointment series:', payload.Appointment?.Id);
     
@@ -913,7 +952,11 @@ async processRecurringAppointment(
     const occurrences = recurrencePattern?.occurrences || 0;
     const endDate = recurrencePattern?.endDate || '';
     
-    // Log the recurring nature of the appointment
+    // Generate a series ID for consistent tracking
+    const seriesId = this.getRecurringSeriesId(appointment);
+    console.log(`Generated recurring series ID: ${seriesId}`);
+    
+    // Log the recurring nature of the appointment with series ID
     await this.sheetsService.addAuditLog({
       timestamp: new Date().toISOString(),
       eventType: 'WEBHOOK_RECEIVED' as AuditEventType,
@@ -922,16 +965,85 @@ async processRecurringAppointment(
       systemNotes: JSON.stringify({
         appointmentId: appointment.Id,
         clientId: appointment.ClientId,
+        seriesId,
         frequency,
         occurrences,
         endDate
       })
     });
     
+    // Check if this is a cancellation event
+    if (appointment.Status?.toLowerCase().includes('cancel')) {
+      console.log(`Recurring appointment ${appointment.Id} has cancelled status, checking series handling`);
+      
+      // Check if this is a series cancellation based on notes or other indicators
+      const isSeriesToCancel = 
+        appointment.Notes?.toLowerCase().includes('cancel series') ||
+        appointment.Notes?.toLowerCase().includes('cancel all') ||
+        appointment.Notes?.toLowerCase().includes('cancel recurring') ||
+        appointment.CancellationReason?.toLowerCase().includes('series') ||
+        appointment.CancellationReason?.toLowerCase().includes('all appointments');
+      
+      if (isSeriesToCancel && seriesId) {
+        console.log(`Processing cancellation for all appointments in series: ${seriesId}`);
+        // Handle cancellation of entire series
+        await this.handleRecurringSeriesCancellation(appointment.Id, seriesId);
+        
+        return {
+          success: true,
+          details: {
+            appointmentId: appointment.Id,
+            seriesId,
+            action: 'cancelled_recurring_series'
+          }
+        };
+      }
+      
+      // Check if it's a cancellation for appointments after a certain date
+      const stopDateMatch = appointment.Notes?.match(/stop after ([\d-]+)/i) ||
+        appointment.CancellationReason?.match(/stop after ([\d-]+)/i);
+      
+      if (stopDateMatch && stopDateMatch[1] && seriesId) {
+        try {
+          const stopDate = new Date(stopDateMatch[1]);
+          if (!isNaN(stopDate.getTime())) {
+            console.log(`Processing series stop after date: ${stopDate.toISOString()}`);
+            
+            // Handle stopping the series after this date
+            return await this.handleRecurringSeriesStop(appointment, stopDate);
+          }
+        } catch (dateError) {
+          console.warn(`Error parsing stop date: ${stopDateMatch[1]}`, dateError);
+        }
+      }
+      
+      // If not a series cancellation, handle as single appointment cancellation
+      console.log(`Handling single appointment cancellation within a recurring series`);
+      return await this.handleAppointmentCancellation(appointment);
+    } 
+    
     // Process the first occurrence (the base appointment)
     const baseResult = await this.handleNewAppointment(appointment);
     if (!baseResult.success) {
       return baseResult;
+    }
+    
+    // Store series ID in appointment notes for future reference
+    try {
+      if (seriesId) {
+        const existingAppointment = await this.sheetsService.getAppointment(appointment.Id);
+        if (existingAppointment) {
+          const updatedAppointment = {
+            ...existingAppointment,
+            notes: (existingAppointment.notes || '') + `\nRecurring Series ID: ${seriesId}`
+          };
+          
+          await this.sheetsService.updateAppointment(updatedAppointment);
+          console.log(`Updated appointment ${appointment.Id} with recurring series ID: ${seriesId}`);
+        }
+      }
+    } catch (seriesUpdateError) {
+      console.warn(`Error updating appointment with series ID: ${seriesUpdateError}`);
     }
     
     // For recurring appointments, we rely on IntakeQ to send separate webhooks for each occurrence
@@ -941,6 +1053,7 @@ async processRecurringAppointment(
       details: {
         appointmentId: appointment.Id,
         action: 'created_recurring_base',
+        seriesId,
         recurrencePattern: {
           frequency,
           occurrences,
@@ -964,6 +1077,222 @@ async processRecurringAppointment(
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error processing recurring appointment',
       retryable: true
+    };
+  }
+}
+
+/**
+ * Find all appointments in the same recurring series
+ * Used by recurring series handling methods
+ */
+private async findRelatedSeriesAppointments(seriesId: string): Promise<AppointmentRecord[]> {
+  try {
+    console.log(`Finding appointments in recurring series ${seriesId}`);
+    
+    // Get all appointments (could be optimized with filtering at the sheets level)
+    const allAppointments = await this.sheetsService.getAllAppointments();
+    if (!allAppointments || allAppointments.length === 0) {
+      console.log('No appointments found');
+      return [];
+    }
+    
+    // Filter to appointments with matching series ID in notes
+    const seriesAppointments = allAppointments.filter(appointment => {
+      return appointment.notes?.includes(`Recurring Series ID: ${seriesId}`);
+    });
+    
+    if (seriesAppointments.length === 0) {
+      // If no explicit matches, try to find appointments with similar characteristics
+      console.log(`No appointments with explicit series ID ${seriesId} found, using fallback matching`);
+      
+      // Get a sample appointment to extract characteristics
+      const sampleAppointment = allAppointments.find(appointment => 
+        appointment.notes?.includes(seriesId)
+      );
+      
+      if (!sampleAppointment) {
+        return [];
+      }
+      
+      // Match based on client ID and clinician ID
+      return allAppointments.filter(appointment => {
+        const sameClient = appointment.clientId === sampleAppointment.clientId;
+        const sameClinician = appointment.clinicianId === sampleAppointment.clinicianId;
+        const sameSessionType = appointment.sessionType === sampleAppointment.sessionType;
+        const isFutureAppointment = appointment.status !== 'cancelled' && 
+                                    appointment.status !== 'completed';
+        
+        return sameClient && sameClinician && sameSessionType && isFutureAppointment;
+      });
+    }
+    
+    console.log(`Found ${seriesAppointments.length} appointments in recurring series ${seriesId}`);
+    return seriesAppointments;
+  } catch (error) {
+    console.error(`Error finding related series appointments for ${seriesId}:`, error);
+    return [];
+  }
+}
+
+/**
+ * Handle cancellation of all appointments in a recurring series
+ */
+async handleRecurringSeriesCancellation(
+  appointmentId: string, 
+  seriesId: string
+): Promise<void> {
+  try {
+    // Find all appointments in the same series
+    const relatedAppointments = await this.findRelatedSeriesAppointments(seriesId);
+    
+    console.log(`Found ${relatedAppointments.length} appointments in recurring series ${seriesId}`);
+    
+    // Process in batches to avoid API quota issues
+    const batchSize = 3;
+    for (let i = 0; i < relatedAppointments.length; i += batchSize) {
+      const batch = relatedAppointments.slice(i, i + batchSize);
+      
+      for (const appt of batch) {
+        try {
+          // Skip the trigger appointment as it's already cancelled
+          if (appt.appointmentId === appointmentId) {
+            console.log(`Skipping trigger appointment ${appointmentId} as it's already being cancelled`);
+            continue;
+          }
+          
+          // Skip already cancelled appointments
+          if (appt.status === 'cancelled') {
+            console.log(`Skipping already cancelled appointment ${appt.appointmentId}`);
+            continue;
+          }
+          
+          // Cancel the appointment with context about series cancellation
+          await this.sheetsService.updateAppointmentStatus(appt.appointmentId, 'cancelled', {
+            reason: 'Recurring series cancellation',
+            notes: `Cancelled as part of recurring series (trigger: ${appointmentId})`
+          });
+          
+          console.log(`Cancelled appointment ${appt.appointmentId} as part of series ${seriesId}`);
+          
+          // Log the cancellation
+          await this.sheetsService.addAuditLog({
+            timestamp: new Date().toISOString(),
+            eventType: 'APPOINTMENT_CANCELLED' as AuditEventType,
+            description: `Cancelled appointment ${appt.appointmentId} as part of recurring series`,
+            user: 'SYSTEM',
+            systemNotes: JSON.stringify({
+              appointmentId: appt.appointmentId,
+              seriesId: seriesId,
+              triggerAppointmentId: appointmentId,
+              cancellationType: 'series_cancellation'
+            })
+          });
+        } catch (error) {
+          console.error(`Failed to cancel appointment ${appt.appointmentId} in series:`, error);
+        }
+      }
+      
+      // Short delay between batches to avoid rate limits
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+  } catch (error) {
+    console.error(`Error handling recurring series cancellation:`, error);
+    throw error;
+  }
+}
+
+/**
+ * Handle stopping a recurring series after a specific date
+ */
+async handleRecurringSeriesStop(
+  appointment: IntakeQAppointment,
+  stopDate: Date
+): Promise<WebhookResponse> {
+  try {
+    const seriesId = this.getRecurringSeriesId(appointment);
+    if (!seriesId) {
+      return {
+        success: false,
+        error: 'Could not identify recurring series',
+        retryable: false
+      };
+    }
+    
+    console.log(`Stopping recurring series ${seriesId} after ${stopDate.toISOString()}`);
+    
+    // Find all appointments in the series
+    const relatedAppointments = await this.findRelatedSeriesAppointments(seriesId);
+    
+    // Identify appointments after stop date
+    const appointmentsToCancel = relatedAppointments.filter(appt => {
+      try {
+        const appointmentDate = new Date(appt.startTime);
+        return appointmentDate > stopDate && appt.status !== 'cancelled';
+      } catch (error) {
+        console.warn(`Error comparing dates for appointment ${appt.appointmentId}:`, error);
+        return false;
+      }
+    });
+    
+    console.log(`Found ${appointmentsToCancel.length} appointments to cancel after stop date`);
+    
+    // Process in batches
+    const batchSize = 3;
+    let successCount = 0;
+    let failCount = 0;
+    
+    for (let i = 0; i < appointmentsToCancel.length; i += batchSize) {
+      const batch = appointmentsToCancel.slice(i, i + batchSize);
+      
+      for (const appt of batch) {
+        try {
+          await this.sheetsService.updateAppointmentStatus(appt.appointmentId, 'cancelled', {
+            reason: 'Recurring series stopped',
+            notes: `Cancelled due to recurring series stop after ${stopDate.toISOString()}`
+          });
+          
+          console.log(`Cancelled future appointment ${appt.appointmentId} due to series stop`);
+          successCount++;
+          
+          // Log the cancellation
+          await this.sheetsService.addAuditLog({
+            timestamp: new Date().toISOString(),
+            eventType: 'APPOINTMENT_CANCELLED' as AuditEventType,
+            description: `Cancelled appointment ${appt.appointmentId} due to series stop`,
+            user: 'SYSTEM',
+            systemNotes: JSON.stringify({
+              appointmentId: appt.appointmentId,
+              seriesId: seriesId,
+              triggerAppointmentId: appointment.Id,
+              stopDate: stopDate.toISOString(),
+              cancellationType: 'series_stop'
+            })
+          });
+        } catch (error) {
+          console.error(`Failed to cancel appointment ${appt.appointmentId} after series stop:`, error);
+          failCount++;
+        }
+      }
+      
+      // Short delay between batches to avoid rate limits
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+    
+    return {
+      success: true,
+      details: {
+        seriesId,
+        cancelledCount: successCount,
+        failedCount: failCount,
+        stopDate: stopDate.toISOString()
+      }
+    };
+  } catch (error) {
+    console.error('Error handling recurring series stop:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+      retryable: false
     };
   }
 }

@@ -47,6 +47,11 @@ export class WebhookHandler {
   private readonly RETRY_DELAYS = [1000, 5000, 15000]; // Delays in milliseconds
   private readonly appointmentSyncHandler: any; // Add this property
   private readonly intakeQService: any; // Add this property
+  
+  // Rate limiting for webhook processing
+  private activeWebhooks: Map<string, Date> = new Map();
+  private readonly MAX_CONCURRENT = 3; // Maximum number of concurrent webhooks
+  private readonly WEBHOOK_TIMEOUT_MS = 30000; // 30 seconds until consider a webhook stale
 
   constructor(
     private readonly sheetsService: IGoogleSheetsService,
@@ -75,6 +80,23 @@ async processWebhook(
 ): Promise<WebhookResponse> {
   // Add timestamp to measure processing time
   const startTime = Date.now();
+  
+  // Rate limiting logic - clean up stale webhooks first
+  this.cleanupStaleWebhooks();
+  
+  // Check if we're already processing too many webhooks
+  if (this.activeWebhooks.size >= this.MAX_CONCURRENT) {
+    console.log(`Rate limiting webhook, already processing ${this.activeWebhooks.size} webhooks`);
+    return {
+      success: false,
+      error: 'Too many concurrent webhook operations',
+      retryable: true // IntakeQ will retry later
+    };
+  }
+  
+  // Generate tracking ID and add to active webhooks
+  const trackingId = `webhook_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
+  this.activeWebhooks.set(trackingId, new Date());
 
   // Create safe copy of payload for logging
   const payloadCopy = this.createSafePayloadCopy(payload);
@@ -203,6 +225,30 @@ async processWebhook(
       error: errorMessage,
       retryable: this.isRetryableError(error)
     };
+  } finally {
+    // Always remove from active webhooks tracking
+    this.activeWebhooks.delete(trackingId);
+  }
+}
+
+/**
+ * Helper to clean up stale webhook tracking entries
+ * Important to prevent memory leaks and ensure accurate rate limiting
+ */
+private cleanupStaleWebhooks(): void {
+  const now = Date.now();
+  let removedCount = 0;
+  
+  for (const [id, timestamp] of this.activeWebhooks.entries()) {
+    if (now - timestamp.getTime() > this.WEBHOOK_TIMEOUT_MS) {
+      console.log(`Removing stale webhook tracking: ${id}`);
+      this.activeWebhooks.delete(id);
+      removedCount++;
+    }
+  }
+  
+  if (removedCount > 0) {
+    console.log(`Cleaned up ${removedCount} stale webhook tracking entries`);
   }
 }
 
