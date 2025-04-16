@@ -276,7 +276,7 @@ export class GoogleSheetsService implements IGoogleSheetsService {
         
         await this.addAuditLog({
           timestamp: new Date().toISOString(),
-          eventType: AuditEventType.SYSTEM_WARNING,
+          eventType: AuditEventType.SYSTEM_ERROR, // Using SYSTEM_ERROR as SYSTEM_WARNING doesn't exist
           description: `Partial verification for appointment ${normalizedAppointment.appointmentId}`,
           user: 'SYSTEM',
           systemNotes: JSON.stringify({

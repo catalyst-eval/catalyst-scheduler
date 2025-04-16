@@ -487,8 +487,8 @@ private async handleAppointmentCancellation(
         if (retryCount > 0) {
           console.log(`Clearing cache before retry ${retryCount + 1}`);
           this.sheetsService.cache.invalidatePattern(`appointments:${appointment.Id}`);
-          this.sheetsService.cache.invalidatePattern(`sheet:${SHEET_NAMES.APPOINTMENTS}`);
-          this.sheetsService.cache.invalidatePattern(`sheet:${SHEET_NAMES.ACTIVE_APPOINTMENTS}`);
+          this.sheetsService.cache.invalidatePattern(`sheet:Appointments`);
+          this.sheetsService.cache.invalidatePattern(`sheet:Active_Appointments`);
           
           // Small delay before retry
           await new Promise(resolve => setTimeout(resolve, 500 * Math.pow(2, retryCount)));
