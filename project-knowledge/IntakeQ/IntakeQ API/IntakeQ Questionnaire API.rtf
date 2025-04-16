@@ -1,0 +1,682 @@
+{\rtf1\ansi\ansicpg1252\cocoartf2821
+\cocoatextscaling0\cocoaplatform0{\fonttbl\f0\fswiss\fcharset0 Helvetica-Bold;\f1\fswiss\fcharset0 Helvetica;\f2\fmodern\fcharset0 Courier-Bold;
+\f3\fnil\fcharset0 Georgia-Italic;}
+{\colortbl;\red255\green255\blue255;\red0\green0\blue0;\red65\green65\blue65;}
+{\*\expandedcolortbl;;\cspthree\c0\c0\c0;\cspthree\c32550\c32550\c32550;}
+\margl1440\margr1440\vieww11520\viewh8400\viewkind0
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f0\b\fs46\fsmilli23100 \cf2 IntakeQ Questionnaire API\
+
+\fs31\fsmilli15750 Overview\
+
+\fs22\fsmilli11250 The IntakeQ API is composed of HTTP endpoints that can be reached through a REST API. Additionally,\
+you can setup a webhook that\'92s fired when a client submits an intake package; giving you the\
+opportunity to download it in realtime and integrate with 3rd party software.\
+
+\fs31\fsmilli15750 Getting Started\
+
+\fs22\fsmilli11250 To get started, you first need to enable API access (navigate to More > Settings > Integrations >\
+Developer API). That\'92s also where you\'92ll find your API key, used to authenticate your HTTP calls.\
+
+\fs21 Only the main account owner has access to the API tab.\
+Never expose your API key in plain text (config files, source control, etc.).\
+Consider setting an IP Allow-List as explained here (//support.intakeq.com/article/200-restricting-\
+access-using-ip-address#api-ip-restriction).\
+
+\fs31\fsmilli15750 Base URL\
+
+\fs22\fsmilli11250 All endpoints are located under the following URL: https://intakeq.com/api/v1/\
+(https://intakeq.com/api/v1/)\
+(https://intakeq.com/api/v1/)\
+An example of a typical API call would look like this:\
+
+\f1\b0\fs18 [GET] https://intakeq.com/api/v1/intakes/[intake-id]\
+
+\f0\b\fs31\fsmilli15750 Authentication\
+
+\fs22\fsmilli11250 Every HTTP request needs to contain your API key embedded in an authentication header named X-\
+Auth-Key.
+\f1\b0\fs18 X-Auth-Key:xxxxxxxxxxxxxxxxxxxxxxxxx\
+
+\f0\b\fs31\fsmilli15750 Jump to a Method\
+
+\fs22\fsmilli11250 Query Intake Forms (#query-forms)\
+Download Intake PDF (#download-intake)\
+Get Full Intake (#full-intake)\
+List Questionnaire Templates (#list-questionnaires)\
+Send Questionnaire (#send-questionnaire)\
+Update Office Use Questions (#update-office-use)\
+Resend Questionnaire (#resend-questionnaire)\
+List Practitioners (#list-practitioners)\
+Query and Save Clients (#query-clients)\
+Submission Webhook (#submission-webhook)\
+
+\fs31\fsmilli15750 Query Intake Forms\
+
+\fs22\fsmilli11250 Use this method to query client intake form summaries. The result set does not contain all the\
+contents of the intake forms, but only their basic information (id, status, client info).\
+
+\f1\b0\fs18 [GET]\
+/intakes/summary?client=[searchString]&startDate=[yyyy-MM-dd]&endDate=[yyyy-MM-dd]&page=[pageN\
+umber]&all=[bool]&clientId=[clientId]&externalClientId=[externalClientId]&updatedSince=[yyyy-M\
+M-dd]&deletedOnly=[bool]\
+
+\f0\b\fs22\fsmilli11250 This method accepts the following query string parameters:\
+client (optional) \'96 A string used to search the client by name or email. Partial matches will be\
+respected, so a search for "Paul" will return all intakes for clients with Paul in their names. Likewise,\
+a search for "paul.smith@gmail.com" will return all intakes for that specific client.\
+startDate (optional) \'96 Returns only intakes that were created after the specified date. Use the\
+following date format: yyyy-MM-dd (ex.: 2016-08-21)endDate (optional) \'96 Returns only intakes that were created before the specified date. Use the\
+following date format: yyyy-MM-dd (ex.: 2016-08-21)\
+page (optional) \'96 This method returns a maximum of 100 records. Use the page parameter to\
+implement paging from your end. Use 1 for page 1, 2 for page 2, etc.\
+all (optional) \'96 By default, only submitted forms are returned. Set this parameter to true if you\
+want this method to return all intakes, regardless of their status.\
+clientId (optional) \'96 Returns only intakes from a specific client using the client ID number.\
+externalClientId (optional) \'96 Returns only intakes from a specific client using an external client ID\
+string that you have specified when saving a client using the Clients API.\
+updatedSince (optional) \'96 Returns only intakes that have been changed after a given date.\
+deletedOnly (optional) \'96 Returns only intakes that have been deleted. Deleted intakes can be\
+retrieved up to 10 days after they have been deleted. Intakes that have been deleted more than 10\
+days prior cannot be retrieved anymore.\
+If no query string parameter is passed, the method will return the last 100 submitted intakes.\
+This method returns a JSON object representing an array of intake forms.\
+
+\f1\b0\fs18 [\{\
+
+\f2\b Id
+\f1\b0 : "00000000-0000-0000-0000-000000000000", //GUID\
+
+\f2\b ClientName
+\f1\b0 : "test",\
+
+\f2\b ClientEmail
+\f1\b0 : "test@email.com",\
+
+\f2\b ClientId
+\f1\b0 : 9999,\
+
+\f2\b Status
+\f1\b0 : "Completed",\
+
+\f2\b DateCreated
+\f1\b0 : 1458526480368, //Unix timestamp in milliseconds,\
+
+\f2\b DateSubmitted
+\f1\b0 : 1458526532654, //Unix timestamp in milliseconds\
+
+\f2\b QuestionnaireName
+\f1\b0 : "test",\
+
+\f2\b QuestionnaireId
+\f1\b0 : "1234acbd",\
+
+\f2\b Practitioner
+\f1\b0 : "test@email.com",\
+
+\f2\b PractitionerName
+\f1\b0 : "FirstName LastName",\
+
+\f2\b ExternalClientId
+\f1\b0 : "acbd"\
+\},...\
+]\
+
+\f0\b\fs22\fsmilli11250 Let\'92s look at each property individually:Field Explanation\
+Id ClientName The ID of the intake form. You can use this to get the full intake.\
+The name of the client who submitted the intake form.\
+ClientEmail The email of the client associated with the intake form.\
+ClientId The ID number of the client associated with the intake form.\
+Status Possible values:\
+Sent \'96 Client has not started filling out the form.\
+Partial \'96 Client has started filling out the form.\
+Completed \'96 Form has been submitted.\
+Offline \'96 Client chose to fill out by hand.\
+DateCreated DateSubmitted When the form was created in Unix timestamp (milliseconds).\
+When the client submitted the form in Unix timestamp (milliseconds).\
+Null if form has not been submitted.\
+QuestionnaireName QuestionnaireId The name of the form template.\
+The ID of the questionnaire template (#list-questionnaires) used to\
+create this intake.\
+Practitioner PractitionerId ExternalClientId The email of the practitioner associated with the intake (for accounts\
+with multiple practitioners)\
+The ID of the practitioner associated with the intake (for accounts with\
+multiple practitioners)\
+The external client ID of the client associated with the intake\
+
+\fs21 This method returns a maximum of 100 records. If needed, use the page query string parameter to\
+implement paging from your end.
+\fs31\fsmilli15750 Download Intake Form PDF\
+
+\fs22\fsmilli11250 Use this method to download a client\'92s complete intake package as a PDF file.\
+
+\f1\b0\fs18 [GET]\
+https://intakeq.com/api/v1/intakes/[intake-id]/pdf\
+
+\f0\b\fs22\fsmilli11250 Use this method to download a client\'92s consent form from an intake package as a PDF file.\
+
+\f2\fs18 [GET]\
+https://intakeq.com/api/v1/intakes/[intake-id]/consent/[consent-form-id]/pdf\
+
+\f0\fs31\fsmilli15750 Get Full Intake Form\
+
+\fs22\fsmilli11250 Use this method to get a full intake form in JSON format.\
+
+\f1\b0\fs18 [GET] https://intakeq.com/api/v1/intakes/[intake-id]\
+
+\f0\b\fs22\fsmilli11250 The full intake form is very similar to intake summary object, except it adds an array of questions.
+\f1\b0\fs18 \{\
+
+\f2\b Id
+\f1\b0 : "00000000-0000-0000-0000-000000000000",\
+
+\f2\b ClientName
+\f1\b0 : "test",\
+
+\f2\b ClientEmail
+\f1\b0 : "test@email.com",\
+
+\f2\b ClientId
+\f1\b0 : 9999,\
+
+\f2\b Status
+\f1\b0 : "Completed",\
+
+\f2\b DateCreated
+\f1\b0 : 1458526480368, //Unix timestamp in milliseconds,\
+
+\f2\b DateSubmitted
+\f1\b0 : 1458526532654, //Unix timestamp in milliseconds\
+
+\f2\b QuestionnaireName
+\f1\b0 : "test",\
+
+\f2\b Practitioner
+\f1\b0 : "test@email.com",\
+
+\f2\b PractitionerName
+\f1\b0 : "FirstName LastName",\
+
+\f2\b Questions
+\f1\b0 : [...], //See Question structure below\
+
+\f2\b AppointmentId
+\f1\b0 : "xxxxxxxx", //only if form is associated with appointment\
+
+\f2\b ExternalClientId
+\f1\b0 : "abcd",\
+
+\f2\b ConsentForms
+\f1\b0 : [\
+\{\
+
+\f2\b Id
+\f1\b0 : "00000000-0000-0000-0000-000000000000",\
+
+\f2\b Name
+\f1\b0 : "HIPAA Release Form",\
+
+\f2\b DocumentType
+\f1\b0 : "Html",\
+
+\f2\b Signed
+\f1\b0 : 
+\f2\b true
+\f1\b0 ,\
+
+\f2\b DateSubmitted
+\f1\b0 : 1458526532654, //Unix timestamp in milliseconds\
+\}\
+]\
+\}\
+
+\f0\b\fs31\fsmilli15750 The Question Object\
+
+\fs22\fsmilli11250 Because we support several question types, the question structure is a little more complex. We use a\
+common structure for all questions, but certain properties will be populated and others will be empty,\
+depending on the question type. This makes things simpler when you\'92re deserializing the JSON\
+response using static languages.\
+Here\'92s an example of a question array:
+\f1\b0\fs18 [\
+\{\
+
+\f2\b Id
+\f1\b0 : "xxxx-1",\
+
+\f2\b Text
+\f1\b0 : "Full name",\
+
+\f2\b Answer
+\f1\b0 : "Dexter Morgan",\
+
+\f2\b QuestionType
+\f1\b0 : "OpenQuestion",\
+
+\f2\b Rows
+\f1\b0 : [],\
+
+\f2\b ColumnNames
+\f1\b0 : [],\
+
+\f2\b OfficeUse
+\f1\b0 : 
+\f2\b false
+\f1\b0 ,\
+
+\f2\b OfficeNote
+\f1\b0 : 
+\f2\b null
+\f1\b0 ,<br> 
+\f2\b ClientProfileFieldId
+\f1\b0 : "FullName"\
+\},\
+\{\
+
+\f2\b Id
+\f1\b0 : "xxxx-2",\
+
+\f2\b Text
+\f1\b0 : "Address",\
+
+\f2\b Answer
+\f1\b0 : "134 Silk Road",\
+
+\f2\b QuestionType
+\f1\b0 : "OpenQuestion",\
+
+\f2\b Rows
+\f1\b0 : [],\
+
+\f2\b ColumnNames
+\f1\b0 : [],\
+
+\f2\b OfficeUse
+\f1\b0 : 
+\f2\b false
+\f1\b0 ,\
+
+\f2\b OfficeNote
+\f1\b0 : 
+\f2\b null
+\f1\b0 ,\
+
+\f2\b ClientProfileFieldId
+\f1\b0 : "StreetAddress"\
+\},\
+\{\
+
+\f2\b Id
+\f1\b0 : "o5iF-1",\
+problems. Specify who.",\
+
+\f2\b Answer
+\f1\b0 : "High Cholesterol",\
+
+\f2\b QuestionType
+\f1\b0 : "MultipleChoice",\
+
+\f2\b Rows
+\f1\b0 : [],\
+
+\f2\b ColumnNames
+\f1\b0 : []\
+
+\f2\b Text
+\f1\b0 : "Please indicate if you or any family members have ever had any of the following\
+\}, \{\
+
+\f2\b Id
+\f1\b0 : "4dHk-1",\
+date of diagnosis (where relevant):",\
+
+\f2\b Text
+\f1\b0 : "Please list your top major health concerns in order of importance, and indicate\
+
+\f2\b Answer
+\f1\b0 : 
+\f2\b null
+\f1\b0 ,\
+
+\f2\b QuestionType
+\f1\b0 : "Matrix",\
+
+\f2\b Rows
+\f1\b0 : [\
+\{\
+
+\f2\b Text
+\f1\b0 : "1",\
+
+\f2\b Answers
+\f1\b0 : ["High Cholesterol", "Feb 2016"]\
+\},\
+\{\
+
+\f2\b Text
+\f1\b0 : "2",
+\f2\b Answers
+\f1\b0 : [""\
+,\
+""]\
+\}\
+],\
+
+\f2\b ColumnNames
+\f1\b0 : ["Concern", "Date"],\
+
+\f2\b OfficeUse
+\f1\b0 : 
+\f2\b false
+\f1\b0 ,\
+
+\f2\b OfficeNote
+\f1\b0 : "Test note from practitioner.",\
+
+\f2\b ClientProfileFieldId
+\f1\b0 : 
+\f2\b null\
+
+\f1\b0 \}, \{\
+
+\f2\b Id
+\f1\b0 : "efiE-1",\
+
+\f2\b Text
+\f1\b0 : "Please upload your insurance card.",\
+
+\f2\b Answer
+\f1\b0 : 
+\f2\b null
+\f1\b0 ,\
+
+\f2\b QuestionType
+\f1\b0 : "Attachment",\
+
+\f2\b Attachments
+\f1\b0 : [\
+\{\
+
+\f2\b Id
+\f1\b0 : "352420dfnkdfsd9321j294k",\
+
+\f2\b Url
+\f1\b0 : "https://intakeq.com/api/v1/attachments/352420dfnkdfsd9321j294k",\
+
+\f2\b ContentType
+\f1\b0 : "image/png",\
+
+\f2\b FileName
+\f1\b0 : "insurance.png"\
+\}\
+],\
+
+\f2\b Rows
+\f1\b0 : [],\
+
+\f2\b ColumnNames
+\f1\b0 : [],\
+
+\f2\b OfficeUse
+\f1\b0 : 
+\f2\b false
+\f1\b0 ,\
+
+\f2\b OfficeNote
+\f1\b0 : 
+\f2\b null
+\f1\b0 ,\
+
+\f2\b ClientProfileFieldId
+\f1\b0 : 
+\f2\b null\
+
+\f1\b0 \},\
+
+\f0\b\fs22\fsmilli11250 Notice that you can use the QuestionType field to figure out which fields will be populated (e.g. the\
+Matrix question type will have Rows and Columns). Or you can use the question Id field to get specific\
+questions.\
+For questions of the type "Attachment"\
+, an array of attachments will be provided (as shown above),\
+and you can use the URL property to download the file. It's important to note that the API key must be\
+included in the header of the download request as well.\
+
+\fs31\fsmilli15750 List Questionnaire Templates\
+
+\fs22\fsmilli11250 Use this method to get a list of questionnaire templates. This list is useful for learning the ID of each\
+questionnaire so it can be used in the Send Questionnaire method (see next section).
+\f1\b0\fs18 [GET] https://intakeq.com/api/v1/questionnaires\
+
+\f0\b\fs22\fsmilli11250 This method returns a JSON object representing an array of questionnaires.\
+
+\f1\b0\fs18 [\
+\{\
+
+\f2\b Id
+\f1\b0 : "00000000-0000-0000-0000-000000000000",\
+
+\f2\b Name
+\f1\b0 : "Patient Intake Form",\
+
+\f2\b Archived
+\f1\b0 : 
+\f2\b false
+\f1\b0 ,\
+
+\f2\b Anonymous
+\f1\b0 : 
+\f2\b false
+\f1\b0 ,\
+\},\
+...\
+]\
+
+\f0\b\fs31\fsmilli15750 List Practitioners\
+
+\fs22\fsmilli11250 Use this method to get a list of practitioners in the account. This list is useful for learning the ID of each\
+practitioner so it can be used in other methods.\
+
+\f1\b0\fs18 [GET] https://intakeq.com/api/v1/practitioners\
+
+\f0\b\fs22\fsmilli11250 This method returns a JSON object representing an array of practitioners.\
+
+\f1\b0\fs18 [\
+\{\
+
+\f2\b Id
+\f1\b0 : "00000000-0000-0000-0000-000000000000",\
+
+\f2\b CompleteName
+\f1\b0 : "Dexter Morgan",\
+
+\f2\b FirstName
+\f1\b0 : "Dexter",\
+
+\f2\b LastName
+\f1\b0  "Morgan",\
+
+\f2\b Email
+\f1\b0 : "dexter@email.com",\
+
+\f2\b ExternalPractitionerId
+\f1\b0 : "002" //for partners only\
+\},\
+...\
+]\
+
+\f0\b\fs31\fsmilli15750 Send a Questionnaire\
+
+\fs22\fsmilli11250 This endpoint allows you to send an intake package using the API.
+\f1\b0\fs18 [POST] https://intakeq.com/api/v1/intakes/send\
+
+\f0\b\fs22\fsmilli11250 To send a form, post a JSON document using the specification below.\
+
+\f1\b0\fs18 \{\
+
+\f2\b QuestionnaireId
+\f1\b0 : "00000000-0000-0000-0000-000000000000",\
+
+\f2\b ClientId
+\f1\b0 : 123, //mandatory if ClientName and Email and Phone are not provided\
+
+\f2\b ClientName
+\f1\b0 : "Dexter Morgan", //mandatory if ClientId is not provided\
+
+\f2\b ClientEmail
+\f1\b0 : "dexter@email.com",//mandatory if ClientId or Phone are not provided\
+
+\f2\b ClientPhone
+\f1\b0 : "2222222222", //provide phone and leave email empty to send via SMS\
+
+\f2\b PractitionerId
+\f1\b0 : "00000000-0000-0000-0000-000000000000",\
+
+\f2\b ExternalClientId
+\f1\b0 : "abcd" //for partners only\
+\}\
+
+\f0\b\fs22\fsmilli11250 The preferred delivery method is Email. To force delivery via SMS, leave the ClientEmail field empty and\
+provide the destination number in the ClientPhone field.\
+If the form is sent successfully, this method will return an Intake object as described in the Get Full\
+Intake (#full-intake) section.\
+Let\'92s look at each property individually:\
+Field Explanation\
+QuestionnaireId The ID of the intake package. You can get this from the List\
+Questionnaires (#list-questionnaires) method, or by opening the\
+questionnaire template in IntakeQ and getting it from the browser\
+address\
+ClientName Mandatory only if ClientId is not provided. When used, provide first and\
+last name.\
+ClientEmail ClientPhone Mandatory only if ClientId and ClientPhone are not provided.\
+Mandatory only if ClientId and ClientEmail are not provided. When\
+ClientEmail is not provided and ClientPhone is provided, the form will be\
+sent via SMS.PractitionerId ClientId The ID of the practitioner associated with this intake. If not provided,\
+IntakeQ will try to use the practitioner who is already associated with this\
+client. If that fails, IntakeQ will use the main account practitioner. If the\
+main account is not a practitioner, the method will fail\
+The ID of the client. This is a positive integer and can be retrieved using\
+the /clients endpoint. When this field is provided, IntakeQ will ignore the\
+ClientName and ClientEmail fields and look for an exact match on the\
+ClientId to find an existing client. If the client is not found, the method will\
+fail.\
+ExternalClientId The External ID of the client. This is a string and can be managed using\
+the /clients endpoint. When this field is provided, IntakeQ will ignore the\
+ClientName and ClientEmail fields and look for an exact match on the\
+ExternalClientId to find an existing client. If the client is not found, the\
+method will fail.\
+
+\fs31\fsmilli15750 Update Office Use Questions\
+
+\fs22\fsmilli11250 This endpoint allows you to update answers to Office Use questions (//support.intakeq.com/article/56-\
+questions-for-office-use-only).\
+
+\f1\b0\fs18 [POST] https://intakeq.com/api/v1/intakes\
+
+\f0\b\fs22\fsmilli11250 The recommended way to use this method is to first get the full form object using the full intake\
+endpoint, populate the desired Answer fields and post it back to the URL above.\
+When the intake is updated, IntakeQ will process all the client profile mappings, pinned note mappings\
+and tagging rules, if applicable.\
+
+\fs21 At this time it's not possible to update the following question types: Matrix, Attachment, e-signature.\
+
+\fs31\fsmilli15750 Resend a Questionnaire\
+
+\fs22\fsmilli11250 This endpoint allows you to send an intake package using the API.
+\f1\b0\fs18 [POST] https://intakeq.com/api/v1/intakes/resend\
+
+\f0\b\fs22\fsmilli11250 To resend an existing form, post a JSON document using the specification below.\
+
+\f1\b0\fs18 \{\
+
+\f2\b IntakeId
+\f1\b0 : "00000000-0000-0000-0000-000000000000",\
+
+\f2\b DeliveryMethod
+\f1\b0 : "sms" //optional. Possible values: null, "sms" or "email"\
+\}\
+
+\f0\b\fs22\fsmilli11250 All you need to provide when resending a form, is the intake ID. The DeliveryMethod field only needs to\
+be provided if you want to change it from SMS to email or email to SMS.\
+
+\fs21 When changing the original delivery method, make sure the client record is populated with the\
+corresponding delivery method (e.g. if SMS, make sure the client record has a phone number). Use the\
+Client API (//support.intakeq.com/article/251-intakeq-client-api) if needed.\
+
+\fs22\fsmilli11250 If the form is resent successfully, this method will return an Intake object as described in the Get Full\
+Intake (#full-intake) section.\
+This method will return an error if the form has already been completed by the client.\
+Let\'92s look at each property individually:\
+Field Explanation\
+IntakeId The ID of the intake package that was previously sent.\
+DeliveryMethod Optional. Can be "sms" or "email"\
+. Leave it empty to reuse the delivery\
+method that was used last time the form was sent.\
+
+\fs31\fsmilli15750 Query and Save Clients\
+
+\fs22\fsmilli11250 To query and save clients, refer to this article: IntakeQ Client API (//support.intakeq.com/article/251-\
+intakeq-client-api)
+\fs31\fsmilli15750 Intake Submission Webhook\
+
+\fs22\fsmilli11250 If you populate the webhook URL in the API settings page, we will send the following JSON object in a\
+POST message every time an intake is submitted by a client:\
+
+\f1\b0\fs18 \{\
+
+\f2\b IntakeId
+\f1\b0 : "00000000-0000-0000-0000-000000000000",\
+
+\f2\b Type
+\f1\b0 : "Intake Submitted",\
+
+\f2\b ClientId
+\f1\b0 : 123,\
+
+\f2\b ExternalPracticeId
+\f1\b0 : "xxxxxx", // for partners only\
+
+\f2\b ExternalClientId
+\f1\b0 : "xxxx" // for partners only\
+\}\
+
+\f0\b\fs22\fsmilli11250 Once you have the Intake ID, you can use it to get the full intake (#full-intake) or download the PDF\
+(#download-intake). The Client ID allows you to use the client search (#query-clients) endpoint to get\
+the client object.\
+
+\fs31\fsmilli15750 Client Libraries\
+
+\fs22\fsmilli11250 We currently provide an open source C# client library to help you use our API. Let us know if you want\
+to contribute by building a library in a different language.\
+C# Client API Library (https://github.com/intakeq/CSharpApiClient)\
+
+\f1\b0\fs24 \uc0\u58880  
+\f3\i\fs18 Still need help? Contact Us (#)\
+Last updated on November 27, 2023\
+
+\f0\i0\b RELATED ARTICLES\
+
+\f1\b0\fs24 \cf3 \uc0\u58884  
+\f0\b \cf2 IntakeQ Client API (/article/251-intakeq-client-api)\
+
+\f1\b0 \cf3 \uc0\u58884  
+\f0\b \cf2 IntakeQ Appointments API (/article/204-intakeq-appointments-api)\
+
+\f1\b0 \cf3 \uc0\u58884  
+\f0\b \cf2 IntakeQ Notes API (/article/342-intakeq-notes-api)\
+
+\f1\b0 \cf3 \uc0\u58884  
+\f0\b \cf2 IntakeQ Invoice API (/article/385-intakeq-invoice-api)\
+
+\f1\b0 \cf3 \uc0\u58884  
+\f0\b \cf2 IntakeQ Claims API (/article/568-intakeq-claims-api)\
+
+\f1\b0 \cf3 \uc0\u58884  
+\f0\b \cf2 IntakeQ Files API (/article/430-intakeq-files-api)
+\fs16\fsmilli8100 \'a9 IntakeQ (https://practiceq.com) 2025. Powered by Help Scout (https://www.helpscout.com/docs-refer/?\
+co=IntakeQ&utm\
+source=docs&utm\
+medium=footerlink&utm\
+_\
+_\
+_\
+campaign=Docs+Branding)}

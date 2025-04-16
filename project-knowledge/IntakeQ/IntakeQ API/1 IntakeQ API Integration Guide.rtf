@@ -1,0 +1,620 @@
+{\rtf1\ansi\ansicpg1252\cocoartf2821
+\cocoatextscaling0\cocoaplatform0{\fonttbl\f0\froman\fcharset0 Times-Bold;\f1\froman\fcharset0 Times-Roman;\f2\fmodern\fcharset0 Courier;
+\f3\fnil\fcharset0 HelveticaNeue;\f4\fnil\fcharset0 Menlo-Regular;}
+{\colortbl;\red255\green255\blue255;\red0\green0\blue0;\red0\green0\blue0;\red179\green179\blue179;
+\red155\green162\blue177;\red30\green33\blue39;}
+{\*\expandedcolortbl;;\cssrgb\c0\c0\c0;\cssrgb\c0\c0\c0\c84706;\cssrgb\c75294\c75294\c75294;
+\cssrgb\c67059\c69804\c74902;\cssrgb\c15686\c17255\c20392;}
+{\*\listtable{\list\listtemplateid1\listhybrid{\listlevel\levelnfc23\levelnfcn23\leveljc0\leveljcn0\levelfollow0\levelstartat1\levelspace360\levelindent0{\*\levelmarker \{disc\}}{\leveltext\leveltemplateid1\'01\uc0\u8226 ;}{\levelnumbers;}\fi-360\li720\lin720 }{\listname ;}\listid1}
+{\list\listtemplateid2\listhybrid{\listlevel\levelnfc23\levelnfcn23\leveljc0\leveljcn0\levelfollow0\levelstartat1\levelspace360\levelindent0{\*\levelmarker \{disc\}}{\leveltext\leveltemplateid101\'01\uc0\u8226 ;}{\levelnumbers;}\fi-360\li720\lin720 }{\listname ;}\listid2}
+{\list\listtemplateid3\listhybrid{\listlevel\levelnfc23\levelnfcn23\leveljc0\leveljcn0\levelfollow0\levelstartat1\levelspace360\levelindent0{\*\levelmarker \{disc\}}{\leveltext\leveltemplateid201\'01\uc0\u8226 ;}{\levelnumbers;}\fi-360\li720\lin720 }{\listname ;}\listid3}
+{\list\listtemplateid4\listhybrid{\listlevel\levelnfc23\levelnfcn23\leveljc0\leveljcn0\levelfollow0\levelstartat1\levelspace360\levelindent0{\*\levelmarker \{disc\}}{\leveltext\leveltemplateid301\'01\uc0\u8226 ;}{\levelnumbers;}\fi-360\li720\lin720 }{\listname ;}\listid4}
+{\list\listtemplateid5\listhybrid{\listlevel\levelnfc0\levelnfcn0\leveljc0\leveljcn0\levelfollow0\levelstartat1\levelspace360\levelindent0{\*\levelmarker \{decimal\}}{\leveltext\leveltemplateid401\'01\'00;}{\levelnumbers\'01;}\fi-360\li720\lin720 }{\listname ;}\listid5}
+{\list\listtemplateid6\listhybrid{\listlevel\levelnfc0\levelnfcn0\leveljc0\leveljcn0\levelfollow0\levelstartat1\levelspace360\levelindent0{\*\levelmarker \{decimal\}}{\leveltext\leveltemplateid501\'01\'00;}{\levelnumbers\'01;}\fi-360\li720\lin720 }{\listname ;}\listid6}
+{\list\listtemplateid7\listhybrid{\listlevel\levelnfc0\levelnfcn0\leveljc0\leveljcn0\levelfollow0\levelstartat1\levelspace360\levelindent0{\*\levelmarker \{decimal\}}{\leveltext\leveltemplateid601\'01\'00;}{\levelnumbers\'01;}\fi-360\li720\lin720 }{\listname ;}\listid7}}
+{\*\listoverridetable{\listoverride\listid1\listoverridecount0\ls1}{\listoverride\listid2\listoverridecount0\ls2}{\listoverride\listid3\listoverridecount0\ls3}{\listoverride\listid4\listoverridecount0\ls4}{\listoverride\listid5\listoverridecount0\ls5}{\listoverride\listid6\listoverridecount0\ls6}{\listoverride\listid7\listoverridecount0\ls7}}
+\margl1440\margr1440\vieww11520\viewh17460\viewkind0
+\deftab720
+\pard\pardeftab720\sa321\partightenfactor0
+
+\f0\b\fs48 \cf0 \expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 IntakeQ API Integration Guide for Catalyst Scheduler\
+\pard\pardeftab720\sa240\partightenfactor0
+
+\f1\b0\fs24 \cf0 This guide consolidates information about IntakeQ's API endpoints and integration points for the Catalyst Scheduler project. It covers the key endpoints needed for appointments, client management, and questionnaire processing.\
+\pard\pardeftab720\sa298\partightenfactor0
+
+\f0\b\fs36 \cf0 Authentication\
+\pard\pardeftab720\sa240\partightenfactor0
+
+\f1\b0\fs24 \cf0 All IntakeQ API requests require the API key in an authentication header:\
+\pard\pardeftab720\partightenfactor0
+
+\f2\fs26 \cf0 \strokec2 \
+
+\f3\fs22 \cf3 \cb4 \strokec3 Copy
+\f2\fs26 \cf0 \cb1 \strokec2 \
+
+\f4\fs24 \cf5 \cb6 \strokec5 \shad\shadx0\shady-20\shadr0\shado0 \shadc0 X-Auth-Key: your-api-key-here
+\f2\fs26 \cf0 \cb1 \strokec2 \shad0 \
+\pard\pardeftab720\sa240\partightenfactor0
+
+\f1\fs24 \cf0 \strokec2 Base URL for all endpoints: 
+\f2\fs26 \strokec2 https://intakeq.com/api/v1/
+\f1\fs24 \strokec2 \
+\pard\pardeftab720\sa298\partightenfactor0
+
+\f0\b\fs36 \cf0 Appointment Endpoints\
+\pard\pardeftab720\sa280\partightenfactor0
+
+\fs28 \cf0 \strokec2 Query Appointments\
+\pard\pardeftab720\partightenfactor0
+
+\f2\b0\fs26 \cf0 http\
+
+\f3\fs22 \cf3 \cb4 \strokec3 Copy
+\f2\fs26 \cf0 \cb1 \strokec2 \
+
+\f4\fs24 \cf5 \cb6 \strokec5 \shad\shadx0\shady-20\shadr0\shado0 \shadc0 GET /appointments
+\f2\fs26 \cf0 \cb1 \strokec2 \shad0 \
+\pard\pardeftab720\sa240\partightenfactor0
+
+\f1\fs24 \cf0 \strokec2 Query string parameters:\
+\pard\tx220\tx720\pardeftab720\li720\fi-720\partightenfactor0
+\ls1\ilvl0
+\f2\fs26 \cf0 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 client
+\f1\fs24  (optional) - Search by client name or email\
+\ls1\ilvl0
+\f2\fs26 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 startDate
+\f1\fs24  (optional) - Format: yyyy-MM-dd\
+\ls1\ilvl0
+\f2\fs26 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 endDate
+\f1\fs24  (optional) - Format: yyyy-MM-dd\
+\ls1\ilvl0
+\f2\fs26 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 status
+\f1\fs24  (optional) - Values: "Confirmed", "Canceled", "WaitingConfirmation", "Declined", "Missed"\
+\ls1\ilvl0
+\f2\fs26 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 practitionerEmail
+\f1\fs24  (optional) - Specific practitioner's email\
+\ls1\ilvl0
+\f2\fs26 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 page
+\f1\fs24  (optional) - For pagination (100 records per page)\
+\ls1\ilvl0
+\f2\fs26 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 updatedSince
+\f1\fs24  (optional) - Format: yyyy-MM-dd\
+\ls1\ilvl0
+\f2\fs26 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 deletedOnly
+\f1\fs24  (optional) - Boolean\
+\pard\pardeftab720\sa240\partightenfactor0
+\cf0 \strokec2 Example response:\
+\pard\pardeftab720\partightenfactor0
+
+\f2\fs26 \cf0 \strokec2 json\
+
+\f3\fs22 \cf3 \cb4 \strokec3 Copy
+\f2\fs26 \cf0 \cb1 \strokec2 \
+
+\f4\fs24 \cf5 \cb6 \strokec5 \shad\shadx0\shady-20\shadr0\shado0 \shadc0 [\
+  \{\
+    "Id": "123",\
+    "ClientName": "Test Client",\
+    "ClientEmail": "test@example.com",\
+    "ClientPhone": "(222) 222-2222",\
+    "ClientDateOfBirth": "1990-01-01",\
+    "ClientId": 9999,\
+    "Status": "Confirmed",\
+    "StartDate": 1458526480368,\
+    "EndDate": 1458526484236,\
+    "Duration": 90,\
+    "ServiceName": "Initial Consultation",\
+    "ServiceId": "00000000-0000-0000-0000-000000000000",\
+    "LocationName": "Manhattan Office",\
+    "LocationId": "1",\
+    "Price": 100.00,\
+    "PractitionerEmail": "test@email.com",\
+    "PractitionerName": "FirstName LastName",\
+    "PractitionerId": "acbdefg",\
+    "DateCreated": 1458526532654,\
+    "IntakeId": "00000000-0000-0000-0000-000000000000",\
+    "BookedByClient": true,\
+    "CreatedBy": "John Smith",\
+    "StartDateIso": "2023-01-01T10:00:00Z",\
+    "EndDateIso": "2023-01-01T11:00:00Z"\
+  \}\
+]
+\f2\fs26 \cf0 \cb1 \strokec2 \shad0 \
+\pard\pardeftab720\sa280\partightenfactor0
+
+\f0\b\fs28 \cf0 Retrieve a Single Appointment\
+\pard\pardeftab720\partightenfactor0
+
+\f2\b0\fs26 \cf0 http\
+
+\f3\fs22 \cf3 \cb4 \strokec3 Copy
+\f2\fs26 \cf0 \cb1 \strokec2 \
+
+\f4\fs24 \cf5 \cb6 \strokec5 \shad\shadx0\shady-20\shadr0\shado0 \shadc0 GET /appointments/\{appointment-id\}
+\f2\fs26 \cf0 \cb1 \strokec2 \shad0 \
+\pard\pardeftab720\sa280\partightenfactor0
+
+\f0\b\fs28 \cf0 Create an Appointment\
+\pard\pardeftab720\partightenfactor0
+
+\f2\b0\fs26 \cf0 http\
+
+\f3\fs22 \cf3 \cb4 \strokec3 Copy
+\f2\fs26 \cf0 \cb1 \strokec2 \
+
+\f4\fs24 \cf5 \cb6 \strokec5 \shad\shadx0\shady-20\shadr0\shado0 \shadc0 POST /appointments
+\f2\fs26 \cf0 \cb1 \strokec2 \shad0 \
+\pard\pardeftab720\sa240\partightenfactor0
+
+\f1\fs24 \cf0 \strokec2 Required payload:\
+\pard\pardeftab720\partightenfactor0
+
+\f2\fs26 \cf0 \strokec2 json\
+
+\f3\fs22 \cf3 \cb4 \strokec3 Copy
+\f2\fs26 \cf0 \cb1 \strokec2 \
+
+\f4\fs24 \cf5 \cb6 \strokec5 \shad\shadx0\shady-20\shadr0\shado0 \shadc0 \{\
+  "PractitionerId": "5356eb98c5771321282d2ac4",\
+  "ClientId": 123,\
+  "ServiceId": "00000000-0000-0000-0000-000000000000",\
+  "LocationId": "1",\
+  "Status": "Confirmed",\
+  "UtcDateTime": 1458526480368,\
+  "SendClientEmailNotification": true,\
+  "ReminderType": "Sms" \
+\}
+\f2\fs26 \cf0 \cb1 \strokec2 \shad0 \
+\pard\pardeftab720\sa280\partightenfactor0
+
+\f0\b\fs28 \cf0 Update an Appointment\
+\pard\pardeftab720\partightenfactor0
+
+\f2\b0\fs26 \cf0 http\
+
+\f3\fs22 \cf3 \cb4 \strokec3 Copy
+\f2\fs26 \cf0 \cb1 \strokec2 \
+
+\f4\fs24 \cf5 \cb6 \strokec5 \shad\shadx0\shady-20\shadr0\shado0 \shadc0 PUT /appointments
+\f2\fs26 \cf0 \cb1 \strokec2 \shad0 \
+\pard\pardeftab720\sa240\partightenfactor0
+
+\f1\fs24 \cf0 \strokec2 Payload:\
+\pard\pardeftab720\partightenfactor0
+
+\f2\fs26 \cf0 \strokec2 json\
+
+\f3\fs22 \cf3 \cb4 \strokec3 Copy
+\f2\fs26 \cf0 \cb1 \strokec2 \
+
+\f4\fs24 \cf5 \cb6 \strokec5 \shad\shadx0\shady-20\shadr0\shado0 \shadc0 \{\
+  "Id": "5356eb98c5771321282d2ac4",\
+  "ServiceId": "00000000-0000-0000-0000-000000000000", \
+  "LocationId": "1", \
+  "Status": "Confirmed", \
+  "UtcDateTime": 1458526480368,\
+  "SendClientEmailNotification": true,\
+  "ReminderType": "Sms"\
+\}
+\f2\fs26 \cf0 \cb1 \strokec2 \shad0 \
+\pard\pardeftab720\sa280\partightenfactor0
+
+\f0\b\fs28 \cf0 Cancel an Appointment\
+\pard\pardeftab720\partightenfactor0
+
+\f2\b0\fs26 \cf0 http\
+
+\f3\fs22 \cf3 \cb4 \strokec3 Copy
+\f2\fs26 \cf0 \cb1 \strokec2 \
+
+\f4\fs24 \cf5 \cb6 \strokec5 \shad\shadx0\shady-20\shadr0\shado0 \shadc0 POST /appointments/cancellation
+\f2\fs26 \cf0 \cb1 \strokec2 \shad0 \
+\pard\pardeftab720\sa240\partightenfactor0
+
+\f1\fs24 \cf0 \strokec2 Payload:\
+\pard\pardeftab720\partightenfactor0
+
+\f2\fs26 \cf0 \strokec2 json\
+
+\f3\fs22 \cf3 \cb4 \strokec3 Copy
+\f2\fs26 \cf0 \cb1 \strokec2 \
+
+\f4\fs24 \cf5 \cb6 \strokec5 \shad\shadx0\shady-20\shadr0\shado0 \shadc0 \{\
+  "AppointmentId": "5356eb98c5771321282d2ac4",\
+  "Reason": "..."\
+\}
+\f2\fs26 \cf0 \cb1 \strokec2 \shad0 \
+\pard\pardeftab720\sa298\partightenfactor0
+
+\f0\b\fs36 \cf0 \strokec2 Client Endpoints\
+\pard\pardeftab720\sa280\partightenfactor0
+
+\fs28 \cf0 \strokec2 Query Clients\
+\pard\pardeftab720\partightenfactor0
+
+\f2\b0\fs26 \cf0 http\
+
+\f3\fs22 \cf3 \cb4 \strokec3 Copy
+\f2\fs26 \cf0 \cb1 \strokec2 \
+
+\f4\fs24 \cf5 \cb6 \strokec5 \shad\shadx0\shady-20\shadr0\shado0 \shadc0 GET /clients
+\f2\fs26 \cf0 \cb1 \strokec2 \shad0 \
+\pard\pardeftab720\sa240\partightenfactor0
+
+\f1\fs24 \cf0 \strokec2 Query parameters:\
+\pard\tx220\tx720\pardeftab720\li720\fi-720\partightenfactor0
+\ls2\ilvl0
+\f2\fs26 \cf0 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 search
+\f1\fs24  (optional) - Partial name, email, or client ID\
+\ls2\ilvl0
+\f2\fs26 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 page
+\f1\fs24  (optional) - For pagination\
+\ls2\ilvl0
+\f2\fs26 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 includeProfile
+\f1\fs24  (optional) - Set to 'true' for full client profiles\
+\ls2\ilvl0
+\f2\fs26 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 dateCreatedStart
+\f1\fs24  (optional) - Format: yyyy-MM-dd\
+\ls2\ilvl0
+\f2\fs26 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 dateCreatedEnd
+\f1\fs24  (optional) - Format: yyyy-MM-dd\
+\ls2\ilvl0
+\f2\fs26 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 custom.fieldId
+\f1\fs24  (optional) - Search by custom field\
+\ls2\ilvl0
+\f2\fs26 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 dateUpdatedStart
+\f1\fs24  (optional) - Format: yyyy-MM-dd\
+\ls2\ilvl0
+\f2\fs26 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 dateUpdatedEnd
+\f1\fs24  (optional) - Format: yyyy-MM-dd\
+\ls2\ilvl0
+\f2\fs26 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 externalClientId
+\f1\fs24  (optional) - Your external reference\
+\ls2\ilvl0
+\f2\fs26 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 deletedOnly
+\f1\fs24  (optional) - Boolean\
+\pard\pardeftab720\sa240\partightenfactor0
+\cf0 \strokec2 Example response with includeProfile=true:\
+\pard\pardeftab720\partightenfactor0
+
+\f2\fs26 \cf0 \strokec2 json\
+
+\f3\fs22 \cf3 \cb4 \strokec3 Copy
+\f2\fs26 \cf0 \cb1 \strokec2 \
+
+\f4\fs24 \cf5 \cb6 \strokec5 \shad\shadx0\shady-20\shadr0\shado0 \shadc0 [\
+  \{\
+    "ClientId": 123,\
+    "Name": "Test Name",\
+    "FirstName": "Test",\
+    "LastName": "Name",\
+    "MiddleName": "Test",\
+    "Email": "test@email.com",\
+    "Phone": "(222) 222-2222",\
+    "DateOfBirth": 1458526480368,\
+    "MaritalStatus": "Married",\
+    "Gender": "Female",\
+    "Tags": ["tag1", "tag2"],\
+    "Archived": false,\
+    "HomePhone": "(222) 222-2222",\
+    "WorkPhone": "(222) 222-2222",\
+    "MobilePhone": "(222) 222-2222",\
+    "Address": "105 Test St, City, State ZipCode, Country",\
+    "ExternalClientId": "001",\
+    "CustomFields": [\
+      \{\
+        "FieldId": "abcd",\
+        "Text": "Emergency Contact Name",\
+        "Value": "Jane Doe"\
+      \}\
+    ]\
+  \}\
+]
+\f2\fs26 \cf0 \cb1 \strokec2 \shad0 \
+\pard\pardeftab720\sa280\partightenfactor0
+
+\f0\b\fs28 \cf0 Save/Update Client\
+\pard\pardeftab720\partightenfactor0
+
+\f2\b0\fs26 \cf0 http\
+
+\f3\fs22 \cf3 \cb4 \strokec3 Copy
+\f2\fs26 \cf0 \cb1 \strokec2 \
+
+\f4\fs24 \cf5 \cb6 \strokec5 \shad\shadx0\shady-20\shadr0\shado0 \shadc0 POST /clients
+\f2\fs26 \cf0 \cb1 \strokec2 \shad0 \
+\pard\pardeftab720\sa298\partightenfactor0
+
+\f0\b\fs36 \cf0 \strokec2 Questionnaire/Intake Form Endpoints\
+\pard\pardeftab720\sa280\partightenfactor0
+
+\fs28 \cf0 \strokec2 Query Intake Forms\
+\pard\pardeftab720\partightenfactor0
+
+\f2\b0\fs26 \cf0 http\
+
+\f3\fs22 \cf3 \cb4 \strokec3 Copy
+\f2\fs26 \cf0 \cb1 \strokec2 \
+
+\f4\fs24 \cf5 \cb6 \strokec5 \shad\shadx0\shady-20\shadr0\shado0 \shadc0 GET /intakes/summary
+\f2\fs26 \cf0 \cb1 \strokec2 \shad0 \
+\pard\pardeftab720\sa240\partightenfactor0
+
+\f1\fs24 \cf0 \strokec2 Query parameters:\
+\pard\tx220\tx720\pardeftab720\li720\fi-720\partightenfactor0
+\ls3\ilvl0
+\f2\fs26 \cf0 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 client
+\f1\fs24  (optional) - Search by client name or email\
+\ls3\ilvl0
+\f2\fs26 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 startDate
+\f1\fs24  (optional) - Format: yyyy-MM-dd\
+\ls3\ilvl0
+\f2\fs26 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 endDate
+\f1\fs24  (optional) - Format: yyyy-MM-dd\
+\ls3\ilvl0
+\f2\fs26 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 page
+\f1\fs24  (optional) - For pagination\
+\ls3\ilvl0
+\f2\fs26 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 all
+\f1\fs24  (optional) - Boolean to include all statuses\
+\ls3\ilvl0
+\f2\fs26 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 clientId
+\f1\fs24  (optional) - Specific client ID\
+\ls3\ilvl0
+\f2\fs26 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 externalClientId
+\f1\fs24  (optional) - External client ID\
+\ls3\ilvl0
+\f2\fs26 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 updatedSince
+\f1\fs24  (optional) - Format: yyyy-MM-dd\
+\ls3\ilvl0
+\f2\fs26 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 deletedOnly
+\f1\fs24  (optional) - Boolean\
+\pard\pardeftab720\sa280\partightenfactor0
+
+\f0\b\fs28 \cf0 \strokec2 Get Full Intake Form\
+\pard\pardeftab720\partightenfactor0
+
+\f2\b0\fs26 \cf0 http\
+
+\f3\fs22 \cf3 \cb4 \strokec3 Copy
+\f2\fs26 \cf0 \cb1 \strokec2 \
+
+\f4\fs24 \cf5 \cb6 \strokec5 \shad\shadx0\shady-20\shadr0\shado0 \shadc0 GET /intakes/\{intake-id\}
+\f2\fs26 \cf0 \cb1 \strokec2 \shad0 \
+\pard\pardeftab720\sa240\partightenfactor0
+
+\f1\fs24 \cf0 \strokec2 Response includes client info and an array of questions:\
+\pard\pardeftab720\partightenfactor0
+
+\f2\fs26 \cf0 \strokec2 json\
+
+\f3\fs22 \cf3 \cb4 \strokec3 Copy
+\f2\fs26 \cf0 \cb1 \strokec2 \
+
+\f4\fs24 \cf5 \cb6 \strokec5 \shad\shadx0\shady-20\shadr0\shado0 \shadc0 \{\
+  "Id": "00000000-0000-0000-0000-000000000000",\
+  "ClientName": "test",\
+  "ClientEmail": "test@email.com",\
+  "ClientId": 9999,\
+  "Status": "Completed",\
+  "DateCreated": 1458526480368,\
+  "DateSubmitted": 1458526532654,\
+  "QuestionnaireName": "test",\
+  "Practitioner": "test@email.com",\
+  "PractitionerName": "FirstName LastName",\
+  "Questions": [\
+    \{\
+      "Id": "xxxx-1",\
+      "Text": "Full name",\
+      "Answer": "Test Client",\
+      "QuestionType": "OpenQuestion",\
+      "Rows": [],\
+      "ColumnNames": [],\
+      "OfficeUse": false,\
+      "OfficeNote": null,\
+      "ClientProfileFieldId": "FullName"\
+    \}\
+  ]\
+\}
+\f2\fs26 \cf0 \cb1 \strokec2 \shad0 \
+\pard\pardeftab720\sa280\partightenfactor0
+
+\f0\b\fs28 \cf0 Send a Questionnaire\
+\pard\pardeftab720\partightenfactor0
+
+\f2\b0\fs26 \cf0 http\
+
+\f3\fs22 \cf3 \cb4 \strokec3 Copy
+\f2\fs26 \cf0 \cb1 \strokec2 \
+
+\f4\fs24 \cf5 \cb6 \strokec5 \shad\shadx0\shady-20\shadr0\shado0 \shadc0 POST /intakes/send
+\f2\fs26 \cf0 \cb1 \strokec2 \shad0 \
+\pard\pardeftab720\sa240\partightenfactor0
+
+\f1\fs24 \cf0 \strokec2 Payload:\
+\pard\pardeftab720\partightenfactor0
+
+\f2\fs26 \cf0 \strokec2 json\
+
+\f3\fs22 \cf3 \cb4 \strokec3 Copy
+\f2\fs26 \cf0 \cb1 \strokec2 \
+
+\f4\fs24 \cf5 \cb6 \strokec5 \shad\shadx0\shady-20\shadr0\shado0 \shadc0 \{\
+  "QuestionnaireId": "00000000-0000-0000-0000-000000000000",\
+  "ClientId": 123,\
+  "ClientName": "Dexter Morgan",\
+  "ClientEmail": "dexter@email.com",\
+  "ClientPhone": "2222222222",\
+  "PractitionerId": "00000000-0000-0000-0000-000000000000",\
+  "ExternalClientId": "abcd"\
+\}
+\f2\fs26 \cf0 \cb1 \strokec2 \shad0 \
+\pard\pardeftab720\sa298\partightenfactor0
+
+\f0\b\fs36 \cf0 \strokec2 Webhook Integration\
+\pard\pardeftab720\sa240\partightenfactor0
+
+\f1\b0\fs24 \cf0 IntakeQ can send webhooks for various events:\
+\pard\pardeftab720\sa280\partightenfactor0
+
+\f0\b\fs28 \cf0 \strokec2 Appointment Webhooks\
+\pard\pardeftab720\sa240\partightenfactor0
+
+\f1\b0\fs24 \cf0 \strokec2 Webhook payload for appointment events:\
+\pard\pardeftab720\partightenfactor0
+
+\f2\fs26 \cf0 \strokec2 json\
+
+\f3\fs22 \cf3 \cb4 \strokec3 Copy
+\f2\fs26 \cf0 \cb1 \strokec2 \
+
+\f4\fs24 \cf5 \cb6 \strokec5 \shad\shadx0\shady-20\shadr0\shado0 \shadc0 \{\
+  "EventType": "AppointmentCreated",\
+  "ActionPerformedByClient": true,\
+  "Appointment": \{\
+    "Id": "123",\
+    "ClientName": "test",\
+    "ClientEmail": "test@email.com",\
+    // ... full appointment object\
+  \},\
+  "ClientId": 123,\
+  "PracticeId": "xxxxxx",\
+  "ExternalPracticeId": "xxxxxx",\
+  "ExternalClientId": "xxxx"\
+\}
+\f2\fs26 \cf0 \cb1 \strokec2 \shad0 \
+\pard\pardeftab720\sa240\partightenfactor0
+
+\f1\fs24 \cf0 \strokec2 Event types:\
+\pard\tx220\tx720\pardeftab720\li720\fi-720\partightenfactor0
+\ls4\ilvl0
+\f2\fs26 \cf0 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 AppointmentCreated
+\f1\fs24  - New appointment created\
+\ls4\ilvl0
+\f2\fs26 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 AppointmentConfirmed
+\f1\fs24  - Appointment confirmed\
+\ls4\ilvl0
+\f2\fs26 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 AppointmentRescheduled
+\f1\fs24  - Appointment time changed\
+\ls4\ilvl0
+\f2\fs26 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 AppointmentCanceled
+\f1\fs24  - Appointment canceled\
+\ls4\ilvl0
+\f2\fs26 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 AppointmentDeclined
+\f1\fs24  - Appointment request declined\
+\ls4\ilvl0
+\f2\fs26 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 AppointmentMissed
+\f1\fs24  - Appointment marked as missed\
+\ls4\ilvl0
+\f2\fs26 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 AppointmentDeleted
+\f1\fs24  - Appointment deleted\
+\pard\pardeftab720\sa280\partightenfactor0
+
+\f0\b\fs28 \cf0 \strokec2 Intake Form Webhook\
+\pard\pardeftab720\sa240\partightenfactor0
+
+\f1\b0\fs24 \cf0 \strokec2 Webhook payload for form submissions:\
+\pard\pardeftab720\partightenfactor0
+
+\f2\fs26 \cf0 \strokec2 json\
+
+\f3\fs22 \cf3 \cb4 \strokec3 Copy
+\f2\fs26 \cf0 \cb1 \strokec2 \
+
+\f4\fs24 \cf5 \cb6 \strokec5 \shad\shadx0\shady-20\shadr0\shado0 \shadc0 \{\
+  "IntakeId": "00000000-0000-0000-0000-000000000000",\
+  "Type": "Intake Submitted",\
+  "ClientId": 123,\
+  "ExternalPracticeId": "xxxxxx",\
+  "ExternalClientId": "xxxx"\
+\}
+\f2\fs26 \cf0 \cb1 \strokec2 \shad0 \
+\pard\pardeftab720\sa298\partightenfactor0
+
+\f0\b\fs36 \cf0 \strokec2 Security Considerations\
+\pard\tx220\tx720\pardeftab720\li720\fi-720\partightenfactor0
+\ls5\ilvl0
+\f1\b0\fs24 \cf0 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	1	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 Webhook validation should use HMAC signatures to verify authenticity\
+\ls5\ilvl0\kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	2	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 API requests should implement retry logic with exponential backoff\
+\ls5\ilvl0\kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	3	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 Observe the rate limit of 120 requests per minute\
+\ls5\ilvl0\kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	4	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 Store IntakeQ API keys securely, never in client-side code\
+\ls5\ilvl0\kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	5	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 Use IP restriction in the IntakeQ dashboard for additional security\
+\pard\pardeftab720\sa298\partightenfactor0
+
+\f0\b\fs36 \cf0 \strokec2 Implementation Notes for Catalyst Scheduler\
+\pard\tx220\tx720\pardeftab720\li720\fi-720\partightenfactor0
+\ls6\ilvl0
+\f1\b0\fs24 \cf0 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	1	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 The 
+\f2\fs26 AppointmentSyncHandler
+\f1\fs24  should process all appointment webhooks\
+\ls6\ilvl0\kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	2	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 The 
+\f2\fs26 WebhookHandler
+\f1\fs24  should handle form submissions\
+\ls6\ilvl0\kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	3	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 Use the 
+\f2\fs26 intakeQPractitionerId
+\f1\fs24  field in the Clinicians sheet to map practitioners\
+\ls6\ilvl0\kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	4	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 Parse and store accessibility needs from intake forms in the Client_Accessibility_Info sheet\
+\ls6\ilvl0\kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	5	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 Process office assignment rules based on client preferences and needs\
+\pard\pardeftab720\sa298\partightenfactor0
+
+\f0\b\fs36 \cf0 \strokec2 Error Handling\
+\pard\tx220\tx720\pardeftab720\li720\fi-720\partightenfactor0
+\ls7\ilvl0
+\f1\b0\fs24 \cf0 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	1	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 All API calls should include proper error handling\
+\ls7\ilvl0\kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	2	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 Log detailed error messages to the audit log\
+\ls7\ilvl0\kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	3	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 Implement retries for network failures and rate limiting\
+\ls7\ilvl0\kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	4	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 Use consistent validation for webhook payloads\
+\ls7\ilvl0\kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	5	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 Provide fallback behaviors when API services are unavailable\
+}

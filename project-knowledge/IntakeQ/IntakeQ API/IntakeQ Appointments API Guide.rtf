@@ -1,0 +1,919 @@
+{\rtf1\ansi\ansicpg1252\cocoartf2820
+\cocoatextscaling0\cocoaplatform0{\fonttbl\f0\fswiss\fcharset0 Helvetica;\f1\fswiss\fcharset0 Helvetica-Bold;\f2\fnil\fcharset0 Monaco;
+}
+{\colortbl;\red255\green255\blue255;\red26\green26\blue26;\red10\green64\blue103;\red90\green99\blue107;
+\red227\green241\blue255;\red252\green226\blue226;\red38\green38\blue38;\red242\green242\blue242;\red57\green57\blue57;
+\red83\green85\blue2;\red0\green0\blue0;\red82\green0\blue83;\red16\green121\blue2;\red11\green84\blue83;
+\red115\green0\blue2;\red0\green0\blue117;\red219\green219\blue219;\red109\green109\blue109;}
+{\*\expandedcolortbl;;\cssrgb\c13333\c13333\c13333;\cssrgb\c1176\c32157\c47843;\cssrgb\c42745\c46275\c49412;
+\cssrgb\c90980\c95686\c100000;\cssrgb\c99216\c90980\c90980;\cssrgb\c20000\c20000\c20000;\cssrgb\c96078\c96078\c96078;\cssrgb\c28627\c28627\c28627;
+\cssrgb\c40000\c40000\c0;\cssrgb\c0\c0\c0;\cssrgb\c40000\c0\c40000;\cssrgb\c0\c53333\c0;\cssrgb\c0\c40000\c40000;
+\cssrgb\c53333\c0\c0;\cssrgb\c0\c0\c53333;\cssrgb\c88627\c88627\c88627;\cssrgb\c50196\c50196\c50196;}
+{\*\listtable{\list\listtemplateid1\listhybrid{\listlevel\levelnfc23\levelnfcn23\leveljc0\leveljcn0\levelfollow0\levelstartat1\levelspace360\levelindent0{\*\levelmarker \{disc\}}{\leveltext\leveltemplateid1\'01\uc0\u8226 ;}{\levelnumbers;}\fi-360\li720\lin720 }{\listname ;}\listid1}
+{\list\listtemplateid2\listhybrid{\listlevel\levelnfc23\levelnfcn23\leveljc0\leveljcn0\levelfollow0\levelstartat1\levelspace360\levelindent0{\*\levelmarker \{disc\}}{\leveltext\leveltemplateid101\'01\uc0\u8226 ;}{\levelnumbers;}\fi-360\li720\lin720 }{\listname ;}\listid2}}
+{\*\listoverridetable{\listoverride\listid1\listoverridecount0\ls1}{\listoverride\listid2\listoverridecount0\ls2}}
+\margl1440\margr1440\vieww11520\viewh8400\viewkind0
+\deftab720
+\pard\pardeftab720\ri600\sa300\partightenfactor0
+
+\f0\fs60 \cf2 \expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 IntakeQ Appointments API\
+\pard\pardeftab720\partightenfactor0
+
+\fs28 \cf3 \strokec3 \
+\pard\pardeftab720\sa312\partightenfactor0
+
+\f1\b\fs48 \cf2 \strokec2 Overview\
+\pard\pardeftab720\sa450\partightenfactor0
+
+\f0\b0\fs30 \cf4 \strokec4 The IntakeQ Appointment API is composed of HTTP endpoints that can be reached through a REST API. Additionally, you can setup webhooks that are fired when an appointment status changes; giving you the opportunity to watch for changes in realtime and integrate with 3rd party software.\
+For Intake Forms API, please refer to\'a0{\field{\*\fldinst{HYPERLINK "https://support.intakeq.com/article/31-intakeq-api"}}{\fldrslt \cf3 \strokec3 this article}}.\
+\pard\pardeftab720\sa312\partightenfactor0
+
+\f1\b\fs48 \cf2 \strokec2 Getting Started\
+\pard\pardeftab720\sa450\partightenfactor0
+
+\f0\b0\fs30 \cf4 \strokec4 To get started, you first need to enable API access (navigate to More > Settings > Integrations > Developer API). That\'92s also where you\'92ll find your API key, used to authenticate your HTTP calls.\
+\pard\pardeftab720\partightenfactor0
+
+\fs28 \cf4 \cb5 Only the main account owner has access to the API tab.\cb1 \
+\pard\pardeftab720\partightenfactor0
+
+\fs30 \cf4 \
+\pard\pardeftab720\sa420\partightenfactor0
+
+\fs28 \cf4 \cb6 Never expose your API key in plain text (config files, source control, etc.).\cb1 \
+\pard\pardeftab720\partightenfactor0
+\cf4 \cb6 Consider setting an IP Allow-List as explained\'a0{\field{\*\fldinst{HYPERLINK "https://support.intakeq.com/article/200-restricting-access-using-ip-address#api-ip-restriction"}}{\fldrslt \cf3 \strokec3 here}}.\cb1 \
+\pard\pardeftab720\sa273\partightenfactor0
+
+\f1\b\fs42 \cf2 \strokec2 Base URL\
+\pard\pardeftab720\sa450\partightenfactor0
+
+\f0\b0\fs30 \cf4 \strokec4 All endpoints are located under the following URL:\'a0{\field{\*\fldinst{HYPERLINK "https://intakeq.com/api/v1/"}}{\fldrslt \cf3 \strokec3 https://intakeq.com/api/v1/}}\
+An example of a typical API call would look like this:\
+\pard\pardeftab720\partightenfactor0
+
+\f2\fs24 \cf7 \cb8 \strokec7 [GET] https://intakeq.com/api/v1/appointments/[appointment-id]\
+\pard\pardeftab720\sa273\partightenfactor0
+
+\f1\b\fs42 \cf2 \cb1 \strokec2 Authentication\
+\pard\pardeftab720\sa450\partightenfactor0
+
+\f0\b0\fs30 \cf4 \strokec4 Every HTTP request needs to contain your API key embedded in an\'a0
+\f1\b \cf9 \strokec9 authentication header
+\f0\b0 \cf4 \strokec4 \'a0named X-Auth-Key.\
+\pard\pardeftab720\partightenfactor0
+
+\f2\fs24 \cf7 \cb8 \strokec7 X-Auth-Key:xxxxxxxxxxxxxxxxxxxxxxxxx\
+\pard\pardeftab720\sa273\partightenfactor0
+
+\f1\b\fs42 \cf2 \cb1 \strokec2 Index\
+\pard\tx220\tx720\pardeftab720\li720\fi-720\sa200\partightenfactor0
+\ls1\ilvl0
+\f0\b0\fs30 \cf3 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}{\field{\*\fldinst{HYPERLINK "https://support.intakeq.com/article/204-intakeq-appointments-api#appointment-object"}}{\fldrslt \expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec3 The Appointment Object}}\cf4 \expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec4 \
+\ls1\ilvl0\cf3 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}{\field{\*\fldinst{HYPERLINK "https://support.intakeq.com/article/204-intakeq-appointments-api#query-appointments"}}{\fldrslt \expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec3 Query Appointments}}\cf4 \expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec4 \
+\ls1\ilvl0\cf3 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}{\field{\*\fldinst{HYPERLINK "https://support.intakeq.com/article/204-intakeq-appointments-api#retrieve-appointment"}}{\fldrslt \expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec3 Retrieve an Appointment}}\cf4 \expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec4 \
+\ls1\ilvl0\cf3 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}{\field{\*\fldinst{HYPERLINK "https://support.intakeq.com/article/204-intakeq-appointments-api#retrieve-booking-settings"}}{\fldrslt \expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec3 Retrieve Booking Settings}}\cf4 \expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec4 \
+\ls1\ilvl0\cf3 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}{\field{\*\fldinst{HYPERLINK "https://support.intakeq.com/article/204-intakeq-appointments-api#create-appointment"}}{\fldrslt \expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec3 Create an Appointment}}\cf4 \expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec4 \
+\ls1\ilvl0\cf3 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}{\field{\*\fldinst{HYPERLINK "https://support.intakeq.com/article/204-intakeq-appointments-api#update-appointment"}}{\fldrslt \expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec3 Update an Appointment}}\cf4 \expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec4 \
+\ls1\ilvl0\cf3 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}{\field{\*\fldinst{HYPERLINK "https://support.intakeq.com/article/204-intakeq-appointments-api#cancel-appointment"}}{\fldrslt \expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec3 Cancel an Appointment}}\cf4 \expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec4 \
+\ls1\ilvl0\cf3 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}{\field{\*\fldinst{HYPERLINK "https://support.intakeq.com/article/204-intakeq-appointments-api#webhooks"}}{\fldrslt \expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec3 Webhooks}}\cf4 \expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec4 \
+\pard\pardeftab720\sa312\partightenfactor0
+
+\f1\b\fs48 \cf2 \strokec2 The Appointment Object\
+\pard\pardeftab720\sa450\partightenfactor0
+
+\f0\b0\fs30 \cf4 \strokec4 Below is the JSON representation of the appointment object, which is used throughout this API.\
+\pard\pardeftab720\partightenfactor0
+
+\f2\fs24 \cf10 \cb8 \strokec10 \{\cf7 \strokec11 \
+   \cf12 \strokec12 Id\cf10 \strokec10 :\cf7 \strokec11  \cf13 \strokec13 "123"\cf10 \strokec10 ,\cf7 \strokec11  \
+   \cf12 \strokec12 ClientName\cf10 \strokec10 :\cf7 \strokec11  \cf13 \strokec13 "test"\cf10 \strokec10 ,\cf7 \strokec11 \
+   \cf12 \strokec12 ClientEmail\cf10 \strokec10 :\cf7 \strokec11  \cf13 \strokec13 "test@email.com"\cf10 \strokec10 ,\cf7 \strokec11 \
+   \cf12 \strokec12 ClientPhone\cf10 \strokec10 :\cf7 \strokec11  \cf13 \strokec13 "(222) 222-2222"\cf10 \strokec10 ,\cf7 \strokec11 \
+   \cf12 \strokec12 ClientDateOfBirth\cf10 \strokec10 :\cf7 \strokec11  \cf13 \strokec13 "1988-05-23"\cf10 \strokec10 ,\cf7 \strokec11 \
+   \cf12 \strokec12 ClientId\cf10 \strokec10 :\cf7 \strokec11  \cf14 \strokec14 9999\cf10 \strokec10 ,\cf7 \strokec11 \
+   \cf12 \strokec12 Status\cf10 \strokec10 :\cf7 \strokec11  \cf13 \strokec13 "Confirmed"\cf10 \strokec10 ,\cf7 \strokec11  \
+   \cf12 \strokec12 StartDate\cf10 \strokec10 :\cf7 \strokec11  \cf14 \strokec14 1458526480368\cf10 \strokec10 ,\cf7 \strokec11  \cf15 \strokec15 //Unix timestamp in milliseconds,\cf7 \strokec11 \
+   \cf12 \strokec12 EndDate\cf10 \strokec10 :\cf7 \strokec11  \cf14 \strokec14 1458526484236\cf10 \strokec10 ,\cf7 \strokec11  \cf15 \strokec15 //Unix timestamp in milliseconds,\cf7 \strokec11 \
+   \cf12 \strokec12 Duration\cf10 \strokec10 :\cf7 \strokec11  \cf14 \strokec14 90\cf10 \strokec10 ,\cf7 \strokec11  \cf15 \strokec15 //minutes\cf7 \strokec11 \
+   \cf12 \strokec12 ServiceName\cf10 \strokec10 :\cf7 \strokec11  \cf13 \strokec13 "Initial Consultation"\cf10 \strokec10 ,\cf7 \strokec11 \
+   \cf12 \strokec12 ServiceId\cf10 \strokec10 :\cf7 \strokec11  \cf13 \strokec13 "00000000-0000-0000-0000-000000000000"\cf10 \strokec10 ,\cf7 \strokec11  \cf15 \strokec15 //GUID\cf7 \strokec11 \
+   \cf12 \strokec12 LocationName\cf10 \strokec10 :\cf7 \strokec11  \cf13 \strokec13 "Manhattan Office"\cf10 \strokec10 ,\cf7 \strokec11 \
+   \cf12 \strokec12 LocationId\cf10 \strokec10 :\cf7 \strokec11  \cf14 \strokec14 1\cf10 \strokec10 ,\cf7 \strokec11 \
+   \cf12 \strokec12 Price\cf10 \strokec10 :\cf7 \strokec11  \cf14 \strokec14 100.00\cf10 \strokec10 ,\cf7 \strokec11  	\
+   \cf12 \strokec12 PractitionerEmail\cf10 \strokec10 :\cf7 \strokec11  \cf13 \strokec13 "test@email.com"\cf10 \strokec10 ,\cf7 \strokec11 \
+   \cf12 \strokec12 PractitionerName\cf10 \strokec10 :\cf7 \strokec11  \cf13 \strokec13 "FirstName LastName"\cf7 \strokec11    \
+   \cf12 \strokec12 PractitionerId\cf10 \strokec10 :\cf7 \strokec11  \cf13 \strokec13 "acbdefg"\cf10 \strokec10 ,\cf7 \strokec11 \
+   \cf12 \strokec12 DateCreated\cf10 \strokec10 :\cf7 \strokec11  \cf14 \strokec14 1458526532654\cf10 \strokec10 ,\cf7 \strokec11  \cf15 \strokec15 //Unix timestamp in milliseconds\cf7 \strokec11 \
+   \cf12 \strokec12 IntakeId\cf10 \strokec10 :\cf7 \strokec11  \cf13 \strokec13 "00000000-0000-0000-0000-000000000000"\cf10 \strokec10 ,\cf7 \strokec11  \cf15 \strokec15 //GUID\cf7 \strokec11 \
+   \cf12 \strokec12 BookedByClient\cf10 \strokec10 :\cf7 \strokec11  \cf16 \strokec16 true\cf10 \strokec10 ,\cf7 \strokec11 \
+   \cf12 \strokec12 CreatedBy\cf10 \strokec10 :\cf7 \strokec11  \cf13 \strokec13 "John Smith"\cf10 \strokec10 ,\cf7 \strokec11 \
+   \cf12 \strokec12 AppointmentPackageId\cf10 \strokec10 :\cf7 \strokec11  \cf13 \strokec13 "00000000-0000-0000-0000-000000000000"\cf10 \strokec10 ,\cf7 \strokec11  \cf15 \strokec15 //GUID\cf7 \strokec11 \
+   \cf12 \strokec12 AppointmentPackageName\cf10 \strokec10 :\cf7 \strokec11  \cf13 \strokec13 "Package Name"\cf10 \strokec10 ,\cf7 \strokec11 \
+   \cf12 \strokec12 TelehealthInfo\cf10 \strokec10 :\cf7 \strokec11  \cf10 \strokec10 \{\cf7 \strokec11 \
+		\cf12 \strokec12 Id\cf10 \strokec10 :\cf7 \strokec11  \cf13 \strokec13 "xyz"\cf10 \strokec10 ,\cf7 \strokec11 \
+		\cf12 \strokec12 StartUrl\cf10 \strokec10 :\cf7 \strokec11  \cf13 \strokec13 "https://mydomain.intakeq.com/videocall/123"\cf10 \strokec10 ,\cf7 \strokec11 \
+		\cf12 \strokec12 Invitation\cf10 \strokec10 :\cf7 \strokec11  \cf13 \strokec13 "Please join the video call using the link below: ...."\cf10 \strokec10 ,\cf7 \strokec11 \
+		\cf12 \strokec12 Provider\cf10 \strokec10 :\cf7 \strokec11  \cf13 \strokec13 "IntakeQ"\cf10 \strokec10 ,\cf7 \strokec11  \cf15 \strokec15 //or Zoom\cf7 \strokec11 \
+		\cf12 \strokec12 InvitationCode\cf10 \strokec10 :\cf7 \strokec11  \cf13 \strokec13 "123456"\cf7 \strokec11 	\
+	\cf10 \strokec10 \},\cf7 \strokec11 \
+    \cf12 \strokec12 Procedures\cf10 \strokec10 :\cf7 \strokec11  \cf10 \strokec10 [\cf7 \strokec11 \
+        \cf10 \strokec10 \{\cf7 \strokec11 \
+            \cf12 \strokec12 ProcedureCode\cf10 \strokec10 :\cf7 \strokec11  \cf13 \strokec13 "11901"\cf10 \strokec10 ,\cf7 \strokec11 \
+            \cf12 \strokec12 Price\cf10 \strokec10 :\cf7 \strokec11  \cf14 \strokec14 90\cf10 \strokec10 ,\cf7 \strokec11 \
+            \cf12 \strokec12 Units\cf10 \strokec10 :\cf7 \strokec11  \cf14 \strokec14 1\cf10 \strokec10 ,\cf7 \strokec11 \
+            \cf12 \strokec12 Modifiers\cf10 \strokec10 :\cf7 \strokec11  \cf10 \strokec10 [\cf13 \strokec13 "26"\cf10 \strokec10 ]\cf7 \strokec11 \
+        \cf10 \strokec10 \}\cf7 \strokec11 \
+    \cf10 \strokec10 ],\cf7 \strokec11 \
+    \cf12 \strokec12 AdditionalClients\cf10 \strokec10 :\cf7 \strokec11  \cf10 \strokec10 [\cf7 \strokec11 \
+        \cf12 \strokec12 ClientId\cf10 \strokec10 :\cf7 \strokec11  \cf14 \strokec14 9999\cf10 \strokec10 ,\cf7 \strokec11 \
+        \cf12 \strokec12 ClientName\cf10 \strokec10 :\cf7 \strokec11  \cf13 \strokec13 "Name Test"\cf10 \strokec10 ,\cf7 \strokec11 \
+        \cf12 \strokec12 ClientEmail\cf10 \strokec10 :\cf7 \strokec11  \cf13 \strokec13 "test@email.com"\cf10 \strokec10 ,\cf7 \strokec11 \
+        \cf12 \strokec12 ClientPhone\cf10 \strokec10 :\cf7 \strokec11  \cf13 \strokec13 "2222222222"\cf10 \strokec10 ,\cf7 \strokec11 \
+        \cf12 \strokec12 IntakeId\cf10 \strokec10 :\cf7 \strokec11  \cf13 \strokec13 "00000000-0000-0000-0000-000000000000"\cf10 \strokec10 ,\cf7 \strokec11  \cf15 \strokec15 //GUID\cf7 \strokec11 \
+\
+    \cf10 \strokec10 ]\cf7 \strokec11 \
+\cf10 \strokec10 \}\cf7 \strokec7 \
+\pard\pardeftab720\sa450\partightenfactor0
+
+\f0\fs30 \cf4 \cb1 \strokec4 Let\'92s look at each property individually:\
+
+\itap1\trowd \taflags1 \trgaph108\trleft-108 \tamarb450 \trbrdrt\brdrnil \trbrdrl\brdrnil \trbrdrr\brdrnil 
+\clvertalt \clshdrawnil \clwWidth3652\clftsWidth3 \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx1728
+\clvertalt \clshdrawnil \clwWidth8409\clftsWidth3 \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx3456
+\clvertalt \clshdrawnil \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx5184
+\clvertalt \clshdrawnil \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx6912
+\clvertalt \clshdrawnil \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx8640
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+
+\f1\b \cf9 \strokec9 Field
+\f0\b0 \cf4 \strokec4 \cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+
+\f1\b \cf9 \strokec9 Explanation
+\f0\b0 \cf4 \strokec4 \cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 \cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 \cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 \cell \row
+
+\itap1\trowd \taflags1 \trgaph108\trleft-108 \tamarb450 \trbrdrl\brdrnil \trbrdrr\brdrnil 
+\clvertalt \clshdrawnil \clwWidth3652\clftsWidth3 \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx1728
+\clvertalt \clshdrawnil \clwWidth8409\clftsWidth3 \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx3456
+\clvertalt \clshdrawnil \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx5184
+\clvertalt \clshdrawnil \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx6912
+\clvertalt \clshdrawnil \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx8640
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 Id\cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 The ID of the appointment.\cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 \cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 \cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 \cell \row
+
+\itap1\trowd \taflags1 \trgaph108\trleft-108 \tamarb450 \trbrdrl\brdrnil \trbrdrr\brdrnil 
+\clvertalt \clshdrawnil \clwWidth3652\clftsWidth3 \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx1728
+\clvertalt \clshdrawnil \clwWidth8409\clftsWidth3 \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx3456
+\clvertalt \clshdrawnil \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx5184
+\clvertalt \clshdrawnil \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx6912
+\clvertalt \clshdrawnil \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx8640
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 ClientName\cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 The name of the client.\cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 \cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 \cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 \cell \row
+
+\itap1\trowd \taflags1 \trgaph108\trleft-108 \tamarb450 \trbrdrl\brdrnil \trbrdrr\brdrnil 
+\clvertalt \clshdrawnil \clwWidth3652\clftsWidth3 \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx1728
+\clvertalt \clshdrawnil \clwWidth8409\clftsWidth3 \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx3456
+\clvertalt \clshdrawnil \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx5184
+\clvertalt \clshdrawnil \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx6912
+\clmrg \clvertalt \clshdrawnil \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx8640
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 ClientEmail\cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 The email of the client.\cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 \cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 \cell 
+\pard\intbl\itap1\cell \row
+
+\itap1\trowd \taflags1 \trgaph108\trleft-108 \tamarb450 \trbrdrl\brdrnil \trbrdrr\brdrnil 
+\clvertalt \clshdrawnil \clwWidth3652\clftsWidth3 \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx1728
+\clvertalt \clshdrawnil \clwWidth8409\clftsWidth3 \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx3456
+\clvertalt \clshdrawnil \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx5184
+\clvertalt \clshdrawnil \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx6912
+\clmrg \clvertalt \clshdrawnil \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx8640
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 ClientPhone\cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 The client's phone number.\cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 \cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 \cell 
+\pard\intbl\itap1\cell \row
+
+\itap1\trowd \taflags1 \trgaph108\trleft-108 \tamarb450 \trbrdrl\brdrnil \trbrdrr\brdrnil 
+\clvertalt \clshdrawnil \clwWidth3652\clftsWidth3 \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx1728
+\clvertalt \clshdrawnil \clwWidth8409\clftsWidth3 \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx3456
+\clvertalt \clshdrawnil \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx5184
+\clvertalt \clshdrawnil \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx6912
+\clmrg \clvertalt \clshdrawnil \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx8640
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 ClientId\cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 The client's ID assigned by IntakeQ.\cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 \cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 \cell 
+\pard\intbl\itap1\cell \row
+
+\itap1\trowd \taflags1 \trgaph108\trleft-108 \tamarb450 \trbrdrl\brdrnil \trbrdrr\brdrnil 
+\clvertalt \clshdrawnil \clwWidth3652\clftsWidth3 \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx1728
+\clvertalt \clshdrawnil \clwWidth8409\clftsWidth3 \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx3456
+\clvertalt \clshdrawnil \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx5184
+\clvertalt \clshdrawnil \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx6912
+\clvertalt \clshdrawnil \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx8640
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 Status\cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 Possible values:\
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+
+\f1\b \cf9 \strokec9 Confirmed
+\f0\b0 \cf4 \strokec4 \'a0\'96 The appointment has been confirmed (either manually or automatically).\
+
+\f1\b \cf9 \strokec9 WaitingConfirmation
+\f0\b0 \cf4 \strokec4 \'a0\'96 The appointment has not been confirmed by the staff.\
+
+\f1\b \cf9 \strokec9 Declined
+\f0\b0 \cf4 \strokec4 \'a0\'96 The appointment has been declined by the staff.\
+
+\f1\b \cf9 \strokec9 Canceled
+\f0\b0 \cf4 \strokec4 \'a0\'96 The appointment has been canceled.\
+
+\f1\b \cf9 \strokec9 Missed
+\f0\b0 \cf4 \strokec4 \'a0\'96 The appointment has been marked as missed by the staff.\cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 \cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 \cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 \cell \row
+
+\itap1\trowd \taflags1 \trgaph108\trleft-108 \tamarb450 \trbrdrl\brdrnil \trbrdrr\brdrnil 
+\clvertalt \clshdrawnil \clwWidth3652\clftsWidth3 \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx1728
+\clvertalt \clshdrawnil \clwWidth8409\clftsWidth3 \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx3456
+\clvertalt \clshdrawnil \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx5184
+\clvertalt \clshdrawnil \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx6912
+\clmrg \clvertalt \clshdrawnil \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx8640
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 StartDate\cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 When the appointment is scheduled for in Unix timestamp.\cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 \cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 \cell 
+\pard\intbl\itap1\cell \row
+
+\itap1\trowd \taflags1 \trgaph108\trleft-108 \tamarb450 \trbrdrl\brdrnil \trbrdrr\brdrnil 
+\clvertalt \clshdrawnil \clwWidth3652\clftsWidth3 \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx1728
+\clvertalt \clshdrawnil \clwWidth8409\clftsWidth3 \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx3456
+\clvertalt \clshdrawnil \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx5184
+\clvertalt \clshdrawnil \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx6912
+\clmrg \clvertalt \clshdrawnil \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx8640
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 EndDate\cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 When the appointment ends in Unix timestamp.\cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 \cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 \cell 
+\pard\intbl\itap1\cell \row
+
+\itap1\trowd \taflags1 \trgaph108\trleft-108 \tamarb450 \trbrdrl\brdrnil \trbrdrr\brdrnil 
+\clvertalt \clshdrawnil \clwWidth3652\clftsWidth3 \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx1728
+\clvertalt \clshdrawnil \clwWidth8409\clftsWidth3 \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx3456
+\clvertalt \clshdrawnil \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx5184
+\clvertalt \clshdrawnil \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx6912
+\clmrg \clvertalt \clshdrawnil \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx8640
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 Duration\cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 An integer representing the appointment duration in minutes.\cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 \cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 \cell 
+\pard\intbl\itap1\cell \row
+
+\itap1\trowd \taflags1 \trgaph108\trleft-108 \tamarb450 \trbrdrl\brdrnil \trbrdrr\brdrnil 
+\clvertalt \clshdrawnil \clwWidth3652\clftsWidth3 \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx1728
+\clvertalt \clshdrawnil \clwWidth8409\clftsWidth3 \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx3456
+\clvertalt \clshdrawnil \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx5184
+\clvertalt \clshdrawnil \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx6912
+\clmrg \clvertalt \clshdrawnil \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx8640
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 ServiceName\cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 The name of the service.\cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 \cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 \cell 
+\pard\intbl\itap1\cell \row
+
+\itap1\trowd \taflags1 \trgaph108\trleft-108 \tamarb450 \trbrdrl\brdrnil \trbrdrr\brdrnil 
+\clvertalt \clshdrawnil \clwWidth3652\clftsWidth3 \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx1728
+\clvertalt \clshdrawnil \clwWidth8409\clftsWidth3 \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx3456
+\clvertalt \clshdrawnil \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx5184
+\clvertalt \clshdrawnil \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx6912
+\clmrg \clvertalt \clshdrawnil \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx8640
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 ServiceId\cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 The ID of the service.\cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 \cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 \cell 
+\pard\intbl\itap1\cell \row
+
+\itap1\trowd \taflags1 \trgaph108\trleft-108 \tamarb450 \trbrdrl\brdrnil \trbrdrr\brdrnil 
+\clvertalt \clshdrawnil \clwWidth3652\clftsWidth3 \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx1728
+\clvertalt \clshdrawnil \clwWidth8409\clftsWidth3 \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx3456
+\clvertalt \clshdrawnil \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx5184
+\clvertalt \clshdrawnil \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx6912
+\clmrg \clvertalt \clshdrawnil \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx8640
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 LocationName\cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 The name of the location.\cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 \cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 \cell 
+\pard\intbl\itap1\cell \row
+
+\itap1\trowd \taflags1 \trgaph108\trleft-108 \tamarb450 \trbrdrl\brdrnil \trbrdrr\brdrnil 
+\clvertalt \clshdrawnil \clwWidth3652\clftsWidth3 \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx1728
+\clvertalt \clshdrawnil \clwWidth8409\clftsWidth3 \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx3456
+\clvertalt \clshdrawnil \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx5184
+\clvertalt \clshdrawnil \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx6912
+\clmrg \clvertalt \clshdrawnil \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx8640
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 LocationId\cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 The ID of the location.\cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 \cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 \cell 
+\pard\intbl\itap1\cell \row
+
+\itap1\trowd \taflags1 \trgaph108\trleft-108 \tamarb450 \trbrdrl\brdrnil \trbrdrr\brdrnil 
+\clvertalt \clshdrawnil \clwWidth3652\clftsWidth3 \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx1728
+\clvertalt \clshdrawnil \clwWidth8409\clftsWidth3 \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx3456
+\clvertalt \clshdrawnil \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx5184
+\clvertalt \clshdrawnil \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx6912
+\clvertalt \clshdrawnil \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx8640
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 PractitionerEmail\cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 The email of the practitioner associated with this appointment.\cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 \cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 \cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 \cell \row
+
+\itap1\trowd \taflags1 \trgaph108\trleft-108 \tamarb450 \trbrdrl\brdrnil \trbrdrr\brdrnil 
+\clvertalt \clshdrawnil \clwWidth3652\clftsWidth3 \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx1728
+\clvertalt \clshdrawnil \clwWidth8409\clftsWidth3 \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx3456
+\clvertalt \clshdrawnil \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx5184
+\clvertalt \clshdrawnil \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx6912
+\clvertalt \clshdrawnil \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx8640
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 PractitionerName\cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 The name of the practitioner associated with this appointment.\cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 \cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 \cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 \cell \row
+
+\itap1\trowd \taflags1 \trgaph108\trleft-108 \tamarb450 \trbrdrl\brdrnil \trbrdrr\brdrnil 
+\clvertalt \clshdrawnil \clwWidth3652\clftsWidth3 \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx1728
+\clvertalt \clshdrawnil \clwWidth8409\clftsWidth3 \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx3456
+\clvertalt \clshdrawnil \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx5184
+\clvertalt \clshdrawnil \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx6912
+\clvertalt \clshdrawnil \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx8640
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 Price\cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 The appointment price.\cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 \cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 \cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 \cell \row
+
+\itap1\trowd \taflags1 \trgaph108\trleft-108 \tamarb450 \trbrdrl\brdrnil \trbrdrr\brdrnil 
+\clvertalt \clshdrawnil \clwWidth3652\clftsWidth3 \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx1728
+\clvertalt \clshdrawnil \clwWidth8409\clftsWidth3 \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx3456
+\clvertalt \clshdrawnil \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx5184
+\clvertalt \clshdrawnil \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx6912
+\clvertalt \clshdrawnil \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx8640
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 IntakeId\cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 If this appointment is associated with an intake form, this field will provide the IntakeId that can be used to retrieve the form using the Intake Forms' API.\cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 \cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 \cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 \cell \row
+
+\itap1\trowd \taflags1 \trgaph108\trleft-108 \tamarb450 \trbrdrl\brdrnil \trbrdrr\brdrnil 
+\clvertalt \clshdrawnil \clwWidth3652\clftsWidth3 \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx1728
+\clvertalt \clshdrawnil \clwWidth8409\clftsWidth3 \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx3456
+\clvertalt \clshdrawnil \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx5184
+\clvertalt \clshdrawnil \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx6912
+\clvertalt \clshdrawnil \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx8640
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 DateCreated\cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 When the appointment was created in Unix timestamp.\cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 \cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 \cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 \cell \row
+
+\itap1\trowd \taflags1 \trgaph108\trleft-108 \tamarb450 \trbrdrl\brdrnil \trbrdrr\brdrnil 
+\clvertalt \clshdrawnil \clwWidth3652\clftsWidth3 \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx1728
+\clvertalt \clshdrawnil \clwWidth8409\clftsWidth3 \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx3456
+\clvertalt \clshdrawnil \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx5184
+\clvertalt \clshdrawnil \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx6912
+\clvertalt \clshdrawnil \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx8640
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 BookedByClient\cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 Will be true when the appointment was created by the client using the booking widget, or false when the appointment was created by the staff.\cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 \cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 \cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 \cell \row
+
+\itap1\trowd \taflags1 \trgaph108\trleft-108 \tamarb450 \trbrdrl\brdrnil \trbrdrr\brdrnil 
+\clvertalt \clshdrawnil \clwWidth3652\clftsWidth3 \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx1728
+\clvertalt \clshdrawnil \clwWidth8409\clftsWidth3 \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx3456
+\clvertalt \clshdrawnil \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx5184
+\clvertalt \clshdrawnil \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx6912
+\clvertalt \clshdrawnil \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx8640
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 CreatedBy\cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 The name of the person who created the appointment. It can be the name of a client or of a staff member.\cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 \
+\cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 \cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 \cell \row
+
+\itap1\trowd \taflags1 \trgaph108\trleft-108 \tamarb450 \trbrdrl\brdrnil \trbrdrr\brdrnil 
+\clvertalt \clshdrawnil \clwWidth3652\clftsWidth3 \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx1728
+\clvertalt \clshdrawnil \clwWidth8409\clftsWidth3 \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx3456
+\clvertalt \clshdrawnil \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx5184
+\clvertalt \clshdrawnil \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx6912
+\clvertalt \clshdrawnil \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx8640
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 AppointmentPackageId\cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 If this appointment is part of a package, this filed will contain the ID of the package.\cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 \
+\cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 \cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 \cell \row
+
+\itap1\trowd \taflags1 \trgaph108\trleft-108 \tamarb450 \trbrdrl\brdrnil \trbrdrr\brdrnil 
+\clvertalt \clshdrawnil \clwWidth3652\clftsWidth3 \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx1728
+\clvertalt \clshdrawnil \clwWidth8409\clftsWidth3 \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx3456
+\clvertalt \clshdrawnil \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx5184
+\clvertalt \clshdrawnil \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx6912
+\clvertalt \clshdrawnil \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx8640
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 AppointmentPackageName\cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 If this appointment is part of a package, this filed will contain the name of the package.\cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 \
+\cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 \cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 \cell \row
+
+\itap1\trowd \taflags1 \trgaph108\trleft-108 \tamarb450 \trbrdrl\brdrnil \trbrdrt\brdrnil \trbrdrr\brdrnil 
+\clvertalt \clshdrawnil \clwWidth3652\clftsWidth3 \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx1728
+\clvertalt \clshdrawnil \clwWidth8409\clftsWidth3 \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx3456
+\clvertalt \clshdrawnil \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx5184
+\clvertalt \clshdrawnil \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx6912
+\clvertalt \clshdrawnil \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx8640
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 TelehealthInfo\cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 If this is a telehealth appointment (either IntakeQ or Zoom), this property will contain information such as Start URL and the Invitation Code.\cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 \
+\cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 \cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 \cell \lastrow\row
+\pard\pardeftab720\sa312\partightenfactor0
+
+\f1\b\fs48 \cf2 \strokec2 Query Appointments\
+\pard\pardeftab720\sa450\partightenfactor0
+
+\f0\b0\fs30 \cf4 \strokec4 Use this method to query appointments in your organization. The results will be ordered by Date in descending order.\
+\pard\pardeftab720\partightenfactor0
+
+\f2\fs24 \cf7 \cb8 \strokec7 [GET]\
+/appointments?client=[searchString]&startDate=[yyyy-MM-dd]&endDate=[yyyy-MM-dd]&status=[status]&practitionerEmail=[practitionerEmail]&page=[pageNumber]&updatedSince=[yyyy-MM-dd]&deletedOnly=[bool]\
+\pard\pardeftab720\sa450\partightenfactor0
+
+\f0\fs30 \cf4 \cb1 \strokec4 This method accepts the following query string parameters:\
+\pard\tx220\tx720\pardeftab720\li720\fi-720\sa200\partightenfactor0
+\ls2\ilvl0
+\f1\b \cf9 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec9 client (optional)
+\f0\b0 \cf4 \strokec4 \'a0\'96 A string used to search the client by name or email. Partial matches will be respected, so a search for \'93Paul\'94 will return appointments for clients with Paul in their names. Likewise, a search for \'93paul.smith@gmail.com\'94 will return appointments for that specific client.\
+\ls2\ilvl0
+\f1\b \cf9 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec9 startDate (optional)
+\f0\b0 \cf4 \strokec4 \'a0\'96 Return only appointments that are scheduled for after the specified date. Use the following date format: yyyy-MM-dd (ex.: 2016-08-21)\
+\ls2\ilvl0
+\f1\b \cf9 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec9 endDate (optional)
+\f0\b0 \cf4 \strokec4 \'a0\'96 Return only appointments that are scheduled for before the specified date. Use the following date format: yyyy-MM-dd (ex.: 2016-08-21)\
+\ls2\ilvl0
+\f1\b \cf9 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec9 status (optional)
+\f0\b0 \cf4 \strokec4 \'a0\'96 Possible values are "Confirmed", "Canceled", "WaitingConfirmation", "Declined" and "Missed".\
+\ls2\ilvl0
+\f1\b \cf9 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec9 practitionerEmail (optional)
+\f0\b0 \cf4 \strokec4 \'a0\'96 Use this to get appointments for a specific practitioner. The email must match the email used in the practitioner IntakeQ account. If empty, appointments for all practitioners in the organization will be returned.\
+\ls2\ilvl0
+\f1\b \cf9 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec9 page (optional)
+\f0\b0 \cf4 \strokec4 \'a0\'96 This method returns a maximum of 100 records. Use the page parameter to implement paging from your end. Use 1 for page 1, 2 for page 2, etc.\
+\ls2\ilvl0
+\f1\b \cf9 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec9 updatedSince\'a0(optional)
+\f0\b0 \cf4 \strokec4 \'a0\'96\'a0Returns only appointments that have been changed after a given date.\
+\ls2\ilvl0
+\f1\b \cf9 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec9 deletedOnly (optional)
+\f0\b0 \cf4 \strokec4 \'a0\'a0\'96\'a0Returns only appointments that have been deleted. Deleted appointments can be retrieved up to 10 days after they have been deleted. Appointments that have been deleted more than 10 days prior cannot be retrieved anymore.\'a0\
+\pard\pardeftab720\sa450\partightenfactor0
+\cf4 This method returns a JSON object representing an array of appointments.\
+\pard\pardeftab720\partightenfactor0
+
+\f2\fs24 \cf10 \cb8 \strokec10 [\{\cf7 \strokec11 \
+   \cf12 \strokec12 Id\cf10 \strokec10 :\cf7 \strokec11  \cf13 \strokec13 "123"\cf10 \strokec10 ,\cf7 \strokec11  \
+   \cf12 \strokec12 ClientName\cf10 \strokec10 :\cf7 \strokec11  \cf13 \strokec13 "test"\cf10 \strokec10 ,\cf7 \strokec11 \
+   \cf12 \strokec12 ClientEmail\cf10 \strokec10 :\cf7 \strokec11  \cf13 \strokec13 "test@email.com"\cf10 \strokec10 ,\cf7 \strokec11 \
+   \cf12 \strokec12 ClientPhone\cf10 \strokec10 :\cf7 \strokec11  \cf13 \strokec13 "(222) 222-2222"\cf10 \strokec10 ,\cf7 \strokec11 \
+   \cf12 \strokec12 ClientDateOfBirth\cf10 \strokec10 :\cf7 \strokec11  \cf13 \strokec13 "1988-05-23"\cf10 \strokec10 ,\cf7 \strokec11 \
+   \cf12 \strokec12 ClientId\cf10 \strokec10 :\cf7 \strokec11  \cf14 \strokec14 9999\cf10 \strokec10 ,\cf7 \strokec11 \
+   \cf12 \strokec12 Status\cf10 \strokec10 :\cf7 \strokec11  \cf13 \strokec13 "Confirmed"\cf10 \strokec10 ,\cf7 \strokec11  \
+   \cf12 \strokec12 StartDate\cf10 \strokec10 :\cf7 \strokec11  \cf14 \strokec14 1458526480368\cf10 \strokec10 ,\cf7 \strokec11  \cf15 \strokec15 //Unix timestamp in milliseconds,\cf7 \strokec11 \
+   \cf12 \strokec12 EndDate\cf10 \strokec10 :\cf7 \strokec11  \cf14 \strokec14 1458526484236\cf10 \strokec10 ,\cf7 \strokec11  \cf15 \strokec15 //Unix timestamp in milliseconds,\cf7 \strokec11 \
+   \cf12 \strokec12 Duration\cf10 \strokec10 :\cf7 \strokec11  \cf14 \strokec14 90\cf10 \strokec10 ,\cf7 \strokec11  \cf15 \strokec15 //minutes\cf7 \strokec11 \
+   \cf12 \strokec12 Service\cf10 \strokec10 :\cf7 \strokec11  \cf13 \strokec13 "Initial Consultation"\cf10 \strokec10 ,\cf7 \strokec11 \
+   \cf12 \strokec12 Location\cf10 \strokec10 :\cf7 \strokec11  \cf13 \strokec13 "Manhattan Office"\cf10 \strokec10 ,\cf7 \strokec11 \
+   \cf12 \strokec12 Price\cf10 \strokec10 :\cf7 \strokec11  \cf14 \strokec14 100.00\cf10 \strokec10 ,\cf7 \strokec11  	\
+   \cf12 \strokec12 PractitionerEmail\cf10 \strokec10 :\cf7 \strokec11  \cf13 \strokec13 "test@email.com"\cf10 \strokec10 ,\cf7 \strokec11 \
+   \cf12 \strokec12 PractitionerName\cf10 \strokec10 :\cf7 \strokec11  \cf13 \strokec13 "FirstName LastName"\cf7 \strokec11    \
+   \cf12 \strokec12 DateCreated\cf10 \strokec10 :\cf7 \strokec11  \cf14 \strokec14 1458526532654\cf10 \strokec10 ,\cf7 \strokec11  \cf15 \strokec15 //Unix timestamp in milliseconds\cf7 \strokec11 \
+   \cf12 \strokec12 IntakeId\cf10 \strokec10 :\cf7 \strokec11  \cf13 \strokec13 "00000000-0000-0000-0000-000000000000"\cf10 \strokec10 ,\cf7 \strokec11  \cf15 \strokec15 //GUID\cf7 \strokec11 \
+   \cf12 \strokec12 ExternalClientId\cf10 \strokec10 :\cf7 \strokec11  \cf13 \strokec13 "xxxx"\cf10 \strokec10 ,\cf7 \strokec11    \
+   \cf12 \strokec12 BookedByClient\cf10 \strokec10 :\cf7 \strokec11  \cf16 \strokec16 true\cf10 \strokec10 ,\cf7 \strokec11 \
+   \cf12 \strokec12 CreatedBy\cf10 \strokec10 :\cf7 \strokec11  \cf13 \strokec13 "John Smith"\cf7 \strokec11 \
+\cf10 \strokec10 \},...\cf7 \strokec11 \
+\cf10 \strokec10 ]\cf7 \strokec7 \
+\pard\pardeftab720\sa450\partightenfactor0
+
+\f0\fs30 \cf4 \cb1 \strokec4 \
+\pard\pardeftab720\partightenfactor0
+
+\fs28 \cf4 \cb5 This method returns a maximum of 100 records. If needed, use the page query string parameter to implement paging from your end.\cb1 \
+\pard\pardeftab720\sa312\partightenfactor0
+
+\f1\b\fs48 \cf2 \strokec2 Retrieve an Appointment\
+\pard\pardeftab720\sa450\partightenfactor0
+
+\f0\b0\fs30 \cf4 \strokec4 Use this method to get a single appointment using its ID.\
+\pard\pardeftab720\partightenfactor0
+
+\f2\fs24 \cf7 \cb8 \strokec7 [GET] https://intakeq.com/api/v1/appointments/[appointment-id]\
+\pard\pardeftab720\sa450\partightenfactor0
+
+\f0\fs30 \cf4 \cb1 \strokec4 Refer to the\'a0{\field{\*\fldinst{HYPERLINK "https://support.intakeq.com/article/204-intakeq-appointments-api#appointment-object"}}{\fldrslt \cf3 \strokec3 appointment object}}\'a0above for its JSON representation.\
+\pard\pardeftab720\sa312\partightenfactor0
+
+\f1\b\fs48 \cf2 \strokec2 Retrieve Booking Settings\
+\pard\pardeftab720\sa450\partightenfactor0
+
+\f0\b0\fs30 \cf4 \strokec4 Use this method to get a list of Services, Locations and Practitioners for your account.\'a0\
+\pard\pardeftab720\partightenfactor0
+
+\f2\fs24 \cf7 \cb8 \strokec7 [GET] https://intakeq.com/api/v1/appointments/settings\
+\pard\pardeftab720\sa450\partightenfactor0
+
+\f0\fs30 \cf4 \cb1 \strokec4 The returned JSON follows the representation below.\
+\pard\pardeftab720\partightenfactor0
+
+\f2\fs24 \cf10 \cb8 \strokec10 \{\cf7 \strokec11 \
+    \cf12 \strokec12 Locatons\cf10 \strokec10 :\cf7 \strokec11  \cf10 \strokec10 [\cf7 \strokec11 \
+	\cf10 \strokec10 \{\cf7 \strokec11 \
+	    \cf12 \strokec12 Id\cf10 \strokec10 :\cf7 \strokec11  \cf13 \strokec13 "1"\cf10 \strokec10 ,\cf7 \strokec11 \
+	    \cf12 \strokec12 Name\cf10 \strokec10 :\cf7 \strokec11  \cf13 \strokec13 "Main Office"\cf7 \strokec11 \
+	    \cf12 \strokec12 Address\cf10 \strokec10 :\cf7 \strokec11  \cf13 \strokec13 "123 Main Street, City, State"\cf7 \strokec11 \
+	\cf10 \strokec10 \}\cf7 \strokec11 \
+    \cf10 \strokec10 ],\cf7 \strokec11      		 	\
+    \cf12 \strokec12 Services\cf10 \strokec10 :\cf7 \strokec11  \cf10 \strokec10 [\cf7 \strokec11 \
+	\cf10 \strokec10 \{\cf7 \strokec11 \
+	    \cf12 \strokec12 Id\cf10 \strokec10 :\cf7 \strokec11  \cf13 \strokec13 "00000000-0000-0000-0000-000000000000"\cf10 \strokec10 ,\cf7 \strokec11 \
+	    \cf12 \strokec12 Name\cf10 \strokec10 :\cf7 \strokec11  \cf13 \strokec13 "Initial Consultation"\cf10 \strokec10 ,\cf7 \strokec11 \
+	    \cf12 \strokec12 Duration\cf10 \strokec10 :\cf7 \strokec11  \cf14 \strokec14 90\cf10 \strokec10 ,\cf7 \strokec11 \
+	    \cf12 \strokec12 Price\cf10 \strokec10 :\cf7 \strokec11  \cf14 \strokec14 200.0\cf7 \strokec11  \
+	\cf10 \strokec10 \},\cf7 \strokec11 \
+	\cf10 \strokec10 \{\cf7 \strokec11 \
+	    \cf12 \strokec12 Id\cf10 \strokec10 :\cf7 \strokec11  \cf13 \strokec13 "00000000-0000-0000-0000-000000000000"\cf10 \strokec10 ,\cf7 \strokec11 \
+	    \cf12 \strokec12 Name\cf10 \strokec10 :\cf7 \strokec11  \cf13 \strokec13 "Follow Up"\cf10 \strokec10 ,\cf7 \strokec11 \
+	    \cf12 \strokec12 Duration\cf10 \strokec10 :\cf7 \strokec11  \cf14 \strokec14 60\cf10 \strokec10 ,\cf7 \strokec11 \
+	    \cf12 \strokec12 Price\cf10 \strokec10 :\cf7 \strokec11  \cf14 \strokec14 100.0\cf7 \strokec11 \
+	\cf10 \strokec10 \}\cf7 \strokec11 \
+    \cf10 \strokec10 ],\cf7 \strokec11 \
+    \cf12 \strokec12 Practitioners\cf10 \strokec10 :\cf7 \strokec11  \cf10 \strokec10 [\cf7 \strokec11 \
+	\cf10 \strokec10 \{\cf7 \strokec11 \
+	    \cf12 \strokec12 Id\cf10 \strokec10 :\cf7 \strokec11  \cf13 \strokec13 "00000000-0000-0000-0000-000000000000"\cf10 \strokec10 ,\cf7 \strokec11     \
+	    \cf12 \strokec12 CompleteName\cf10 \strokec10 :\cf7 \strokec11  \cf13 \strokec13 "Dexter Morgan"\cf10 \strokec10 ,\cf7 \strokec11     \
+	    \cf12 \strokec12 FirstName\cf10 \strokec10 :\cf7 \strokec11  \cf13 \strokec13 "Dexter"\cf10 \strokec10 ,\cf7 \strokec11     \
+	    \cf12 \strokec12 LastName\cf7 \strokec11  \cf13 \strokec13 "Morgan"\cf10 \strokec10 ,\cf7 \strokec11 \
+	    \cf12 \strokec12 Email\cf10 \strokec10 :\cf7 \strokec11  \cf13 \strokec13 "dexter@email.com"\cf7 \strokec11  \
+	\cf10 \strokec10 \}\cf7 \strokec11 \
+    \cf10 \strokec10 ]\cf7 \strokec11  	\
+\cf10 \strokec10 \}\cf7 \strokec7 \
+\pard\pardeftab720\sa312\partightenfactor0
+
+\f1\b\fs48 \cf2 \cb1 \strokec2 \
+Create an Appointment\
+\pard\pardeftab720\sa450\partightenfactor0
+
+\f0\b0\fs30 \cf4 \strokec4 This endpoint allows you to create a new appointment.\
+\pard\pardeftab720\partightenfactor0
+
+\f2\fs24 \cf7 \cb8 \strokec7 [POST] https://intakeq.com/api/v1/appointments\
+\pard\pardeftab720\sa450\partightenfactor0
+
+\f0\fs30 \cf4 \cb1 \strokec4 To create a new appointment, create a POST request containing the JSON represented below.\
+\pard\pardeftab720\partightenfactor0
+
+\f2\fs24 \cf10 \cb8 \strokec10 \{\cf7 \strokec11      		\
+	\cf12 \strokec12 PractitionerId\cf10 \strokec10 :\cf7 \strokec11  \cf13 \strokec13 "5356eb98c5771321282d2ac4"\cf10 \strokec10 ,\cf7 \strokec11      		\
+	\cf12 \strokec12 ClientId\cf10 \strokec10 :\cf7 \strokec11  \cf14 \strokec14 123\cf10 \strokec10 ,\cf7 \strokec11  \
+	\cf12 \strokec12 ServiceId\cf10 \strokec10 :\cf7 \strokec11  \cf13 \strokec13 "00000000-0000-0000-0000-000000000000"\cf10 \strokec10 ,\cf7 \strokec11  \
+	\cf12 \strokec12 LocationId\cf10 \strokec10 :\cf7 \strokec11  \cf13 \strokec13 "1"\cf10 \strokec10 ,\cf7 \strokec11 \
+	\cf12 \strokec12 Status\cf10 \strokec10 :\cf7 \strokec11  \cf13 \strokec13 "Confirmed"\cf10 \strokec10 ,\cf7 \strokec11  \cf15 \strokec15 //Confirmed or WaitingConfirmation  \cf7 \strokec11 \
+	\cf12 \strokec12 UtcDateTime\cf10 \strokec10 :\cf7 \strokec11  \cf14 \strokec14 1458526480368\cf10 \strokec10 ,\cf7 \strokec11  \cf15 \strokec15 //Unix timestamp in milliseconds\cf7 \strokec11 \
+	\cf12 \strokec12 SendClientEmailNotification\cf10 \strokec10 :\cf7 \strokec11  \cf16 \strokec16 true\cf10 \strokec10 ,\cf7 \strokec11 \
+	\cf12 \strokec12 ReminderType\cf10 \strokec10 :\cf7 \strokec11  \cf13 \strokec13 "Sms"\cf7 \strokec11  \cf15 \strokec15 //Accepted values: Sms, Email, Voice, OptOut \cf7 \strokec11 \
+\cf10 \strokec10 \}\cf7 \strokec7 \
+\pard\pardeftab720\sa234\partightenfactor0
+
+\f1\b\fs36 \cf2 \cb1 \strokec2 Remarks\
+\pard\pardeftab720\sa450\partightenfactor0
+
+\f0\b0\fs30 \cf4 \strokec4 - When creating a new appointment, all fields represented above are mandatory.\
+- SendClientEmailNotification can only be true if the Status is set to Confirmed.\
+-\'a0If the request succeeds, this endpoint will return an\'a0{\field{\*\fldinst{HYPERLINK "https://support.intakeq.com/article/204-intakeq-appointments-api#appointment-object"}}{\fldrslt \cf3 \strokec3 appointment object}}.\
+\pard\pardeftab720\sa312\partightenfactor0
+
+\f1\b\fs48 \cf2 \strokec2 Update an Appointment\
+\pard\pardeftab720\sa450\partightenfactor0
+
+\f0\b0\fs30 \cf4 \strokec4 This endpoint allows you to update an existing appointment.\
+\pard\pardeftab720\partightenfactor0
+
+\f2\fs24 \cf7 \cb8 \strokec7 [PUT] https://intakeq.com/api/v1/appointments\
+\pard\pardeftab720\sa450\partightenfactor0
+
+\f0\fs30 \cf4 \cb1 \strokec4 To update an appointment, create a PUT request containing the JSON represented below.\
+\pard\pardeftab720\partightenfactor0
+
+\f2\fs24 \cf10 \cb8 \strokec10 \{\cf7 \strokec11      		 	\
+	\cf12 \strokec12 Id\cf10 \strokec10 :\cf7 \strokec11  \cf13 \strokec13 "5356eb98c5771321282d2ac4"\cf10 \strokec10 ,\cf7 \strokec11 \
+	\cf12 \strokec12 ServiceId\cf10 \strokec10 :\cf7 \strokec11  \cf13 \strokec13 "00000000-0000-0000-0000-000000000000"\cf10 \strokec10 ,\cf7 \strokec11  \cf15 \strokec15 //Optional  	\cf7 \strokec11 \
+	\cf12 \strokec12 LocationId\cf10 \strokec10 :\cf7 \strokec11  \cf13 \strokec13 "1"\cf10 \strokec10 ,\cf7 \strokec11  \cf15 \strokec15 //Optional	\cf7 \strokec11 \
+	\cf12 \strokec12 Status\cf10 \strokec10 :\cf7 \strokec11  \cf13 \strokec13 "Confirmed"\cf10 \strokec10 ,\cf7 \strokec11  \cf15 \strokec15 //Optional: Confirmed or WaitingConfirmation   	\cf7 \strokec11 \
+	\cf12 \strokec12 UtcDateTime\cf10 \strokec10 :\cf7 \strokec11  \cf14 \strokec14 1458526480368\cf10 \strokec10 ,\cf7 \strokec11  \cf15 \strokec15 //Unix timestamp in milliseconds. Mandatory 	\cf7 \strokec11 \
+	\cf12 \strokec12 SendClientEmailNotification\cf10 \strokec10 :\cf7 \strokec11  \cf16 \strokec16 true\cf10 \strokec10 ,\cf7 \strokec11  \cf15 \strokec15 //Optional 	\cf7 \strokec11 \
+	\cf12 \strokec12 ReminderType\cf10 \strokec10 :\cf7 \strokec11  \cf13 \strokec13 "Sms"\cf7 \strokec11  \cf15 \strokec15 //Optional. Accepted values: Sms, Email, Voice, OptOut  \cf7 \strokec11 \
+\cf10 \strokec10 \}\cf7 \strokec7 \
+\pard\pardeftab720\sa234\partightenfactor0
+
+\f1\b\fs36 \cf2 \cb1 \strokec2 Remarks\
+\pard\pardeftab720\sa450\partightenfactor0
+
+\f0\b0\fs30 \cf4 \strokec4 - An appointment cannot be changed from Confirmed to WaitingConfirmation\
+- The API does not support changing the client or the practitioner associated with the appointment.\
+- Fields like ServiceId, LocationId, ReminderType are only necessary if you are changing them.\'a0\
+- If the request succeeds, this endpoint will return an\'a0{\field{\*\fldinst{HYPERLINK "https://support.intakeq.com/article/204-intakeq-appointments-api#appointment-object"}}{\fldrslt \cf3 \strokec3 appointment object}}.\
+\pard\pardeftab720\sa312\partightenfactor0
+
+\f1\b\fs48 \cf2 \strokec2 Cancel an Appointment\
+\pard\pardeftab720\sa450\partightenfactor0
+
+\f0\b0\fs30 \cf4 \strokec4 This endpoint allows you to cancel an existing appointment.\
+\pard\pardeftab720\partightenfactor0
+
+\f2\fs24 \cf7 \cb8 \strokec7 [POST] https://intakeq.com/api/v1/appointments/cancellation\
+\pard\pardeftab720\sa450\partightenfactor0
+
+\f0\fs30 \cf4 \cb1 \strokec4 To cancel an appointment, create a POST request containing the JSON represented below.\
+\pard\pardeftab720\partightenfactor0
+
+\f2\fs24 \cf7 \cb8 \strokec7 \{     		 	 	\
+	AppointmentId: "5356eb98c5771321282d2ac4", 	\
+	Reason: "...", //Optional\
+\}\
+\pard\pardeftab720\sa312\partightenfactor0
+
+\f1\b\fs48 \cf2 \cb1 \strokec2 Appointment Webhooks\
+\pard\pardeftab720\sa450\partightenfactor0
+
+\f0\b0\fs30 \cf4 \strokec4 You can subscribe to specific appointment events in the API settings page.\
+If you populate the webhook URL in the API settings page, we will send the following JSON object in a POST message every time an event is triggered:\
+\pard\pardeftab720\partightenfactor0
+
+\f2\fs24 \cf7 \cb8 \strokec11    \cf10 \strokec10 \{\cf7 \strokec11 \
+      \cf12 \strokec12 EventType\cf10 \strokec10 :\cf7 \strokec11  \cf13 \strokec13 "AppointmentCreated"\cf10 \strokec10 ,\cf7 \strokec11 \
+      \cf12 \strokec12 ActionPerformedByClient\cf10 \strokec10 :\cf7 \strokec11  \cf16 \strokec16 true\cf10 \strokec10 ,\cf7 \strokec11 \
+      \cf12 \strokec12 Appointment\cf10 \strokec10 :\cf7 \strokec11  \cf10 \strokec10 \{\cf7 \strokec11  \cf10 \strokec10 ....\cf7 \strokec11  \cf10 \strokec10 \},\cf7 \strokec11  \cf15 \strokec15 //refer to the appointment object above\cf7 \strokec11 \
+      \cf12 \strokec12 ClientId\cf10 \strokec10 :\cf7 \strokec11  \cf14 \strokec14 123\cf10 \strokec10 ,\cf7 \strokec11 \
+      \cf12 \strokec12 PracticeId\cf10 \strokec10 :\cf7 \strokec11  \cf13 \strokec13 "xxxxxx"\cf10 \strokec10 ,\cf7 \strokec11 \
+      \cf12 \strokec12 ExternalPracticeId\cf10 \strokec10 :\cf7 \strokec11  \cf13 \strokec13 "xxxxxx"\cf10 \strokec10 ,\cf7 \strokec11  \cf15 \strokec15 // for partners only\cf7 \strokec11 \
+      \cf12 \strokec12 ExternalClientId\cf10 \strokec10 :\cf7 \strokec11  \cf13 \strokec13 "xxxx"\cf7 \strokec11  \cf15 \strokec15 // for partners only   \cf7 \strokec11 \
+  \cf10 \strokec10 \}\cf7 \strokec7 \
+\pard\pardeftab720\sa450\partightenfactor0
+
+\f0\fs30 \cf4 \cb1 \strokec4 Let\'92s look at each property individually:\
+\pard\pardeftab720\partightenfactor0
+
+\fs28 \cf7 \strokec7 \
+
+\itap1\trowd \taflags1 \trgaph108\trleft-108 \tamarb450 \trbrdrt\brdrnil \trbrdrl\brdrnil \trbrdrr\brdrnil 
+\clvertalt \clshdrawnil \clwWidth3351\clftsWidth3 \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx1728
+\clvertalt \clshdrawnil \clwWidth8709\clftsWidth3 \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx3456
+\clvertalt \clshdrawnil \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx5184
+\clvertalt \clshdrawnil \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx6912
+\clvertalt \clshdrawnil \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx8640
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+
+\f1\b\fs30 \cf9 \strokec9 Field
+\f0\b0 \cf4 \strokec4 \cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+
+\f1\b \cf9 \strokec9 Explanation
+\f0\b0 \cf4 \strokec4 \cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 \cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 \cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 \cell \row
+
+\itap1\trowd \taflags1 \trgaph108\trleft-108 \tamarb450 \trbrdrl\brdrnil \trbrdrr\brdrnil 
+\clvertalt \clshdrawnil \clwWidth3351\clftsWidth3 \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx1728
+\clvertalt \clshdrawnil \clwWidth8709\clftsWidth3 \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx3456
+\clvertalt \clshdrawnil \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx5184
+\clvertalt \clshdrawnil \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx6912
+\clvertalt \clshdrawnil \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx8640
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 EventType\cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 Describes which action triggered this event. Possible values:\
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+
+\f1\b \cf9 \strokec9 AppointmentCreated -\'a0
+\f0\b0 \cf4 \strokec4 triggered once when the appointment is initially created.\
+
+\f1\b \cf9 \strokec9 AppointmentConfirmed -\'a0
+\f0\b0 \cf4 \strokec4 triggered when the appointment is confirmed, either automatically or by a staff member.\
+
+\f1\b \cf9 \strokec9 AppointmentRescheduled -\'a0
+\f0\b0 \cf4 \strokec4 triggered when the date/time of the appointment has changed.\
+
+\f1\b \cf9 \strokec9 AppointmentCanceled -\'a0
+\f0\b0 \cf4 \strokec4 triggered when the appointment is canceled.\
+
+\f1\b \cf9 \strokec9 AppointmentDeclined -\'a0
+\f0\b0 \cf4 \strokec4 triggered when a staff member declined the appointment request.\
+
+\f1\b \cf9 \strokec9 AppointmentMissed -\'a0
+\f0\b0 \cf4 \strokec4 triggered when a staff member marks the appointment as missed.\
+
+\f1\b \cf9 \strokec9 AppointmentDeleted
+\f0\b0 \cf4 \strokec4 \'a0-\'a0triggered when the appointment is deleted.\
+\cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 \cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 \cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 \cell \row
+
+\itap1\trowd \taflags1 \trgaph108\trleft-108 \tamarb450 \trbrdrl\brdrnil \trbrdrr\brdrnil 
+\clvertalt \clshdrawnil \clwWidth3351\clftsWidth3 \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx1728
+\clvertalt \clshdrawnil \clwWidth8709\clftsWidth3 \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx3456
+\clvertalt \clshdrawnil \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx5184
+\clvertalt \clshdrawnil \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx6912
+\clvertalt \clshdrawnil \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx8640
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 ActionPerformedByClient\cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 Boolean value indicating whether the action was performed by a client using the booking widget or by a staff member.\cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 \cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 \cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 \cell \row
+
+\itap1\trowd \taflags1 \trgaph108\trleft-108 \tamarb450 \trbrdrl\brdrnil \trbrdrt\brdrnil \trbrdrr\brdrnil 
+\clvertalt \clshdrawnil \clwWidth3351\clftsWidth3 \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx1728
+\clvertalt \clshdrawnil \clwWidth8709\clftsWidth3 \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx3456
+\clvertalt \clshdrawnil \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx5184
+\clvertalt \clshdrawnil \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx6912
+\clvertalt \clshdrawnil \clbrdrt\brdrs\brdrw20\brdrcf17 \clbrdrl\brdrnil \clbrdrb\brdrnil \clbrdrr\brdrnil \clpadt160 \clpadl160 \clpadb160 \clpadr160 \gaph\cellx8640
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 Appointment\cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 The\'a0{\field{\*\fldinst{HYPERLINK "https://support.intakeq.com/article/204-intakeq-appointments-api#appointment-object"}}{\fldrslt \cf3 \strokec3 appointment object}}\'a0as defined above.\cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 \cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 \cell 
+\pard\intbl\itap1\pardeftab720\partightenfactor0
+\cf4 \cell \lastrow\row
+}

@@ -1,0 +1,2201 @@
+{
+  "id": "74d758fa-72c5-4997-938b-055a2fb828c4",
+  "labels": [
+    {
+      "name": "resource",
+      "value": "srv-cv0r4ibqf0us73a1kkb0"
+    },
+    {
+      "name": "instance",
+      "value": "srv-cv0r4ibqf0us73a1kkb0-9n7md"
+    },
+    {
+      "name": "level",
+      "value": "info"
+    },
+    {
+      "name": "type",
+      "value": "app"
+    }
+  ],
+  "message": "Successfully read sheet range: Webhook_Log!A:E - Retrieved 516 rows",
+  "timestamp": "2025-04-16T15:21:19.024875848Z"
+}{
+  "id": "82b57e0f-1348-44f0-b8a1-be12b8d19571",
+  "labels": [
+    {
+      "name": "resource",
+      "value": "srv-cv0r4ibqf0us73a1kkb0"
+    },
+    {
+      "name": "instance",
+      "value": "srv-cv0r4ibqf0us73a1kkb0-9n7md"
+    },
+    {
+      "name": "level",
+      "value": "info"
+    },
+    {
+      "name": "type",
+      "value": "app"
+    }
+  ],
+  "message": "Appending rows to range: Webhook_Log!A:H",
+  "timestamp": "2025-04-16T15:21:19.024995061Z"
+}{
+  "id": "a6534c86-301f-4e8c-81e6-c98b25ed06d0",
+  "labels": [
+    {
+      "name": "resource",
+      "value": "srv-cv0r4ibqf0us73a1kkb0"
+    },
+    {
+      "name": "instance",
+      "value": "srv-cv0r4ibqf0us73a1kkb0-9n7md"
+    },
+    {
+      "name": "level",
+      "value": "info"
+    },
+    {
+      "name": "type",
+      "value": "app"
+    }
+  ],
+  "message": "Successfully appended rows to range: Webhook_Log!A:H",
+  "timestamp": "2025-04-16T15:21:19.292016542Z"
+}{
+  "id": "e5992c61-b27f-4ea5-b073-f4fa53bce593",
+  "labels": [
+    {
+      "name": "resource",
+      "value": "srv-cv0r4ibqf0us73a1kkb0"
+    },
+    {
+      "name": "instance",
+      "value": "srv-cv0r4ibqf0us73a1kkb0-9n7md"
+    },
+    {
+      "name": "level",
+      "value": "info"
+    },
+    {
+      "name": "type",
+      "value": "app"
+    }
+  ],
+  "message": "Processing event type: Note Locked",
+  "timestamp": "2025-04-16T15:21:19.292237607Z"
+}{
+  "id": "1b22925b-bb67-4b65-b572-d402533e7864",
+  "labels": [
+    {
+      "name": "resource",
+      "value": "srv-cv0r4ibqf0us73a1kkb0"
+    },
+    {
+      "name": "instance",
+      "value": "srv-cv0r4ibqf0us73a1kkb0-9n7md"
+    },
+    {
+      "name": "level",
+      "value": "info"
+    },
+    {
+      "name": "type",
+      "value": "app"
+    }
+  ],
+  "message": "Unhandled event type: {",
+  "timestamp": "2025-04-16T15:21:19.29234618Z"
+}{
+  "id": "a3a43a16-c6ba-416b-b65b-ec148282ec74",
+  "labels": [
+    {
+      "name": "resource",
+      "value": "srv-cv0r4ibqf0us73a1kkb0"
+    },
+    {
+      "name": "instance",
+      "value": "srv-cv0r4ibqf0us73a1kkb0-9n7md"
+    },
+    {
+      "name": "level",
+      "value": "info"
+    },
+    {
+      "name": "type",
+      "value": "app"
+    }
+  ],
+  "message": "  receivedType: 'Note Locked',",
+  "timestamp": "2025-04-16T15:21:19.29235538Z"
+}{
+  "id": "6f443ca7-5fe3-458a-a8c9-4235895ee889",
+  "labels": [
+    {
+      "name": "resource",
+      "value": "srv-cv0r4ibqf0us73a1kkb0"
+    },
+    {
+      "name": "instance",
+      "value": "srv-cv0r4ibqf0us73a1kkb0-9n7md"
+    },
+    {
+      "name": "level",
+      "value": "info"
+    },
+    {
+      "name": "type",
+      "value": "app"
+    }
+  ],
+  "message": "  payloadType: 'Note Locked',",
+  "timestamp": "2025-04-16T15:21:19.29236032Z"
+}{
+  "id": "a3b8a7e3-4b62-4836-9a38-4b9f31a2aa60",
+  "labels": [
+    {
+      "name": "resource",
+      "value": "srv-cv0r4ibqf0us73a1kkb0"
+    },
+    {
+      "name": "instance",
+      "value": "srv-cv0r4ibqf0us73a1kkb0-9n7md"
+    },
+    {
+      "name": "level",
+      "value": "info"
+    },
+    {
+      "name": "type",
+      "value": "app"
+    }
+  ],
+  "message": "  expectedTypes: [ 'Form Submitted', 'Intake Submitted' ]",
+  "timestamp": "2025-04-16T15:21:19.29236505Z"
+}{
+  "id": "b6553df7-dd50-4642-87d8-06d7b6616504",
+  "labels": [
+    {
+      "name": "resource",
+      "value": "srv-cv0r4ibqf0us73a1kkb0"
+    },
+    {
+      "name": "instance",
+      "value": "srv-cv0r4ibqf0us73a1kkb0-9n7md"
+    },
+    {
+      "name": "level",
+      "value": "info"
+    },
+    {
+      "name": "type",
+      "value": "app"
+    }
+  ],
+  "message": "}",
+  "timestamp": "2025-04-16T15:21:19.292369981Z"
+}{
+  "id": "1d7758a4-42ea-4d36-9f3a-943338b4c04b",
+  "labels": [
+    {
+      "name": "resource",
+      "value": "srv-cv0r4ibqf0us73a1kkb0"
+    },
+    {
+      "name": "instance",
+      "value": "srv-cv0r4ibqf0us73a1kkb0-9n7md"
+    },
+    {
+      "name": "level",
+      "value": "info"
+    },
+    {
+      "name": "type",
+      "value": "app"
+    }
+  ],
+  "message": "Reading sheet range: Webhook_Log!A:A",
+  "timestamp": "2025-04-16T15:21:19.292464023Z"
+}{
+  "id": "35fa3ac9-8d40-4310-a1b1-adb7ae9008c9",
+  "labels": [
+    {
+      "name": "resource",
+      "value": "srv-cv0r4ibqf0us73a1kkb0"
+    },
+    {
+      "name": "instance",
+      "value": "srv-cv0r4ibqf0us73a1kkb0-9n7md"
+    },
+    {
+      "name": "level",
+      "value": "info"
+    },
+    {
+      "name": "type",
+      "value": "app"
+    }
+  ],
+  "message": "Successfully read sheet range: Webhook_Log!A:A - Retrieved 516 rows",
+  "timestamp": "2025-04-16T15:21:19.497886027Z"
+}{
+  "id": "7c0b8e66-d28a-4a0b-88e0-12d1cc94c2bb",
+  "labels": [
+    {
+      "name": "resource",
+      "value": "srv-cv0r4ibqf0us73a1kkb0"
+    },
+    {
+      "name": "instance",
+      "value": "srv-cv0r4ibqf0us73a1kkb0-9n7md"
+    },
+    {
+      "name": "level",
+      "value": "info"
+    },
+    {
+      "name": "type",
+      "value": "app"
+    }
+  ],
+  "message": "Webhook event processed: {",
+  "timestamp": "2025-04-16T15:21:20.783367721Z"
+}{
+  "id": "c151f96f-bdb6-4eed-9319-248c7b323ab3",
+  "labels": [
+    {
+      "name": "resource",
+      "value": "srv-cv0r4ibqf0us73a1kkb0"
+    },
+    {
+      "name": "instance",
+      "value": "srv-cv0r4ibqf0us73a1kkb0-9n7md"
+    },
+    {
+      "name": "level",
+      "value": "info"
+    },
+    {
+      "name": "type",
+      "value": "app"
+    }
+  ],
+  "message": "  success: false,",
+  "timestamp": "2025-04-16T15:21:20.783396392Z"
+}{
+  "id": "a6160dcb-d3a9-4bf3-acdb-31ebe6883fea",
+  "labels": [
+    {
+      "name": "resource",
+      "value": "srv-cv0r4ibqf0us73a1kkb0"
+    },
+    {
+      "name": "instance",
+      "value": "srv-cv0r4ibqf0us73a1kkb0-9n7md"
+    },
+    {
+      "name": "level",
+      "value": "error"
+    },
+    {
+      "name": "type",
+      "value": "app"
+    }
+  ],
+  "message": "  error: 'Unsupported webhook type: Note Locked',",
+  "timestamp": "2025-04-16T15:21:20.783402062Z"
+}{
+  "id": "eb1226b4-8b98-4132-a31e-11b7f910681c",
+  "labels": [
+    {
+      "name": "resource",
+      "value": "srv-cv0r4ibqf0us73a1kkb0"
+    },
+    {
+      "name": "instance",
+      "value": "srv-cv0r4ibqf0us73a1kkb0-9n7md"
+    },
+    {
+      "name": "level",
+      "value": "info"
+    },
+    {
+      "name": "type",
+      "value": "app"
+    }
+  ],
+  "message": "  retryable: false,",
+  "timestamp": "2025-04-16T15:21:20.783406632Z"
+}{
+  "id": "6eb6b0ea-4a2f-4dd0-a4b0-35e53bde2df6",
+  "labels": [
+    {
+      "name": "resource",
+      "value": "srv-cv0r4ibqf0us73a1kkb0"
+    },
+    {
+      "name": "instance",
+      "value": "srv-cv0r4ibqf0us73a1kkb0-9n7md"
+    },
+    {
+      "name": "level",
+      "value": "info"
+    },
+    {
+      "name": "type",
+      "value": "app"
+    }
+  ],
+  "message": "  processingTime: '3480ms'",
+  "timestamp": "2025-04-16T15:21:20.783411072Z"
+}{
+  "id": "33333dd3-96f2-40ca-a203-8d90fbf3dee2",
+  "labels": [
+    {
+      "name": "resource",
+      "value": "srv-cv0r4ibqf0us73a1kkb0"
+    },
+    {
+      "name": "instance",
+      "value": "srv-cv0r4ibqf0us73a1kkb0-9n7md"
+    },
+    {
+      "name": "level",
+      "value": "info"
+    },
+    {
+      "name": "type",
+      "value": "app"
+    }
+  ],
+  "message": "}",
+  "timestamp": "2025-04-16T15:21:20.783415222Z"
+}{
+  "id": "ee1c9939-0004-417c-b571-6bbe3165b732",
+  "labels": [
+    {
+      "name": "resource",
+      "value": "srv-cv0r4ibqf0us73a1kkb0"
+    },
+    {
+      "name": "instance",
+      "value": "srv-cv0r4ibqf0us73a1kkb0-9n7md"
+    },
+    {
+      "name": "level",
+      "value": "info"
+    },
+    {
+      "name": "type",
+      "value": "app"
+    }
+  ],
+  "message": "Appending rows to range: Audit_Log!A:G",
+  "timestamp": "2025-04-16T15:21:24.025393978Z"
+}{
+  "id": "4e5ed1fc-b710-4b14-9785-d8e7d93a6e93",
+  "labels": [
+    {
+      "name": "resource",
+      "value": "srv-cv0r4ibqf0us73a1kkb0"
+    },
+    {
+      "name": "instance",
+      "value": "srv-cv0r4ibqf0us73a1kkb0-9n7md"
+    },
+    {
+      "name": "level",
+      "value": "info"
+    },
+    {
+      "name": "type",
+      "value": "app"
+    }
+  ],
+  "message": "Successfully appended rows to range: Audit_Log!A:G",
+  "timestamp": "2025-04-16T15:21:24.237148573Z"
+}{
+  "id": "2b1888e8-ca52-4103-b17c-0c6ddce0338b",
+  "labels": [
+    {
+      "name": "resource",
+      "value": "srv-cv0r4ibqf0us73a1kkb0"
+    },
+    {
+      "name": "instance",
+      "value": "srv-cv0r4ibqf0us73a1kkb0-9n7md"
+    },
+    {
+      "name": "level",
+      "value": "info"
+    },
+    {
+      "name": "type",
+      "value": "app"
+    }
+  ],
+  "message": "Flushed 1 audit log entries",
+  "timestamp": "2025-04-16T15:21:24.237168833Z"
+}{
+  "id": "83836c97-53ed-40a6-a7aa-fc0d79b9d6d0",
+  "labels": [
+    {
+      "name": "resource",
+      "value": "srv-cv0r4ibqf0us73a1kkb0"
+    },
+    {
+      "name": "instance",
+      "value": "srv-cv0r4ibqf0us73a1kkb0-9n7md"
+    },
+    {
+      "name": "level",
+      "value": "info"
+    },
+    {
+      "name": "type",
+      "value": "app"
+    }
+  ],
+  "message": "Webhook received: {",
+  "timestamp": "2025-04-16T15:34:57.29494679Z"
+}{
+  "id": "1cc759a5-3d64-4cec-9aa7-681f6e49198d",
+  "labels": [
+    {
+      "name": "resource",
+      "value": "srv-cv0r4ibqf0us73a1kkb0"
+    },
+    {
+      "name": "instance",
+      "value": "srv-cv0r4ibqf0us73a1kkb0-9n7md"
+    },
+    {
+      "name": "level",
+      "value": "info"
+    },
+    {
+      "name": "type",
+      "value": "app"
+    }
+  ],
+  "message": "Missing webhook signature in production environment",
+  "timestamp": "2025-04-16T15:34:57.295043702Z"
+}{
+  "id": "efcaf780-5885-448c-897a-7c8bda596a5c",
+  "labels": [
+    {
+      "name": "resource",
+      "value": "srv-cv0r4ibqf0us73a1kkb0"
+    },
+    {
+      "name": "instance",
+      "value": "srv-cv0r4ibqf0us73a1kkb0-9n7md"
+    },
+    {
+      "name": "level",
+      "value": "info"
+    },
+    {
+      "name": "type",
+      "value": "app"
+    }
+  ],
+  "message": "  type: 'Note Locked',",
+  "timestamp": "2025-04-16T15:34:57.295655907Z"
+}{
+  "id": "998b88d5-2d36-440a-b866-cd9698381809",
+  "labels": [
+    {
+      "name": "resource",
+      "value": "srv-cv0r4ibqf0us73a1kkb0"
+    },
+    {
+      "name": "instance",
+      "value": "srv-cv0r4ibqf0us73a1kkb0-9n7md"
+    },
+    {
+      "name": "level",
+      "value": "info"
+    },
+    {
+      "name": "type",
+      "value": "app"
+    }
+  ],
+  "message": "  clientId: 1165,",
+  "timestamp": "2025-04-16T15:34:57.295665267Z"
+}{
+  "id": "be574443-6251-4fe0-83b7-b1e847f11e28",
+  "labels": [
+    {
+      "name": "resource",
+      "value": "srv-cv0r4ibqf0us73a1kkb0"
+    },
+    {
+      "name": "instance",
+      "value": "srv-cv0r4ibqf0us73a1kkb0-9n7md"
+    },
+    {
+      "name": "level",
+      "value": "info"
+    },
+    {
+      "name": "type",
+      "value": "app"
+    }
+  ],
+  "message": "  hasSignature: false,",
+  "timestamp": "2025-04-16T15:34:57.295670397Z"
+}{
+  "id": "be5e7891-c07d-435f-8ac4-8cb23d5b4c45",
+  "labels": [
+    {
+      "name": "resource",
+      "value": "srv-cv0r4ibqf0us73a1kkb0"
+    },
+    {
+      "name": "instance",
+      "value": "srv-cv0r4ibqf0us73a1kkb0-9n7md"
+    },
+    {
+      "name": "level",
+      "value": "info"
+    },
+    {
+      "name": "type",
+      "value": "app"
+    }
+  ],
+  "message": "  timestamp: '2025-04-16T15:34:57.294Z'",
+  "timestamp": "2025-04-16T15:34:57.295675617Z"
+}{
+  "id": "4c39b075-7795-4215-9ec3-ecd5ce5631da",
+  "labels": [
+    {
+      "name": "resource",
+      "value": "srv-cv0r4ibqf0us73a1kkb0"
+    },
+    {
+      "name": "instance",
+      "value": "srv-cv0r4ibqf0us73a1kkb0-9n7md"
+    },
+    {
+      "name": "level",
+      "value": "info"
+    },
+    {
+      "name": "type",
+      "value": "app"
+    }
+  ],
+  "message": "}",
+  "timestamp": "2025-04-16T15:34:57.295680137Z"
+}{
+  "id": "f668b650-e28e-4aa4-8221-0b90c2f17384",
+  "labels": [
+    {
+      "name": "resource",
+      "value": "srv-cv0r4ibqf0us73a1kkb0"
+    },
+    {
+      "name": "instance",
+      "value": "srv-cv0r4ibqf0us73a1kkb0-9n7md"
+    },
+    {
+      "name": "level",
+      "value": "info"
+    },
+    {
+      "name": "type",
+      "value": "app"
+    }
+  ],
+  "message": "[2025-04-16T15:34:57.294Z] Starting webhook processing",
+  "timestamp": "2025-04-16T15:34:57.295695518Z"
+}{
+  "id": "89d52a19-44af-4f97-9edb-3892c3474373",
+  "labels": [
+    {
+      "name": "resource",
+      "value": "srv-cv0r4ibqf0us73a1kkb0"
+    },
+    {
+      "name": "instance",
+      "value": "srv-cv0r4ibqf0us73a1kkb0-9n7md"
+    },
+    {
+      "name": "level",
+      "value": "info"
+    },
+    {
+      "name": "type",
+      "value": "app"
+    }
+  ],
+  "message": "Received webhook: {",
+  "timestamp": "2025-04-16T15:34:57.295701278Z"
+}{
+  "id": "8667efee-4f34-48a0-8781-159a4c186b85",
+  "labels": [
+    {
+      "name": "resource",
+      "value": "srv-cv0r4ibqf0us73a1kkb0"
+    },
+    {
+      "name": "instance",
+      "value": "srv-cv0r4ibqf0us73a1kkb0-9n7md"
+    },
+    {
+      "name": "level",
+      "value": "info"
+    },
+    {
+      "name": "type",
+      "value": "app"
+    }
+  ],
+  "message": "  type: 'Note Locked',",
+  "timestamp": "2025-04-16T15:34:57.295704138Z"
+}{
+  "id": "77986d53-08ee-4149-a864-ef74a6fe5a0c",
+  "labels": [
+    {
+      "name": "resource",
+      "value": "srv-cv0r4ibqf0us73a1kkb0"
+    },
+    {
+      "name": "instance",
+      "value": "srv-cv0r4ibqf0us73a1kkb0-9n7md"
+    },
+    {
+      "name": "level",
+      "value": "info"
+    },
+    {
+      "name": "type",
+      "value": "app"
+    }
+  ],
+  "message": "  clientId: 1165,",
+  "timestamp": "2025-04-16T15:34:57.295707308Z"
+}{
+  "id": "0b3b673f-383d-4317-802c-c231138d9ec0",
+  "labels": [
+    {
+      "name": "resource",
+      "value": "srv-cv0r4ibqf0us73a1kkb0"
+    },
+    {
+      "name": "instance",
+      "value": "srv-cv0r4ibqf0us73a1kkb0-9n7md"
+    },
+    {
+      "name": "level",
+      "value": "info"
+    },
+    {
+      "name": "type",
+      "value": "app"
+    }
+  ],
+  "message": "  appointmentId: undefined,",
+  "timestamp": "2025-04-16T15:34:57.295710618Z"
+}{
+  "id": "4f5d3775-e4c1-43a1-86b7-ca0d8e090706",
+  "labels": [
+    {
+      "name": "resource",
+      "value": "srv-cv0r4ibqf0us73a1kkb0"
+    },
+    {
+      "name": "instance",
+      "value": "srv-cv0r4ibqf0us73a1kkb0-9n7md"
+    },
+    {
+      "name": "level",
+      "value": "info"
+    },
+    {
+      "name": "type",
+      "value": "app"
+    }
+  ],
+  "message": "  timestamp: '2025-04-16T15:34:57.294Z'",
+  "timestamp": "2025-04-16T15:34:57.295713868Z"
+}{
+  "id": "6181f69a-b18a-452d-be9b-9504d67f4f06",
+  "labels": [
+    {
+      "name": "resource",
+      "value": "srv-cv0r4ibqf0us73a1kkb0"
+    },
+    {
+      "name": "instance",
+      "value": "srv-cv0r4ibqf0us73a1kkb0-9n7md"
+    },
+    {
+      "name": "level",
+      "value": "info"
+    },
+    {
+      "name": "type",
+      "value": "app"
+    }
+  ],
+  "message": "}",
+  "timestamp": "2025-04-16T15:34:57.295716718Z"
+}{
+  "id": "c3d35d3e-45e8-457e-a14a-9276b7cd26e6",
+  "labels": [
+    {
+      "name": "resource",
+      "value": "srv-cv0r4ibqf0us73a1kkb0"
+    },
+    {
+      "name": "instance",
+      "value": "srv-cv0r4ibqf0us73a1kkb0-9n7md"
+    },
+    {
+      "name": "level",
+      "value": "info"
+    },
+    {
+      "name": "type",
+      "value": "app"
+    }
+  ],
+  "message": "Complete webhook payload structure: {",
+  "timestamp": "2025-04-16T15:34:57.295719528Z"
+}{
+  "id": "119c2aaa-8ebc-4fc1-a0c0-8004cf9a6e5e",
+  "labels": [
+    {
+      "name": "resource",
+      "value": "srv-cv0r4ibqf0us73a1kkb0"
+    },
+    {
+      "name": "instance",
+      "value": "srv-cv0r4ibqf0us73a1kkb0-9n7md"
+    },
+    {
+      "name": "level",
+      "value": "info"
+    },
+    {
+      "name": "type",
+      "value": "app"
+    }
+  ],
+  "message": "  \"NoteId\": \"25b2a6d9-802c-4e5b-bce7-00e074b33e30\",",
+  "timestamp": "2025-04-16T15:34:57.295722329Z"
+}{
+  "id": "78fca896-0341-428a-a7b1-94ec61d49b38",
+  "labels": [
+    {
+      "name": "resource",
+      "value": "srv-cv0r4ibqf0us73a1kkb0"
+    },
+    {
+      "name": "instance",
+      "value": "srv-cv0r4ibqf0us73a1kkb0-9n7md"
+    },
+    {
+      "name": "level",
+      "value": "info"
+    },
+    {
+      "name": "type",
+      "value": "app"
+    }
+  ],
+  "message": "  \"Type\": \"Note Locked\",",
+  "timestamp": "2025-04-16T15:34:57.295725149Z"
+}{
+  "id": "df842de8-9d02-4239-86dc-eaf8520e37f8",
+  "labels": [
+    {
+      "name": "resource",
+      "value": "srv-cv0r4ibqf0us73a1kkb0"
+    },
+    {
+      "name": "instance",
+      "value": "srv-cv0r4ibqf0us73a1kkb0-9n7md"
+    },
+    {
+      "name": "level",
+      "value": "info"
+    },
+    {
+      "name": "type",
+      "value": "app"
+    }
+  ],
+  "message": "  \"ClientId\": 1165",
+  "timestamp": "2025-04-16T15:34:57.295727959Z"
+}{
+  "id": "987c1eb3-6d02-4b61-8034-a0590b430d8b",
+  "labels": [
+    {
+      "name": "resource",
+      "value": "srv-cv0r4ibqf0us73a1kkb0"
+    },
+    {
+      "name": "instance",
+      "value": "srv-cv0r4ibqf0us73a1kkb0-9n7md"
+    },
+    {
+      "name": "level",
+      "value": "info"
+    },
+    {
+      "name": "type",
+      "value": "app"
+    }
+  ],
+  "message": "}",
+  "timestamp": "2025-04-16T15:34:57.295730789Z"
+}{
+  "id": "6498b80c-34cc-495d-88bc-3e15156cbcc6",
+  "labels": [
+    {
+      "name": "resource",
+      "value": "srv-cv0r4ibqf0us73a1kkb0"
+    },
+    {
+      "name": "instance",
+      "value": "srv-cv0r4ibqf0us73a1kkb0-9n7md"
+    },
+    {
+      "name": "level",
+      "value": "info"
+    },
+    {
+      "name": "type",
+      "value": "app"
+    }
+  ],
+  "message": "Reading sheet range: Webhook_Log!A:E",
+  "timestamp": "2025-04-16T15:34:57.295736509Z"
+}{
+  "id": "1e6ae2cb-fe61-47a3-800b-ce1fa6c04e2a",
+  "labels": [
+    {
+      "name": "resource",
+      "value": "srv-cv0r4ibqf0us73a1kkb0"
+    },
+    {
+      "name": "instance",
+      "value": "srv-cv0r4ibqf0us73a1kkb0-9n7md"
+    },
+    {
+      "name": "level",
+      "value": "info"
+    },
+    {
+      "name": "type",
+      "value": "app"
+    }
+  ],
+  "message": "Successfully read sheet range: Webhook_Log!A:E - Retrieved 517 rows",
+  "timestamp": "2025-04-16T15:34:58.753811449Z"
+}{
+  "id": "d0201165-02ca-4565-b51f-9e06b2ca885c",
+  "labels": [
+    {
+      "name": "resource",
+      "value": "srv-cv0r4ibqf0us73a1kkb0"
+    },
+    {
+      "name": "instance",
+      "value": "srv-cv0r4ibqf0us73a1kkb0-9n7md"
+    },
+    {
+      "name": "level",
+      "value": "info"
+    },
+    {
+      "name": "type",
+      "value": "app"
+    }
+  ],
+  "message": "Appending rows to range: Webhook_Log!A:H",
+  "timestamp": "2025-04-16T15:34:58.75386471Z"
+}{
+  "id": "41a47b60-7334-48a9-aa5d-dd0fded6ca1e",
+  "labels": [
+    {
+      "name": "resource",
+      "value": "srv-cv0r4ibqf0us73a1kkb0"
+    },
+    {
+      "name": "instance",
+      "value": "srv-cv0r4ibqf0us73a1kkb0-9n7md"
+    },
+    {
+      "name": "level",
+      "value": "info"
+    },
+    {
+      "name": "type",
+      "value": "app"
+    }
+  ],
+  "message": "Successfully appended rows to range: Webhook_Log!A:H",
+  "timestamp": "2025-04-16T15:34:58.984815486Z"
+}{
+  "id": "28f1f244-29ad-4ead-af63-fa20b4ee5015",
+  "labels": [
+    {
+      "name": "resource",
+      "value": "srv-cv0r4ibqf0us73a1kkb0"
+    },
+    {
+      "name": "instance",
+      "value": "srv-cv0r4ibqf0us73a1kkb0-9n7md"
+    },
+    {
+      "name": "level",
+      "value": "info"
+    },
+    {
+      "name": "type",
+      "value": "app"
+    }
+  ],
+  "message": "Processing event type: Note Locked",
+  "timestamp": "2025-04-16T15:34:58.984844746Z"
+}{
+  "id": "11744aee-b124-451b-b39e-2924bec5ee9a",
+  "labels": [
+    {
+      "name": "resource",
+      "value": "srv-cv0r4ibqf0us73a1kkb0"
+    },
+    {
+      "name": "instance",
+      "value": "srv-cv0r4ibqf0us73a1kkb0-9n7md"
+    },
+    {
+      "name": "level",
+      "value": "info"
+    },
+    {
+      "name": "type",
+      "value": "app"
+    }
+  ],
+  "message": "Unhandled event type: {",
+  "timestamp": "2025-04-16T15:34:58.984861517Z"
+}{
+  "id": "a26cb0ed-8b53-4532-a937-160e2c4df78a",
+  "labels": [
+    {
+      "name": "resource",
+      "value": "srv-cv0r4ibqf0us73a1kkb0"
+    },
+    {
+      "name": "instance",
+      "value": "srv-cv0r4ibqf0us73a1kkb0-9n7md"
+    },
+    {
+      "name": "level",
+      "value": "info"
+    },
+    {
+      "name": "type",
+      "value": "app"
+    }
+  ],
+  "message": "  receivedType: 'Note Locked',",
+  "timestamp": "2025-04-16T15:34:58.984868297Z"
+}{
+  "id": "0acc7476-e78e-4389-88fb-ef68c751d57c",
+  "labels": [
+    {
+      "name": "resource",
+      "value": "srv-cv0r4ibqf0us73a1kkb0"
+    },
+    {
+      "name": "instance",
+      "value": "srv-cv0r4ibqf0us73a1kkb0-9n7md"
+    },
+    {
+      "name": "level",
+      "value": "info"
+    },
+    {
+      "name": "type",
+      "value": "app"
+    }
+  ],
+  "message": "  payloadType: 'Note Locked',",
+  "timestamp": "2025-04-16T15:34:58.984873277Z"
+}{
+  "id": "dc4d0aba-4dcb-446e-ad07-9e7f8e4fcb75",
+  "labels": [
+    {
+      "name": "resource",
+      "value": "srv-cv0r4ibqf0us73a1kkb0"
+    },
+    {
+      "name": "instance",
+      "value": "srv-cv0r4ibqf0us73a1kkb0-9n7md"
+    },
+    {
+      "name": "level",
+      "value": "info"
+    },
+    {
+      "name": "type",
+      "value": "app"
+    }
+  ],
+  "message": "  expectedTypes: [ 'Form Submitted', 'Intake Submitted' ]",
+  "timestamp": "2025-04-16T15:34:58.984878007Z"
+}{
+  "id": "a00c4645-7a6d-4cd8-a06b-e170c9ab1ec0",
+  "labels": [
+    {
+      "name": "resource",
+      "value": "srv-cv0r4ibqf0us73a1kkb0"
+    },
+    {
+      "name": "instance",
+      "value": "srv-cv0r4ibqf0us73a1kkb0-9n7md"
+    },
+    {
+      "name": "level",
+      "value": "info"
+    },
+    {
+      "name": "type",
+      "value": "app"
+    }
+  ],
+  "message": "}",
+  "timestamp": "2025-04-16T15:34:58.984882577Z"
+}{
+  "id": "efb587c7-25d4-4ca7-b472-603ff2f9188b",
+  "labels": [
+    {
+      "name": "resource",
+      "value": "srv-cv0r4ibqf0us73a1kkb0"
+    },
+    {
+      "name": "instance",
+      "value": "srv-cv0r4ibqf0us73a1kkb0-9n7md"
+    },
+    {
+      "name": "level",
+      "value": "info"
+    },
+    {
+      "name": "type",
+      "value": "app"
+    }
+  ],
+  "message": "Reading sheet range: Webhook_Log!A:A",
+  "timestamp": "2025-04-16T15:34:58.984892608Z"
+}{
+  "id": "7435cddc-f4f0-43b5-a5d9-b9cd05399fb3",
+  "labels": [
+    {
+      "name": "resource",
+      "value": "srv-cv0r4ibqf0us73a1kkb0"
+    },
+    {
+      "name": "instance",
+      "value": "srv-cv0r4ibqf0us73a1kkb0-9n7md"
+    },
+    {
+      "name": "level",
+      "value": "info"
+    },
+    {
+      "name": "type",
+      "value": "app"
+    }
+  ],
+  "message": "Successfully read sheet range: Webhook_Log!A:A - Retrieved 517 rows",
+  "timestamp": "2025-04-16T15:34:59.130127367Z"
+}{
+  "id": "b5875152-6d7b-400a-9dfe-3d92609d3748",
+  "labels": [
+    {
+      "name": "resource",
+      "value": "srv-cv0r4ibqf0us73a1kkb0"
+    },
+    {
+      "name": "instance",
+      "value": "srv-cv0r4ibqf0us73a1kkb0-9n7md"
+    },
+    {
+      "name": "level",
+      "value": "info"
+    },
+    {
+      "name": "type",
+      "value": "app"
+    }
+  ],
+  "message": "Webhook event processed: {",
+  "timestamp": "2025-04-16T15:34:59.351952866Z"
+}{
+  "id": "4f9359f6-bde4-40f0-b506-e54e6e25c591",
+  "labels": [
+    {
+      "name": "resource",
+      "value": "srv-cv0r4ibqf0us73a1kkb0"
+    },
+    {
+      "name": "instance",
+      "value": "srv-cv0r4ibqf0us73a1kkb0-9n7md"
+    },
+    {
+      "name": "level",
+      "value": "info"
+    },
+    {
+      "name": "type",
+      "value": "app"
+    }
+  ],
+  "message": "  success: false,",
+  "timestamp": "2025-04-16T15:34:59.351982426Z"
+}{
+  "id": "899eccb6-ba15-41ca-8f74-29afdedf8af8",
+  "labels": [
+    {
+      "name": "resource",
+      "value": "srv-cv0r4ibqf0us73a1kkb0"
+    },
+    {
+      "name": "instance",
+      "value": "srv-cv0r4ibqf0us73a1kkb0-9n7md"
+    },
+    {
+      "name": "level",
+      "value": "error"
+    },
+    {
+      "name": "type",
+      "value": "app"
+    }
+  ],
+  "message": "  error: 'Unsupported webhook type: Note Locked',",
+  "timestamp": "2025-04-16T15:34:59.351987647Z"
+}{
+  "id": "bf7735f7-320b-4ce6-a0f1-b232005697f1",
+  "labels": [
+    {
+      "name": "resource",
+      "value": "srv-cv0r4ibqf0us73a1kkb0"
+    },
+    {
+      "name": "instance",
+      "value": "srv-cv0r4ibqf0us73a1kkb0-9n7md"
+    },
+    {
+      "name": "level",
+      "value": "info"
+    },
+    {
+      "name": "type",
+      "value": "app"
+    }
+  ],
+  "message": "  retryable: false,",
+  "timestamp": "2025-04-16T15:34:59.352014057Z"
+}{
+  "id": "fd6ddd0b-8d6e-405a-b6cd-b3d4ed84feca",
+  "labels": [
+    {
+      "name": "resource",
+      "value": "srv-cv0r4ibqf0us73a1kkb0"
+    },
+    {
+      "name": "instance",
+      "value": "srv-cv0r4ibqf0us73a1kkb0-9n7md"
+    },
+    {
+      "name": "level",
+      "value": "info"
+    },
+    {
+      "name": "type",
+      "value": "app"
+    }
+  ],
+  "message": "  processingTime: '2057ms'",
+  "timestamp": "2025-04-16T15:34:59.352016687Z"
+}{
+  "id": "5a3fe298-2f1d-432b-a6f1-7037cf7b98c4",
+  "labels": [
+    {
+      "name": "resource",
+      "value": "srv-cv0r4ibqf0us73a1kkb0"
+    },
+    {
+      "name": "instance",
+      "value": "srv-cv0r4ibqf0us73a1kkb0-9n7md"
+    },
+    {
+      "name": "level",
+      "value": "info"
+    },
+    {
+      "name": "type",
+      "value": "app"
+    }
+  ],
+  "message": "}",
+  "timestamp": "2025-04-16T15:34:59.352019207Z"
+}{
+  "id": "b201e5f5-5053-4915-8f52-a5750628ec1e",
+  "labels": [
+    {
+      "name": "resource",
+      "value": "srv-cv0r4ibqf0us73a1kkb0"
+    },
+    {
+      "name": "instance",
+      "value": "srv-cv0r4ibqf0us73a1kkb0-9n7md"
+    },
+    {
+      "name": "level",
+      "value": "info"
+    },
+    {
+      "name": "type",
+      "value": "app"
+    }
+  ],
+  "message": "Appending rows to range: Audit_Log!A:G",
+  "timestamp": "2025-04-16T15:35:03.754854631Z"
+}{
+  "id": "b74bd31a-fc3a-45e1-aaee-d8e92e90db91",
+  "labels": [
+    {
+      "name": "resource",
+      "value": "srv-cv0r4ibqf0us73a1kkb0"
+    },
+    {
+      "name": "instance",
+      "value": "srv-cv0r4ibqf0us73a1kkb0-9n7md"
+    },
+    {
+      "name": "level",
+      "value": "info"
+    },
+    {
+      "name": "type",
+      "value": "app"
+    }
+  ],
+  "message": "Successfully appended rows to range: Audit_Log!A:G",
+  "timestamp": "2025-04-16T15:35:03.959836569Z"
+}{
+  "id": "1f6b7260-684f-462c-8a27-9c105fc8dafb",
+  "labels": [
+    {
+      "name": "resource",
+      "value": "srv-cv0r4ibqf0us73a1kkb0"
+    },
+    {
+      "name": "instance",
+      "value": "srv-cv0r4ibqf0us73a1kkb0-9n7md"
+    },
+    {
+      "name": "level",
+      "value": "info"
+    },
+    {
+      "name": "type",
+      "value": "app"
+    }
+  ],
+  "message": "Flushed 1 audit log entries",
+  "timestamp": "2025-04-16T15:35:03.95986511Z"
+}{
+  "id": "8afe7f8f-cecf-4ccf-abdb-b806f86c4c11",
+  "labels": [
+    {
+      "name": "resource",
+      "value": "srv-cv0r4ibqf0us73a1kkb0"
+    },
+    {
+      "name": "instance",
+      "value": "srv-cv0r4ibqf0us73a1kkb0-9n7md"
+    },
+    {
+      "name": "level",
+      "value": "info"
+    },
+    {
+      "name": "type",
+      "value": "app"
+    }
+  ],
+  "message": "Webhook received: {",
+  "timestamp": "2025-04-16T15:45:11.324255046Z"
+}{
+  "id": "fd213c78-21c1-4d66-9ac1-0030ce2a68e0",
+  "labels": [
+    {
+      "name": "resource",
+      "value": "srv-cv0r4ibqf0us73a1kkb0"
+    },
+    {
+      "name": "instance",
+      "value": "srv-cv0r4ibqf0us73a1kkb0-9n7md"
+    },
+    {
+      "name": "level",
+      "value": "info"
+    },
+    {
+      "name": "type",
+      "value": "app"
+    }
+  ],
+  "message": "Missing webhook signature in production environment",
+  "timestamp": "2025-04-16T15:45:11.324284877Z"
+}{
+  "id": "dea1b81b-7d2d-48f7-a6ef-3490ea4a2556",
+  "labels": [
+    {
+      "name": "resource",
+      "value": "srv-cv0r4ibqf0us73a1kkb0"
+    },
+    {
+      "name": "instance",
+      "value": "srv-cv0r4ibqf0us73a1kkb0-9n7md"
+    },
+    {
+      "name": "level",
+      "value": "info"
+    },
+    {
+      "name": "type",
+      "value": "app"
+    }
+  ],
+  "message": "  type: 'Note Locked',",
+  "timestamp": "2025-04-16T15:45:11.324292707Z"
+}{
+  "id": "2f65c2a7-2f21-4ace-b725-c88f54e08657",
+  "labels": [
+    {
+      "name": "resource",
+      "value": "srv-cv0r4ibqf0us73a1kkb0"
+    },
+    {
+      "name": "instance",
+      "value": "srv-cv0r4ibqf0us73a1kkb0-9n7md"
+    },
+    {
+      "name": "level",
+      "value": "info"
+    },
+    {
+      "name": "type",
+      "value": "app"
+    }
+  ],
+  "message": "  clientId: 1123,",
+  "timestamp": "2025-04-16T15:45:11.324297867Z"
+}{
+  "id": "98d884c6-3c81-4dc0-8120-49bb4a2d2edc",
+  "labels": [
+    {
+      "name": "resource",
+      "value": "srv-cv0r4ibqf0us73a1kkb0"
+    },
+    {
+      "name": "instance",
+      "value": "srv-cv0r4ibqf0us73a1kkb0-9n7md"
+    },
+    {
+      "name": "level",
+      "value": "info"
+    },
+    {
+      "name": "type",
+      "value": "app"
+    }
+  ],
+  "message": "  hasSignature: false,",
+  "timestamp": "2025-04-16T15:45:11.324302358Z"
+}{
+  "id": "f3c247e5-4ea4-431a-b01f-388883f94725",
+  "labels": [
+    {
+      "name": "resource",
+      "value": "srv-cv0r4ibqf0us73a1kkb0"
+    },
+    {
+      "name": "instance",
+      "value": "srv-cv0r4ibqf0us73a1kkb0-9n7md"
+    },
+    {
+      "name": "level",
+      "value": "info"
+    },
+    {
+      "name": "type",
+      "value": "app"
+    }
+  ],
+  "message": "  timestamp: '2025-04-16T15:45:11.324Z'",
+  "timestamp": "2025-04-16T15:45:11.324307198Z"
+}{
+  "id": "aa3cfee2-8d7f-4e26-9acf-9dfa164cff50",
+  "labels": [
+    {
+      "name": "resource",
+      "value": "srv-cv0r4ibqf0us73a1kkb0"
+    },
+    {
+      "name": "instance",
+      "value": "srv-cv0r4ibqf0us73a1kkb0-9n7md"
+    },
+    {
+      "name": "level",
+      "value": "info"
+    },
+    {
+      "name": "type",
+      "value": "app"
+    }
+  ],
+  "message": "}",
+  "timestamp": "2025-04-16T15:45:11.324311448Z"
+}{
+  "id": "bc081762-917c-457d-a24a-b6ea0dee5b33",
+  "labels": [
+    {
+      "name": "resource",
+      "value": "srv-cv0r4ibqf0us73a1kkb0"
+    },
+    {
+      "name": "instance",
+      "value": "srv-cv0r4ibqf0us73a1kkb0-9n7md"
+    },
+    {
+      "name": "level",
+      "value": "info"
+    },
+    {
+      "name": "type",
+      "value": "app"
+    }
+  ],
+  "message": "[2025-04-16T15:45:11.324Z] Starting webhook processing",
+  "timestamp": "2025-04-16T15:45:11.324632835Z"
+}{
+  "id": "dc0786b8-5ff3-43ea-a925-57783271fd5e",
+  "labels": [
+    {
+      "name": "resource",
+      "value": "srv-cv0r4ibqf0us73a1kkb0"
+    },
+    {
+      "name": "instance",
+      "value": "srv-cv0r4ibqf0us73a1kkb0-9n7md"
+    },
+    {
+      "name": "level",
+      "value": "info"
+    },
+    {
+      "name": "type",
+      "value": "app"
+    }
+  ],
+  "message": "Received webhook: {",
+  "timestamp": "2025-04-16T15:45:11.324647816Z"
+}{
+  "id": "57cbcbe5-14e7-4cb8-b15b-b043ea61fe3a",
+  "labels": [
+    {
+      "name": "resource",
+      "value": "srv-cv0r4ibqf0us73a1kkb0"
+    },
+    {
+      "name": "instance",
+      "value": "srv-cv0r4ibqf0us73a1kkb0-9n7md"
+    },
+    {
+      "name": "level",
+      "value": "info"
+    },
+    {
+      "name": "type",
+      "value": "app"
+    }
+  ],
+  "message": "  type: 'Note Locked',",
+  "timestamp": "2025-04-16T15:45:11.324652286Z"
+}{
+  "id": "e2d08bdf-393f-4742-99c7-d9c4cba0cbb3",
+  "labels": [
+    {
+      "name": "resource",
+      "value": "srv-cv0r4ibqf0us73a1kkb0"
+    },
+    {
+      "name": "instance",
+      "value": "srv-cv0r4ibqf0us73a1kkb0-9n7md"
+    },
+    {
+      "name": "level",
+      "value": "info"
+    },
+    {
+      "name": "type",
+      "value": "app"
+    }
+  ],
+  "message": "  clientId: 1123,",
+  "timestamp": "2025-04-16T15:45:11.324656486Z"
+}{
+  "id": "26576376-de2b-462f-b99f-50fca7ebe69d",
+  "labels": [
+    {
+      "name": "resource",
+      "value": "srv-cv0r4ibqf0us73a1kkb0"
+    },
+    {
+      "name": "instance",
+      "value": "srv-cv0r4ibqf0us73a1kkb0-9n7md"
+    },
+    {
+      "name": "level",
+      "value": "info"
+    },
+    {
+      "name": "type",
+      "value": "app"
+    }
+  ],
+  "message": "  appointmentId: undefined,",
+  "timestamp": "2025-04-16T15:45:11.324660476Z"
+}{
+  "id": "a5e893c9-6b4f-4a53-acfa-8f34b0814dc5",
+  "labels": [
+    {
+      "name": "resource",
+      "value": "srv-cv0r4ibqf0us73a1kkb0"
+    },
+    {
+      "name": "instance",
+      "value": "srv-cv0r4ibqf0us73a1kkb0-9n7md"
+    },
+    {
+      "name": "level",
+      "value": "info"
+    },
+    {
+      "name": "type",
+      "value": "app"
+    }
+  ],
+  "message": "  timestamp: '2025-04-16T15:45:11.324Z'",
+  "timestamp": "2025-04-16T15:45:11.324665276Z"
+}{
+  "id": "1a7180b3-201a-4427-940b-f93413f650f1",
+  "labels": [
+    {
+      "name": "resource",
+      "value": "srv-cv0r4ibqf0us73a1kkb0"
+    },
+    {
+      "name": "instance",
+      "value": "srv-cv0r4ibqf0us73a1kkb0-9n7md"
+    },
+    {
+      "name": "level",
+      "value": "info"
+    },
+    {
+      "name": "type",
+      "value": "app"
+    }
+  ],
+  "message": "}",
+  "timestamp": "2025-04-16T15:45:11.324669156Z"
+}{
+  "id": "15c02a71-dc91-43ab-bf46-13d1c964016e",
+  "labels": [
+    {
+      "name": "resource",
+      "value": "srv-cv0r4ibqf0us73a1kkb0"
+    },
+    {
+      "name": "instance",
+      "value": "srv-cv0r4ibqf0us73a1kkb0-9n7md"
+    },
+    {
+      "name": "level",
+      "value": "info"
+    },
+    {
+      "name": "type",
+      "value": "app"
+    }
+  ],
+  "message": "Complete webhook payload structure: {",
+  "timestamp": "2025-04-16T15:45:11.324986444Z"
+}{
+  "id": "ae55d167-e76e-44a8-9dda-9bacefdc24be",
+  "labels": [
+    {
+      "name": "resource",
+      "value": "srv-cv0r4ibqf0us73a1kkb0"
+    },
+    {
+      "name": "instance",
+      "value": "srv-cv0r4ibqf0us73a1kkb0-9n7md"
+    },
+    {
+      "name": "level",
+      "value": "info"
+    },
+    {
+      "name": "type",
+      "value": "app"
+    }
+  ],
+  "message": "  \"NoteId\": \"86c1d2d2-97ec-4faa-b63a-22f7ba9be14b\",",
+  "timestamp": "2025-04-16T15:45:11.325012884Z"
+}{
+  "id": "af322a87-a3ae-48ba-a182-5bf6697d1d57",
+  "labels": [
+    {
+      "name": "resource",
+      "value": "srv-cv0r4ibqf0us73a1kkb0"
+    },
+    {
+      "name": "instance",
+      "value": "srv-cv0r4ibqf0us73a1kkb0-9n7md"
+    },
+    {
+      "name": "level",
+      "value": "info"
+    },
+    {
+      "name": "type",
+      "value": "app"
+    }
+  ],
+  "message": "  \"Type\": \"Note Locked\",",
+  "timestamp": "2025-04-16T15:45:11.325018695Z"
+}{
+  "id": "f6f0efbe-d49c-40bf-b742-b41873e66f69",
+  "labels": [
+    {
+      "name": "resource",
+      "value": "srv-cv0r4ibqf0us73a1kkb0"
+    },
+    {
+      "name": "instance",
+      "value": "srv-cv0r4ibqf0us73a1kkb0-9n7md"
+    },
+    {
+      "name": "level",
+      "value": "info"
+    },
+    {
+      "name": "type",
+      "value": "app"
+    }
+  ],
+  "message": "  \"ClientId\": 1123",
+  "timestamp": "2025-04-16T15:45:11.325023155Z"
+}{
+  "id": "c5ec306b-e1ca-4532-9b82-7d5589e66227",
+  "labels": [
+    {
+      "name": "resource",
+      "value": "srv-cv0r4ibqf0us73a1kkb0"
+    },
+    {
+      "name": "instance",
+      "value": "srv-cv0r4ibqf0us73a1kkb0-9n7md"
+    },
+    {
+      "name": "level",
+      "value": "info"
+    },
+    {
+      "name": "type",
+      "value": "app"
+    }
+  ],
+  "message": "}",
+  "timestamp": "2025-04-16T15:45:11.325027395Z"
+}{
+  "id": "40c57036-0cab-4f58-a1b6-04578c56efb3",
+  "labels": [
+    {
+      "name": "resource",
+      "value": "srv-cv0r4ibqf0us73a1kkb0"
+    },
+    {
+      "name": "instance",
+      "value": "srv-cv0r4ibqf0us73a1kkb0-9n7md"
+    },
+    {
+      "name": "level",
+      "value": "info"
+    },
+    {
+      "name": "type",
+      "value": "app"
+    }
+  ],
+  "message": "Reading sheet range: Webhook_Log!A:E",
+  "timestamp": "2025-04-16T15:45:11.325031335Z"
+}{
+  "id": "b10a5605-4d42-41c2-a61e-e297611125d9",
+  "labels": [
+    {
+      "name": "resource",
+      "value": "srv-cv0r4ibqf0us73a1kkb0"
+    },
+    {
+      "name": "instance",
+      "value": "srv-cv0r4ibqf0us73a1kkb0-9n7md"
+    },
+    {
+      "name": "level",
+      "value": "info"
+    },
+    {
+      "name": "type",
+      "value": "app"
+    }
+  ],
+  "message": "Successfully read sheet range: Webhook_Log!A:E - Retrieved 517 rows",
+  "timestamp": "2025-04-16T15:45:11.83264004Z"
+}{
+  "id": "d311a25a-354d-412b-bed0-3370bfdfb03b",
+  "labels": [
+    {
+      "name": "resource",
+      "value": "srv-cv0r4ibqf0us73a1kkb0"
+    },
+    {
+      "name": "instance",
+      "value": "srv-cv0r4ibqf0us73a1kkb0-9n7md"
+    },
+    {
+      "name": "level",
+      "value": "info"
+    },
+    {
+      "name": "type",
+      "value": "app"
+    }
+  ],
+  "message": "Appending rows to range: Webhook_Log!A:H",
+  "timestamp": "2025-04-16T15:45:11.832662101Z"
+}{
+  "id": "2324f365-7115-40d9-9724-331dc973d647",
+  "labels": [
+    {
+      "name": "resource",
+      "value": "srv-cv0r4ibqf0us73a1kkb0"
+    },
+    {
+      "name": "instance",
+      "value": "srv-cv0r4ibqf0us73a1kkb0-9n7md"
+    },
+    {
+      "name": "level",
+      "value": "info"
+    },
+    {
+      "name": "type",
+      "value": "app"
+    }
+  ],
+  "message": "Successfully appended rows to range: Webhook_Log!A:H",
+  "timestamp": "2025-04-16T15:45:12.086421817Z"
+}{
+  "id": "20e8f67e-8537-4aed-998b-6fd5b0cad549",
+  "labels": [
+    {
+      "name": "resource",
+      "value": "srv-cv0r4ibqf0us73a1kkb0"
+    },
+    {
+      "name": "instance",
+      "value": "srv-cv0r4ibqf0us73a1kkb0-9n7md"
+    },
+    {
+      "name": "level",
+      "value": "info"
+    },
+    {
+      "name": "type",
+      "value": "app"
+    }
+  ],
+  "message": "Processing event type: Note Locked",
+  "timestamp": "2025-04-16T15:45:12.086445118Z"
+}{
+  "id": "08a4f781-0d2b-4d5d-946c-47d160bd21b2",
+  "labels": [
+    {
+      "name": "resource",
+      "value": "srv-cv0r4ibqf0us73a1kkb0"
+    },
+    {
+      "name": "instance",
+      "value": "srv-cv0r4ibqf0us73a1kkb0-9n7md"
+    },
+    {
+      "name": "level",
+      "value": "info"
+    },
+    {
+      "name": "type",
+      "value": "app"
+    }
+  ],
+  "message": "Unhandled event type: {",
+  "timestamp": "2025-04-16T15:45:12.086459938Z"
+}{
+  "id": "3ae34e3a-aafa-4fd8-98dd-d3fc1ab0e198",
+  "labels": [
+    {
+      "name": "resource",
+      "value": "srv-cv0r4ibqf0us73a1kkb0"
+    },
+    {
+      "name": "instance",
+      "value": "srv-cv0r4ibqf0us73a1kkb0-9n7md"
+    },
+    {
+      "name": "level",
+      "value": "info"
+    },
+    {
+      "name": "type",
+      "value": "app"
+    }
+  ],
+  "message": "  receivedType: 'Note Locked',",
+  "timestamp": "2025-04-16T15:45:12.086465818Z"
+}{
+  "id": "70e5e31b-b258-4dc9-ab98-17737470047f",
+  "labels": [
+    {
+      "name": "resource",
+      "value": "srv-cv0r4ibqf0us73a1kkb0"
+    },
+    {
+      "name": "instance",
+      "value": "srv-cv0r4ibqf0us73a1kkb0-9n7md"
+    },
+    {
+      "name": "level",
+      "value": "info"
+    },
+    {
+      "name": "type",
+      "value": "app"
+    }
+  ],
+  "message": "  payloadType: 'Note Locked',",
+  "timestamp": "2025-04-16T15:45:12.086470388Z"
+}{
+  "id": "a9ef4b8a-608a-47d6-9046-4004072c1b05",
+  "labels": [
+    {
+      "name": "resource",
+      "value": "srv-cv0r4ibqf0us73a1kkb0"
+    },
+    {
+      "name": "instance",
+      "value": "srv-cv0r4ibqf0us73a1kkb0-9n7md"
+    },
+    {
+      "name": "level",
+      "value": "info"
+    },
+    {
+      "name": "type",
+      "value": "app"
+    }
+  ],
+  "message": "  expectedTypes: [ 'Form Submitted', 'Intake Submitted' ]",
+  "timestamp": "2025-04-16T15:45:12.086474528Z"
+}{
+  "id": "ab2f45d4-4f4c-48bf-a2a3-0114b396bde6",
+  "labels": [
+    {
+      "name": "resource",
+      "value": "srv-cv0r4ibqf0us73a1kkb0"
+    },
+    {
+      "name": "instance",
+      "value": "srv-cv0r4ibqf0us73a1kkb0-9n7md"
+    },
+    {
+      "name": "level",
+      "value": "info"
+    },
+    {
+      "name": "type",
+      "value": "app"
+    }
+  ],
+  "message": "}",
+  "timestamp": "2025-04-16T15:45:12.086478899Z"
+}{
+  "id": "4bf088b3-a664-4d67-a75f-cad3ad3b069b",
+  "labels": [
+    {
+      "name": "resource",
+      "value": "srv-cv0r4ibqf0us73a1kkb0"
+    },
+    {
+      "name": "instance",
+      "value": "srv-cv0r4ibqf0us73a1kkb0-9n7md"
+    },
+    {
+      "name": "level",
+      "value": "info"
+    },
+    {
+      "name": "type",
+      "value": "app"
+    }
+  ],
+  "message": "Reading sheet range: Webhook_Log!A:A",
+  "timestamp": "2025-04-16T15:45:12.086483739Z"
+}{
+  "id": "271c7131-50c5-44ea-a174-578ffe8930cc",
+  "labels": [
+    {
+      "name": "resource",
+      "value": "srv-cv0r4ibqf0us73a1kkb0"
+    },
+    {
+      "name": "instance",
+      "value": "srv-cv0r4ibqf0us73a1kkb0-9n7md"
+    },
+    {
+      "name": "level",
+      "value": "info"
+    },
+    {
+      "name": "type",
+      "value": "app"
+    }
+  ],
+  "message": "Successfully read sheet range: Webhook_Log!A:A - Retrieved 518 rows",
+  "timestamp": "2025-04-16T15:45:12.224146779Z"
+}{
+  "id": "fe816aba-a7cf-4df1-993e-3ebe502182c5",
+  "labels": [
+    {
+      "name": "resource",
+      "value": "srv-cv0r4ibqf0us73a1kkb0"
+    },
+    {
+      "name": "instance",
+      "value": "srv-cv0r4ibqf0us73a1kkb0-9n7md"
+    },
+    {
+      "name": "level",
+      "value": "info"
+    },
+    {
+      "name": "type",
+      "value": "app"
+    }
+  ],
+  "message": "Webhook event processed: {",
+  "timestamp": "2025-04-16T15:45:12.401650469Z"
+}{
+  "id": "af37f4da-0336-4caa-9bb7-a1f81b858bf3",
+  "labels": [
+    {
+      "name": "resource",
+      "value": "srv-cv0r4ibqf0us73a1kkb0"
+    },
+    {
+      "name": "instance",
+      "value": "srv-cv0r4ibqf0us73a1kkb0-9n7md"
+    },
+    {
+      "name": "level",
+      "value": "info"
+    },
+    {
+      "name": "type",
+      "value": "app"
+    }
+  ],
+  "message": "  success: false,",
+  "timestamp": "2025-04-16T15:45:12.401671199Z"
+}{
+  "id": "0156ce3e-caf2-4fb0-8fb7-5616c9b6c118",
+  "labels": [
+    {
+      "name": "resource",
+      "value": "srv-cv0r4ibqf0us73a1kkb0"
+    },
+    {
+      "name": "instance",
+      "value": "srv-cv0r4ibqf0us73a1kkb0-9n7md"
+    },
+    {
+      "name": "level",
+      "value": "error"
+    },
+    {
+      "name": "type",
+      "value": "app"
+    }
+  ],
+  "message": "  error: 'Unsupported webhook type: Note Locked',",
+  "timestamp": "2025-04-16T15:45:12.401676359Z"
+}{
+  "id": "82d72c4f-6ddc-4be7-81c7-33f471875359",
+  "labels": [
+    {
+      "name": "resource",
+      "value": "srv-cv0r4ibqf0us73a1kkb0"
+    },
+    {
+      "name": "instance",
+      "value": "srv-cv0r4ibqf0us73a1kkb0-9n7md"
+    },
+    {
+      "name": "level",
+      "value": "info"
+    },
+    {
+      "name": "type",
+      "value": "app"
+    }
+  ],
+  "message": "  retryable: false,",
+  "timestamp": "2025-04-16T15:45:12.401680409Z"
+}{
+  "id": "afa5332b-039d-4e22-9c92-11fc1335af5d",
+  "labels": [
+    {
+      "name": "resource",
+      "value": "srv-cv0r4ibqf0us73a1kkb0"
+    },
+    {
+      "name": "instance",
+      "value": "srv-cv0r4ibqf0us73a1kkb0-9n7md"
+    },
+    {
+      "name": "level",
+      "value": "info"
+    },
+    {
+      "name": "type",
+      "value": "app"
+    }
+  ],
+  "message": "  processingTime: '1077ms'",
+  "timestamp": "2025-04-16T15:45:12.40168449Z"
+}{
+  "id": "b6d5d729-4b85-48a3-b03b-6030a6d4b7ac",
+  "labels": [
+    {
+      "name": "resource",
+      "value": "srv-cv0r4ibqf0us73a1kkb0"
+    },
+    {
+      "name": "instance",
+      "value": "srv-cv0r4ibqf0us73a1kkb0-9n7md"
+    },
+    {
+      "name": "level",
+      "value": "info"
+    },
+    {
+      "name": "type",
+      "value": "app"
+    }
+  ],
+  "message": "}",
+  "timestamp": "2025-04-16T15:45:12.401688419Z"
+}{
+  "id": "5b9cbc6a-5be2-4547-8db0-f87a42e82dd2",
+  "labels": [
+    {
+      "name": "resource",
+      "value": "srv-cv0r4ibqf0us73a1kkb0"
+    },
+    {
+      "name": "instance",
+      "value": "srv-cv0r4ibqf0us73a1kkb0-9n7md"
+    },
+    {
+      "name": "level",
+      "value": "info"
+    },
+    {
+      "name": "type",
+      "value": "app"
+    }
+  ],
+  "message": "Appending rows to range: Audit_Log!A:G",
+  "timestamp": "2025-04-16T15:45:16.833091682Z"
+}{
+  "id": "3c5ce512-33b8-4751-afeb-b28c29b9ff23",
+  "labels": [
+    {
+      "name": "resource",
+      "value": "srv-cv0r4ibqf0us73a1kkb0"
+    },
+    {
+      "name": "instance",
+      "value": "srv-cv0r4ibqf0us73a1kkb0-9n7md"
+    },
+    {
+      "name": "level",
+      "value": "info"
+    },
+    {
+      "name": "type",
+      "value": "app"
+    }
+  ],
+  "message": "Successfully appended rows to range: Audit_Log!A:G",
+  "timestamp": "2025-04-16T15:45:17.019676728Z"
+}{
+  "id": "abd60f0c-d146-4ce4-ac32-2c0ec0f4b3eb",
+  "labels": [
+    {
+      "name": "resource",
+      "value": "srv-cv0r4ibqf0us73a1kkb0"
+    },
+    {
+      "name": "instance",
+      "value": "srv-cv0r4ibqf0us73a1kkb0-9n7md"
+    },
+    {
+      "name": "level",
+      "value": "info"
+    },
+    {
+      "name": "type",
+      "value": "app"
+    }
+  ],
+  "message": "Flushed 1 audit log entries",
+  "timestamp": "2025-04-16T15:45:17.019694318Z"
+}

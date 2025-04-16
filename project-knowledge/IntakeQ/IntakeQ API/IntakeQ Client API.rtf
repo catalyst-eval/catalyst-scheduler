@@ -1,0 +1,404 @@
+{\rtf1\ansi\ansicpg1252\cocoartf2820
+\cocoatextscaling0\cocoaplatform0{\fonttbl\f0\fswiss\fcharset0 Helvetica;\f1\fswiss\fcharset0 Helvetica-Bold;\f2\fnil\fcharset0 Monaco;
+\f3\fswiss\fcharset0 Helvetica-Oblique;}
+{\colortbl;\red255\green255\blue255;\red26\green26\blue26;\red255\green255\blue255;\red10\green64\blue103;
+\red90\green99\blue107;\red227\green241\blue255;\red252\green226\blue226;\red38\green38\blue38;\red242\green242\blue242;
+\red57\green57\blue57;\red83\green85\blue2;\red0\green0\blue0;\red82\green0\blue83;\red16\green121\blue2;
+\red11\green84\blue83;\red115\green0\blue2;\red0\green0\blue117;}
+{\*\expandedcolortbl;;\cssrgb\c13333\c13333\c13333;\cssrgb\c100000\c100000\c100000;\cssrgb\c1176\c32157\c47843;
+\cssrgb\c42745\c46275\c49412;\cssrgb\c90980\c95686\c100000;\cssrgb\c99216\c90980\c90980;\cssrgb\c20000\c20000\c20000;\cssrgb\c96078\c96078\c96078;
+\cssrgb\c28627\c28627\c28627;\cssrgb\c40000\c40000\c0;\cssrgb\c0\c0\c0;\cssrgb\c40000\c0\c40000;\cssrgb\c0\c53333\c0;
+\cssrgb\c0\c40000\c40000;\cssrgb\c53333\c0\c0;\cssrgb\c0\c0\c53333;}
+{\*\listtable{\list\listtemplateid1\listhybrid{\listlevel\levelnfc23\levelnfcn23\leveljc0\leveljcn0\levelfollow0\levelstartat1\levelspace360\levelindent0{\*\levelmarker \{disc\}}{\leveltext\leveltemplateid1\'01\uc0\u8226 ;}{\levelnumbers;}\fi-360\li720\lin720 }{\listlevel\levelnfc23\levelnfcn23\leveljc0\leveljcn0\levelfollow0\levelstartat1\levelspace360\levelindent0{\*\levelmarker \{circle\}}{\leveltext\leveltemplateid2\'01\uc0\u9702 ;}{\levelnumbers;}\fi-360\li1440\lin1440 }{\listname ;}\listid1}
+{\list\listtemplateid2\listhybrid{\listlevel\levelnfc23\levelnfcn23\leveljc0\leveljcn0\levelfollow0\levelstartat1\levelspace360\levelindent0{\*\levelmarker \{disc\}}{\leveltext\leveltemplateid101\'01\uc0\u8226 ;}{\levelnumbers;}\fi-360\li720\lin720 }{\listlevel\levelnfc23\levelnfcn23\leveljc0\leveljcn0\levelfollow0\levelstartat1\levelspace360\levelindent0{\*\levelmarker \{circle\}}{\leveltext\leveltemplateid102\'01\uc0\u9702 ;}{\levelnumbers;}\fi-360\li1440\lin1440 }{\listname ;}\listid2}
+{\list\listtemplateid3\listhybrid{\listlevel\levelnfc23\levelnfcn23\leveljc0\leveljcn0\levelfollow0\levelstartat1\levelspace360\levelindent0{\*\levelmarker \{disc\}}{\leveltext\leveltemplateid201\'01\uc0\u8226 ;}{\levelnumbers;}\fi-360\li720\lin720 }{\listname ;}\listid3}
+{\list\listtemplateid4\listhybrid{\listlevel\levelnfc23\levelnfcn23\leveljc0\leveljcn0\levelfollow0\levelstartat1\levelspace360\levelindent0{\*\levelmarker \{disc\}}{\leveltext\leveltemplateid301\'01\uc0\u8226 ;}{\levelnumbers;}\fi-360\li720\lin720 }{\listname ;}\listid4}}
+{\*\listoverridetable{\listoverride\listid1\listoverridecount0\ls1}{\listoverride\listid2\listoverridecount0\ls2}{\listoverride\listid3\listoverridecount0\ls3}{\listoverride\listid4\listoverridecount0\ls4}}
+\margl1440\margr1440\vieww11520\viewh8400\viewkind0
+\deftab720
+\pard\pardeftab720\ri600\sa300\partightenfactor0
+
+\f0\fs60 \cf2 \cb3 \expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 IntakeQ Client API\
+\pard\pardeftab720\partightenfactor0
+
+\fs28 \cf4 \strokec4 \
+\pard\pardeftab720\sa312\partightenfactor0
+
+\f1\b\fs48 \cf2 \strokec2 Overview\
+\pard\pardeftab720\sa450\partightenfactor0
+
+\f0\b0\fs30 \cf5 \strokec5 The IntakeQ Client API is composed of HTTP endpoints that can be reached through a REST API.\
+For the Intake Forms API, please refer to\'a0{\field{\*\fldinst{HYPERLINK "https://support.intakeq.com/article/31-intakeq-api"}}{\fldrslt \cf4 \strokec4 this article}}.\
+\pard\pardeftab720\sa312\partightenfactor0
+
+\f1\b\fs48 \cf2 \strokec2 Getting Started\
+\pard\pardeftab720\sa450\partightenfactor0
+
+\f0\b0\fs30 \cf5 \strokec5 To get started, you first need to enable API access (navigate to More > Settings > Integrations > Developer API). That\'92s also where you\'92ll find your API key, used to authenticate your HTTP calls.\
+\pard\pardeftab720\partightenfactor0
+
+\fs28 \cf5 \cb6 \strokec5 Only the main account owner has access to the API tab.\cb1 \
+\pard\pardeftab720\partightenfactor0
+
+\fs30 \cf5 \cb3 \strokec5 \
+\pard\pardeftab720\sa420\partightenfactor0
+
+\fs28 \cf5 \cb7 \strokec5 Never expose your API key in plain text (config files, source control, etc.).\cb1 \
+\pard\pardeftab720\partightenfactor0
+\cf5 \cb7 Consider setting an IP Allow-List as explained\'a0{\field{\*\fldinst{HYPERLINK "https://support.intakeq.com/article/200-restricting-access-using-ip-address#api-ip-restriction"}}{\fldrslt \cf4 \strokec4 here}}.\cb1 \
+\pard\pardeftab720\sa273\partightenfactor0
+
+\f1\b\fs42 \cf2 \cb3 \strokec2 Base URL\
+\pard\pardeftab720\sa450\partightenfactor0
+
+\f0\b0\fs30 \cf5 \strokec5 All endpoints are located under the following URL:\'a0{\field{\*\fldinst{HYPERLINK "https://intakeq.com/api/v1/"}}{\fldrslt \cf4 \strokec4 https://intakeq.com/api/v1/}}\
+An example of a typical API call would look like this:\
+\pard\pardeftab720\partightenfactor0
+
+\f2\fs24 \cf8 \cb9 \strokec8 [GET] https://intakeq.com/api/v1/clients?search=123\
+\pard\pardeftab720\sa273\partightenfactor0
+
+\f1\b\fs42 \cf2 \cb3 \strokec2 Authentication\
+\pard\pardeftab720\sa450\partightenfactor0
+
+\f0\b0\fs30 \cf5 \strokec5 Every HTTP request needs to contain your API key embedded in an authentication header named X-Auth-Key.\
+\pard\pardeftab720\partightenfactor0
+
+\f2\fs24 \cf8 \cb9 \strokec8 X-Auth-Key:xxxxxxxxxxxxxxxxxxxxxxxxx\
+\pard\pardeftab720\sa312\partightenfactor0
+
+\f1\b\fs48 \cf2 \cb3 \strokec2 Query Clients\
+\pard\pardeftab720\sa450\partightenfactor0
+
+\f0\b0\fs30 \cf5 \strokec5 This method returns a list of clients.\
+\pard\pardeftab720\partightenfactor0
+
+\f2\fs24 \cf8 \cb9 \strokec8 [GET]\
+/clients?search=[searchString]&page=[pageNumber]&dateCreatedStart=[yyyy-MM-dd]&dateCreatedEnd=[yyyy-MM-dd]&custom.fieldId=value&dateUpdatedStart=[yyyy-MM-dd]&dateUpdatedEnd=[yyyy-MM-dd]&externalClientId=[yourId]&deletedOnly=[bool]\
+\pard\pardeftab720\sa450\partightenfactor0
+
+\f0\fs30 \cf5 \cb3 \strokec5 This method accepts the following query string parameters:\
+\pard\pardeftab720\sa450\partightenfactor0
+
+\f1\b \cf10 \strokec10 Example:
+\f0\b0 \cf5 \strokec5 \
+\pard\pardeftab720\partightenfactor0
+
+\f2\fs24 \cf8 \cb9 \strokec8 https://intakeq.com/api/v1/clients?search=0204&IncludeProfile=true\
+\pard\tx220\tx720\pardeftab720\li720\fi-720\sa200\partightenfactor0
+\ls1\ilvl0
+\f1\b\fs30 \cf10 \cb3 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec10 search (optional)
+\f0\b0 \cf5 \strokec5 \'a0\'96 A string used to search the client by name or email. Partial matches will be respected, so a search for "paul" will return all intakes for clients with paul in their names. Alternatively, you can provide the numeric Client ID and this method will return an exact match.\cb1 \
+\ls1\ilvl0
+\f1\b \cf10 \cb3 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec10 page (optional)
+\f0\b0 \cf5 \strokec5 \'a0\'96 This method returns a maximum of 100 records. Use the page parameter to implement paging from your end. Use 1 for page 1, 2 for page 2, etc.\cb1 \
+\ls1\ilvl0
+\f1\b \cf10 \cb3 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec10 includeProfile (optional)
+\f0\b0 \cf5 \strokec5 \'a0\'96 Set this to 'true' to get all the fields in the client profile.\cb1 \
+\ls1\ilvl0
+\f1\b \cf10 \cb3 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec10 dateCreatedStart (optional)
+\f0\b0 \cf5 \strokec5 \'a0\'96 Use this to get only clients created after a certain date. Date format: yyyy-MM-dd (e.g. 2018-03-23).\cb1 \
+\ls1\ilvl0
+\f1\b \cf10 \cb3 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec10 dateCreatedEnd (optional)
+\f0\b0 \cf5 \strokec5 \'a0\'96 Use this to get only clients created before a certain date. Date format: yyyy-MM-dd (e.g. 2018-03-25).\cb1 \
+\ls1\ilvl0
+\f1\b \cf10 \cb3 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec10 custom.fieldId
+\f0\b0 \cf5 \strokec5 \'a0- If you need to find a client using a custom field that was created in the client profile settings. Example: if the custom field ID is "123", and the value that you are searching for is "xxx", then the query string should be\'a0
+\f3\i custom.123=xxx.
+\f0\i0 \cb1 \
+\pard\tx940\tx1440\pardeftab720\li1440\fi-1440\sa200\partightenfactor0
+\ls1\ilvl1\cf5 \cb3 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u9702 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec5 To get the fieldId for custom fields, you can use the Client search API and inspect the results.They are the same for all clients, so you only need to do this once.\cb1 \
+\pard\tx220\tx720\pardeftab720\li720\fi-720\sa200\partightenfactor0
+\ls1\ilvl0
+\f1\b \cf10 \cb3 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec10 dateUpdatedStart (optional)
+\f0\b0 \cf5 \strokec5 \'a0\'96 Use this to get only clients that have been updated after a certain date. Date format: yyyy-MM-dd (e.g. 2018-03-23).\cb1 \
+\ls1\ilvl0
+\f1\b \cf10 \cb3 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec10 dateUpdatedEnd (optional)
+\f0\b0 \cf5 \strokec5 \'a0\'96 Use this to get only clients that have been updated before a certain date. Date format: yyyy-MM-dd (e.g. 2018-03-25).\cb1 \
+\ls1\ilvl0
+\f1\b \cf10 \cb3 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec10 externalClientId (optional)
+\f0\b0 \cf5 \strokec5 \'a0\'96 If you have populated the ExternalClientId when saving the client, you can use it here to retrieve it.\cb1 \
+\ls1\ilvl0
+\f1\b \cf10 \cb3 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec10 deletedOnly (optional)
+\f0\b0 \cf5 \strokec5 \'a0\'a0\'96\'a0Returns only clients that have been deleted. Deleted clients can be retrieved up to 10 days after they have been deleted. Clients that have been deleted more than 10 days prior cannot be retrieved anymore.\'a0\cb1 \
+\pard\pardeftab720\sa450\partightenfactor0
+\cf5 \cb3 If no query string parameter is passed, the method will return the first 100 clients, sorted alphabetically by name.\
+This method returns a JSON object representing an array of clients. When the includeProfile field is not set, or set to false, this is what the response looks like:\
+\pard\pardeftab720\partightenfactor0
+
+\f2\fs24 \cf11 \cb9 \strokec11 [\cf8 \strokec12 \
+	\cf11 \strokec11 \{\cf8 \strokec12 \
+	      \cf13 \strokec13 Name\cf11 \strokec11 :\cf14 \strokec14 "test"\cf11 \strokec11 ,\cf8 \strokec12 \
+	      \cf13 \strokec13 Email\cf11 \strokec11 :\cf14 \strokec14 "test@email.com"\cf11 \strokec11 ,\cf8 \strokec12 \
+	      \cf13 \strokec13 Phone\cf11 \strokec11 :\cf14 \strokec14 "(222) 222-2222"\cf11 \strokec11 ,\cf8 \strokec12 \
+	      \cf13 \strokec13 ClientNumber\cf11 \strokec11 :\cf14 \strokec14 "32"\cf8 \strokec12 \
+	\cf11 \strokec11 \},\cf8 \strokec12 \
+	\cf11 \strokec11 ...\cf8 \strokec12 \
+\cf11 \strokec11 ]\cf8 \strokec8 \
+\pard\pardeftab720\sa450\partightenfactor0
+
+\f0\fs30 \cf5 \cb3 \strokec5 When the includeProfile field is set to true, this is what the response looks like:\
+\pard\pardeftab720\partightenfactor0
+
+\f2\fs24 \cf11 \cb9 \strokec11 [\cf8 \strokec12 \
+	\cf11 \strokec11 \{\cf8 \strokec12 		\
+		\cf14 \strokec14 "ClientId"\cf11 \strokec11 :\cf8 \strokec12  \cf15 \strokec15 123\cf11 \strokec11 ,\cf8 \strokec12 \
+		\cf14 \strokec14 "Name"\cf11 \strokec11 :\cf14 \strokec14 "test name"\cf11 \strokec11 ,\cf8 \strokec12 \
+		\cf14 \strokec14 "FirstName"\cf11 \strokec11 :\cf14 \strokec14 "test"\cf11 \strokec11 ,\cf8 \strokec12 \
+		\cf14 \strokec14 "LastName"\cf11 \strokec11 :\cf14 \strokec14 "test"\cf11 \strokec11 ,\cf8 \strokec12 \
+		\cf14 \strokec14 "MiddleName"\cf11 \strokec11 :\cf14 \strokec14 "test"\cf11 \strokec11 ,\cf8 \strokec12 \
+		\cf14 \strokec14 "Email"\cf11 \strokec11 :\cf14 \strokec14 "test@email.com"\cf11 \strokec11 ,\cf8 \strokec12 \
+		\cf14 \strokec14 "Phone"\cf11 \strokec11 :\cf14 \strokec14 "(222) 222-2222"\cf11 \strokec11 ,\cf8 \strokec12 \
+		\cf14 \strokec14 "DateOfBirth"\cf11 \strokec11 :\cf15 \strokec15 1458526480368\cf11 \strokec11 ,\cf8 \strokec12  \cf16 \strokec16 //Unix timestamp in milliseconds\cf8 \strokec12 \
+		\cf14 \strokec14 "MaritalStatus"\cf11 \strokec11 :\cf14 \strokec14 "Married"\cf11 \strokec11 ,\cf8 \strokec12 \
+		\cf14 \strokec14 "Gender"\cf11 \strokec11 :\cf14 \strokec14 "Female"\cf11 \strokec11 ,\cf8 \strokec12 \
+		\cf14 \strokec14 "Tags"\cf11 \strokec11 :[\cf14 \strokec14 "tag1"\cf11 \strokec11 ,\cf14 \strokec14 "tag2"\cf11 \strokec11 ],\cf8 \strokec12 \
+		\cf14 \strokec14 "Archived"\cf11 \strokec11 :\cf17 \strokec17 false\cf11 \strokec11 ,\cf8 \strokec12 \
+		\cf14 \strokec14 "HomePhone"\cf11 \strokec11 :\cf14 \strokec14 "(222) 222-2222"\cf11 \strokec11 ,\cf8 \strokec12 \
+		\cf14 \strokec14 "WorkPhone"\cf11 \strokec11 :\cf14 \strokec14 "(222) 222-2222"\cf11 \strokec11 ,\cf8 \strokec12 \
+		\cf14 \strokec14 "MobilePhone"\cf11 \strokec11 :\cf14 \strokec14 "(222) 222-2222"\cf11 \strokec11 ,\cf8 \strokec12 \
+		\cf14 \strokec14 "Address"\cf11 \strokec11 :\cf14 \strokec14 "105 Test St, City, State ZipCode, Country"\cf11 \strokec11 ,\cf8 \strokec12 \
+		\cf14 \strokec14 "UnitNumber"\cf11 \strokec11 :\cf14 \strokec14 "X"\cf11 \strokec11 ,\cf8 \strokec12 \
+                \cf14 \strokec14 "StreetAddress"\cf11 \strokec11 :\cf8 \strokec12  \cf14 \strokec14 "105 Test St"\cf11 \strokec11 ,\cf8 \strokec12 \
+	        \cf14 \strokec14 "City"\cf11 \strokec11 :\cf8 \strokec12  \cf14 \strokec14 "City Test"\cf11 \strokec11 ,\cf8 \strokec12 \
+	        \cf14 \strokec14 "StateShort"\cf11 \strokec11 :\cf8 \strokec12  \cf14 \strokec14 "NY"\cf11 \strokec11 ,\cf8 \strokec12 \
+	        \cf14 \strokec14 "Country"\cf11 \strokec11 :\cf8 \strokec12  \cf14 \strokec14 "USA"\cf11 \strokec11 ,\cf8 \strokec12 \
+	        \cf14 \strokec14 "PostalCode"\cf11 \strokec11 :\cf8 \strokec12  \cf14 \strokec14 "12345"\cf11 \strokec11 ,\cf8 \strokec12 \
+		\cf14 \strokec14 "AdditionalInformation"\cf11 \strokec11 :\cf14 \strokec14 "test"\cf11 \strokec11 ,\cf8 \strokec12 \
+		\cf14 \strokec14 "BillingType"\cf11 \strokec11 :\cf8 \strokec12  \cf15 \strokec15 2\cf11 \strokec11 ,\cf8 \strokec12 \
+		\cf14 \strokec14 "PrimaryInsuranceCompany"\cf11 \strokec11 :\cf14 \strokec14 "test"\cf11 \strokec11 ,\cf8 \strokec12 \
+		\cf14 \strokec14 "PrimaryInsurancePolicyNumber"\cf11 \strokec11 :\cf14 \strokec14 "test"\cf11 \strokec11 ,\cf8 \strokec12 \
+		\cf14 \strokec14 "PrimaryInsuranceGroupNumber"\cf11 \strokec11 :\cf14 \strokec14 "test"\cf11 \strokec11 ,\cf8 \strokec12 \
+		\cf14 \strokec14 "PrimaryInsuranceHolderName"\cf11 \strokec11 :\cf14 \strokec14 "test"\cf11 \strokec11 ,\cf8 \strokec12 \
+		\cf14 \strokec14 "PrimaryInsuranceRelationship"\cf11 \strokec11 :\cf14 \strokec14 "test"\cf11 \strokec11 ,\cf8 \strokec12 \
+		\cf14 \strokec14 "PrimaryInsuranceHolderDateOfBirth"\cf11 \strokec11 :\cf15 \strokec15 1458526480368\cf11 \strokec11 ,\cf8 \strokec12  \cf16 \strokec16 //Unix timestamp in milliseconds,\cf8 \strokec12 \
+		\cf14 \strokec14 "SecondaryInsuranceCompany"\cf11 \strokec11 :\cf14 \strokec14 "test"\cf11 \strokec11 ,\cf8 \strokec12 \
+		\cf14 \strokec14 "SecondaryInsurancePolicyNumber"\cf11 \strokec11 :\cf14 \strokec14 "test"\cf11 \strokec11 ,\cf8 \strokec12 \
+		\cf14 \strokec14 "SecondaryInsuranceGroupNumber"\cf11 \strokec11 :\cf17 \strokec17 null\cf11 \strokec11 ,\cf8 \strokec12 \
+		\cf14 \strokec14 "SecondaryInsuranceHolderName"\cf11 \strokec11 :\cf17 \strokec17 null\cf11 \strokec11 ,\cf8 \strokec12 \
+		\cf14 \strokec14 "SecondaryInsuranceRelationship"\cf11 \strokec11 :\cf17 \strokec17 null\cf11 \strokec11 ,\cf8 \strokec12 \
+		\cf14 \strokec14 "SecondaryInsuranceHolderDateOfBirth"\cf11 \strokec11 :\cf15 \strokec15 1458526480368\cf11 \strokec11 ,\cf8 \strokec12  \cf16 \strokec16 //Unix timestamp in milliseconds,\cf8 \strokec12 \
+		\cf14 \strokec14 "DateCreated"\cf11 \strokec11 :\cf15 \strokec15 1458526480368\cf11 \strokec11 ,\cf8 \strokec12  \cf16 \strokec16 //Unix timestamp in milliseconds,\cf8 \strokec12 \
+		\cf14 \strokec14 "LastActivityDate"\cf11 \strokec11 :\cf15 \strokec15 1458526480368\cf11 \strokec11 ,\cf8 \strokec12  \cf16 \strokec16 //Unix timestamp in milliseconds,\cf8 \strokec12 \
+		\cf14 \strokec14 "LastUpdateDate"\cf11 \strokec11 :\cf15 \strokec15 1458526480368\cf11 \strokec11 ,\cf8 \strokec12  \cf16 \strokec16 //Unix timestamp in milliseconds,\cf8 \strokec12 \
+		\cf14 \strokec14 "StripeCustomerId"\cf11 \strokec11 :\cf8 \strokec12  \cf17 \strokec17 null\cf11 \strokec11 ,\cf8 \strokec12 \
+		\cf14 \strokec14 "SquareCustomerId"\cf11 \strokec11 :\cf8 \strokec12  \cf17 \strokec17 null\cf11 \strokec11 ,\cf8 \strokec12 \
+		\cf14 \strokec14 "ExternalClientId"\cf11 \strokec11 :\cf14 \strokec14 "001"\cf11 \strokec11 ,\cf8 \strokec12 \
+		\cf14 \strokec14 "CreditBalance"\cf11 \strokec11 :\cf8 \strokec12  \cf15 \strokec15 0.0\cf11 \strokec11 ,\cf8 \strokec12 \
+		\cf14 \strokec14 "LastActivityName"\cf11 \strokec11 :\cf8 \strokec12  \cf14 \strokec14 "Created Appt"\cf11 \strokec11 ,\cf8 \strokec12 \
+		\cf14 \strokec14 "ParentClientId"\cf11 \strokec11 :\cf8 \strokec12  \cf17 \strokec17 null\cf11 \strokec11 ,\cf8 \strokec12 \
+		\cf14 \strokec14 "LinkedClients"\cf11 \strokec11 :\cf8 \strokec12  \cf11 \strokec11 [\{\cf8 \strokec12 \
+		\cf14 \strokec14 "ClientNumber"\cf11 \strokec11 :\cf8 \strokec12  \cf15 \strokec15 123\cf11 \strokec11 ,\cf8 \strokec12 \
+        		\cf14 \strokec14 "RelationshipType"\cf11 \strokec11 :\cf8 \strokec12  \cf15 \strokec15 1\cf8 \strokec12 \
+    			\cf11 \strokec11 \},\cf8 \strokec12  \cf11 \strokec11 \{\cf8 \strokec12 \
+        	\cf14 \strokec14 "ClientNumber"\cf11 \strokec11 :\cf8 \strokec12  \cf15 \strokec15 211\cf11 \strokec11 ,\cf8 \strokec12 \
+        		\cf14 \strokec14 "RelationshipType"\cf11 \strokec11 :\cf8 \strokec12  \cf15 \strokec15 3\cf8 \strokec12 \
+    			\cf11 \strokec11 \}],\cf8 \strokec12 \
+		\cf14 \strokec14 "CustomFields"\cf11 \strokec11 :\cf8 \strokec12  \cf11 \strokec11 [\cf8 \strokec12 \
+			\cf11 \strokec11 \{\cf8 \strokec12 \
+				\cf14 \strokec14 "FieldId"\cf11 \strokec11 :\cf8 \strokec12  \cf14 \strokec14 "abcd"\cf11 \strokec11 ,\cf8 \strokec12 \
+				\cf14 \strokec14 "Text"\cf11 \strokec11 :\cf8 \strokec12  \cf14 \strokec14 "Emergency Contact Name"\cf11 \strokec11 ,\cf8 \strokec12 \
+				\cf14 \strokec14 "Value"\cf11 \strokec11 :\cf8 \strokec12  \cf14 \strokec14 "Jane Doe"\cf8 \strokec12 \
+			\cf11 \strokec11 \},\cf8 \strokec12 \
+			\cf11 \strokec11 \{\cf8 \strokec12 \
+				\cf14 \strokec14 "FieldId"\cf11 \strokec11 :\cf8 \strokec12  \cf14 \strokec14 "dcba"\cf11 \strokec11 ,\cf8 \strokec12 \
+				\cf14 \strokec14 "Text"\cf11 \strokec11 :\cf8 \strokec12  \cf14 \strokec14 "First Visit Date"\cf11 \strokec11 ,\cf8 \strokec12 \
+				\cf14 \strokec14 "Value"\cf11 \strokec11 :\cf8 \strokec12  \cf14 \strokec14 "2017-03-15"\cf8 \strokec12 \
+			\cf11 \strokec11 \},\cf8 \strokec12 \
+		\cf11 \strokec11 ]\cf8 \strokec12 \
+	\cf11 \strokec11 \}\cf8 \strokec12 \
+\cf11 \strokec11 ]\cf8 \strokec8 \
+\pard\pardeftab720\sa450\partightenfactor0
+
+\f1\b\fs30 \cf5 \cb3 \strokec5 Note the following response details:\cb1 \
+\pard\tx220\tx720\pardeftab720\li720\fi-720\sa200\partightenfactor0
+\ls2\ilvl0\cf5 \cb3 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec5 Client's Billing Type\cb1 \
+\pard\tx940\tx1440\pardeftab720\li1440\fi-1440\sa200\partightenfactor0
+\ls2\ilvl1\cf5 \cb3 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u9702 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec5 Unknown = 0\cb1 \
+\ls2\ilvl1\cb3 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u9702 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec5 SelfPay = 1\cb1 \
+\ls2\ilvl1\cb3 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u9702 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec5 Insurance = 2\cb1 \
+\pard\tx220\tx720\pardeftab720\li720\fi-720\sa200\partightenfactor0
+\ls2\ilvl0\cf5 \cb3 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec5 Linked Client Relationship Type\cb1 \
+\pard\tx940\tx1440\pardeftab720\li1440\fi-1440\sa200\partightenfactor0
+\ls2\ilvl1\cf5 \cb3 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u9702 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec5 None = 0,\cb1 \
+\ls2\ilvl1\cb3 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u9702 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec5 Parent = 1\cb1 \
+\ls2\ilvl1\cb3 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u9702 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec5 Child = 2\cb1 \
+\ls2\ilvl1\cb3 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u9702 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec5 Spouse = 3\cb1 \
+\ls2\ilvl1\cb3 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u9702 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec5 Sibling = 4\cb1 \
+\ls2\ilvl1\cb3 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u9702 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec5 Other = 5\cb1 \
+\ls2\ilvl1\cb3 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u9702 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec5 Partner = 6\cb1 \
+\pard\pardeftab720\sa312\partightenfactor0
+
+\fs48 \cf2 \cb3 \strokec2 Saving Clients\
+\pard\pardeftab720\sa450\partightenfactor0
+
+\f0\b0\fs30 \cf5 \strokec5 IntakeQ also allows you to add and update clients using the API. To save a client send a POST request to the URL below:\
+\pard\pardeftab720\partightenfactor0
+
+\f2\fs24 \cf8 \cb9 \strokec8 [POST]\
+https://intakeq.com/api/v1/clients\
+\pard\pardeftab720\sa450\partightenfactor0
+
+\f0\fs30 \cf5 \cb3 \strokec5 The body of the POST request should contain a JSON object in the following format:\
+\pard\pardeftab720\partightenfactor0
+
+\f2\fs24 \cf11 \cb9 \strokec11 \{\cf8 \strokec12 		\
+	\cf14 \strokec14 "ClientId"\cf11 \strokec11 :\cf8 \strokec12  \cf15 \strokec15 123\cf11 \strokec11 ,\cf8 \strokec12  \
+	\cf14 \strokec14 "Name"\cf11 \strokec11 :\cf14 \strokec14 "test name"\cf11 \strokec11 ,\cf8 \strokec12 \
+	\cf14 \strokec14 "FirstName"\cf11 \strokec11 :\cf14 \strokec14 "test"\cf11 \strokec11 ,\cf8 \strokec12 \
+	\cf14 \strokec14 "LastName"\cf11 \strokec11 :\cf14 \strokec14 "test"\cf11 \strokec11 ,\cf8 \strokec12 \
+	\cf14 \strokec14 "MiddleName"\cf11 \strokec11 :\cf14 \strokec14 "test"\cf11 \strokec11 ,\cf8 \strokec12 \
+	\cf14 \strokec14 "Email"\cf11 \strokec11 :\cf14 \strokec14 "test@email.com"\cf11 \strokec11 ,\cf8 \strokec12 \
+	\cf14 \strokec14 "Phone"\cf11 \strokec11 :\cf14 \strokec14 "(222) 222-2222"\cf11 \strokec11 ,\cf8 \strokec12 \
+	\cf14 \strokec14 "DateOfBirth"\cf11 \strokec11 :\cf15 \strokec15 1458526480368\cf11 \strokec11 ,\cf8 \strokec12  \cf16 \strokec16 //Unix timestamp in milliseconds\cf8 \strokec12 \
+	\cf14 \strokec14 "MaritalStatus"\cf11 \strokec11 :\cf14 \strokec14 "Married"\cf11 \strokec11 ,\cf8 \strokec12 \
+	\cf14 \strokec14 "Gender"\cf11 \strokec11 :\cf14 \strokec14 "Female"\cf11 \strokec11 ,\cf8 \strokec12 		\
+	\cf14 \strokec14 "Archived"\cf11 \strokec11 :\cf17 \strokec17 false\cf11 \strokec11 ,\cf8 \strokec12 \
+	\cf14 \strokec14 "HomePhone"\cf11 \strokec11 :\cf14 \strokec14 "(222) 222-2222"\cf11 \strokec11 ,\cf8 \strokec12 \
+	\cf14 \strokec14 "WorkPhone"\cf11 \strokec11 :\cf14 \strokec14 "(222) 222-2222"\cf11 \strokec11 ,\cf8 \strokec12 \
+	\cf14 \strokec14 "MobilePhone"\cf11 \strokec11 :\cf14 \strokec14 "(222) 222-2222"\cf11 \strokec11 ,\cf8 \strokec12 \
+	\cf14 \strokec14 "Address"\cf11 \strokec11 :\cf14 \strokec14 "105 Test St, City, State ZipCode, Country"\cf11 \strokec11 ,\cf8 \strokec12 	\
+	\cf14 \strokec14 "UnitNumber"\cf11 \strokec11 :\cf14 \strokec14 "123"\cf11 \strokec11 ,\cf8 \strokec12 \
+	\cf14 \strokec14 "StreetAddress"\cf11 \strokec11 :\cf8 \strokec12  \cf14 \strokec14 "105 Test St"\cf11 \strokec11 ,\cf8 \strokec12 \
+	\cf14 \strokec14 "City"\cf11 \strokec11 :\cf8 \strokec12  \cf14 \strokec14 "City Test"\cf11 \strokec11 ,\cf8 \strokec12 \
+	\cf14 \strokec14 "StateShort"\cf11 \strokec11 :\cf8 \strokec12  \cf14 \strokec14 "NY"\cf11 \strokec11 ,\cf8 \strokec12 \
+	\cf14 \strokec14 "Country"\cf11 \strokec11 :\cf8 \strokec12  \cf14 \strokec14 "USA"\cf11 \strokec11 ,\cf8 \strokec12 \
+	\cf14 \strokec14 "PostalCode"\cf11 \strokec11 :\cf8 \strokec12  \cf14 \strokec14 "12345"\cf11 \strokec11 ,\cf8 \strokec12 \
+	\cf14 \strokec14 "PractitionerId"\cf11 \strokec11 :\cf8 \strokec12  \cf14 \strokec14 "123456789"\cf11 \strokec11 ,\cf8 \strokec12  \cf16 \strokec16 //optional\cf8 \strokec12 \
+	\cf14 \strokec14 "AdditionalInformation"\cf11 \strokec11 :\cf14 \strokec14 "test"\cf11 \strokec11 ,\cf8 \strokec12 \
+	\cf14 \strokec14 "PrimaryInsuranceCompany"\cf11 \strokec11 :\cf14 \strokec14 "test"\cf11 \strokec11 ,\cf8 \strokec12 \
+	\cf14 \strokec14 "PrimaryInsurancePolicyNumber"\cf11 \strokec11 :\cf14 \strokec14 "test"\cf11 \strokec11 ,\cf8 \strokec12 \
+	\cf14 \strokec14 "PrimaryInsuranceGroupNumber"\cf11 \strokec11 :\cf14 \strokec14 "test"\cf11 \strokec11 ,\cf8 \strokec12 \
+	\cf14 \strokec14 "PrimaryInsuranceHolderName"\cf11 \strokec11 :\cf14 \strokec14 "test"\cf11 \strokec11 ,\cf8 \strokec12 \
+	\cf14 \strokec14 "PrimaryInsuranceRelationship"\cf11 \strokec11 :\cf14 \strokec14 "test"\cf11 \strokec11 ,\cf8 \strokec12 \
+	\cf14 \strokec14 "PrimaryInsuranceHolderDateOfBirth"\cf11 \strokec11 :\cf15 \strokec15 1458526480368\cf11 \strokec11 ,\cf8 \strokec12  \cf16 \strokec16 //Unix timestamp in milliseconds,\cf8 \strokec12 \
+	\cf14 \strokec14 "SecondaryInsuranceCompany"\cf11 \strokec11 :\cf14 \strokec14 "test"\cf11 \strokec11 ,\cf8 \strokec12 \
+	\cf14 \strokec14 "SecondaryInsurancePolicyNumber"\cf11 \strokec11 :\cf14 \strokec14 "test"\cf11 \strokec11 ,\cf8 \strokec12 \
+	\cf14 \strokec14 "SecondaryInsuranceGroupNumber"\cf11 \strokec11 :\cf17 \strokec17 null\cf11 \strokec11 ,\cf8 \strokec12 \
+	\cf14 \strokec14 "SecondaryInsuranceHolderName"\cf11 \strokec11 :\cf17 \strokec17 null\cf11 \strokec11 ,\cf8 \strokec12 \
+	\cf14 \strokec14 "SecondaryInsuranceRelationship"\cf11 \strokec11 :\cf17 \strokec17 null\cf11 \strokec11 ,\cf8 \strokec12 \
+	\cf14 \strokec14 "SecondaryInsuranceHolderDateOfBirth"\cf11 \strokec11 :\cf15 \strokec15 1458526480368\cf11 \strokec11 ,\cf8 \strokec12  \cf16 \strokec16 //Unix timestamp in milliseconds,\cf8 \strokec12 \
+	\cf14 \strokec14 "DateCreated"\cf11 \strokec11 :\cf15 \strokec15 1458526480368\cf11 \strokec11 ,\cf8 \strokec12  \cf16 \strokec16 //Unix timestamp,\cf8 \strokec12 \
+	\cf14 \strokec14 "LastActivityDate"\cf11 \strokec11 :\cf15 \strokec15 1458526480368\cf11 \strokec11 ,\cf8 \strokec12  \cf16 \strokec16 //Unix timestamp,\cf8 \strokec12 \
+\pard\pardeftab720\partightenfactor0
+\cf14 \strokec14 "StripeCustomerId"\cf11 \strokec11 :\cf8 \strokec12  \cf17 \strokec17 null\cf11 \strokec11 ,\cf8 \strokec12 \
+		\cf14 \strokec14 "SquareCustomerId"\cf11 \strokec11 :\cf8 \strokec12  \cf17 \strokec17 null\cf11 \strokec11 ,\cf8 \strokec12 \
+\cf14 \strokec14 "ExternalClientId"\cf11 \strokec11 :\cf14 \strokec14 "001"\cf11 \strokec11 ,\cf8 \strokec12 \
+	\cf14 \strokec14 "CustomFields"\cf11 \strokec11 :\cf8 \strokec12  \cf11 \strokec11 [\cf8 \strokec12 \
+		\cf11 \strokec11 \{\cf8 \strokec12 \
+			\cf14 \strokec14 "FieldId"\cf11 \strokec11 :\cf8 \strokec12  \cf14 \strokec14 "abcd"\cf11 \strokec11 ,\cf8 \strokec12 \
+			\cf14 \strokec14 "Text"\cf11 \strokec11 :\cf8 \strokec12  \cf14 \strokec14 "Emergency Contact Name"\cf11 \strokec11 ,\cf8 \strokec12 \
+			\cf14 \strokec14 "Value"\cf11 \strokec11 :\cf8 \strokec12  \cf14 \strokec14 "Jane Doe"\cf8 \strokec12 \
+		\cf11 \strokec11 \},\cf8 \strokec12 \
+		\cf11 \strokec11 \{\cf8 \strokec12 \
+			\cf14 \strokec14 "FieldId"\cf11 \strokec11 :\cf8 \strokec12  \cf14 \strokec14 "dcba"\cf11 \strokec11 ,\cf8 \strokec12 \
+			\cf14 \strokec14 "Text"\cf11 \strokec11 :\cf8 \strokec12  \cf14 \strokec14 "First Visit Date"\cf11 \strokec11 ,\cf8 \strokec12 \
+			\cf14 \strokec14 "Value"\cf11 \strokec11 :\cf8 \strokec12  \cf14 \strokec14 "2017-03-15"\cf8 \strokec12 \
+		\cf11 \strokec11 \},\cf8 \strokec12 \
+	\cf11 \strokec11 ]\cf8 \strokec12 \
+\pard\pardeftab720\partightenfactor0
+\cf11 \strokec11 \}\cf8 \strokec8 \
+\pard\pardeftab720\partightenfactor0
+
+\f1\b\fs30 \cf10 \cb1 \strokec10 \
+\pard\pardeftab720\partightenfactor0
+\cf10 \cb3 There are some important things to note regarding the Client Save endpoint:
+\f0\b0 \cf5 \strokec5 \
+\pard\tx220\tx720\pardeftab720\li720\fi-720\sa200\partightenfactor0
+\ls3\ilvl0\cf5 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec5 If you inform the ClientId, the API will update an existing client and fail if it doesn't find the client.\cb1 \
+\ls3\ilvl0\cb3 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec5 If you don't inform the ClientId, the API will still try to find an existing client based on first name and email or first name and phone number.\cb1 \
+\ls3\ilvl0\cb3 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec5 When updating an existing client, make sure to GET the client first, make your changes, and POST the client back.\'a0\cb1 \
+\ls3\ilvl0\cb3 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec5 You can leave the Address field empty and inform each address component separately (StreetAddress, City, StateShort, PostalCode, Country).\cb1 \
+\ls3\ilvl0\cb3 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec5 If you want to save custom fields, you need to populate the FieldId and Value fields (the Text field can be ignored). To get the fieldId for the custom fields, you can use the Client search API and inspect the results. They are the same for all clients, so you only need to do this once or until you change the custom fields in the settings.\cb1 \
+\pard\pardeftab720\sa312\partightenfactor0
+
+\f1\b\fs48 \cf2 \strokec2 \uc0\u8232 \cf2 \cb3 \strokec2 Add a Tag to a Client\
+\pard\pardeftab720\sa450\partightenfactor0
+
+\f0\b0\fs30 \cf5 \strokec5 This method allows you to tag a client.\'a0\
+\pard\pardeftab720\partightenfactor0
+
+\f2\fs24 \cf8 \cb9 \strokec8 [POST] https://intakeq.com/api/v1/clientTags\
+\pard\pardeftab720\sa450\partightenfactor0
+
+\f0\fs30 \cf5 \cb3 \strokec5 The body of the POST request should contain a JSON object in the following format:\
+\pard\pardeftab720\partightenfactor0
+
+\f2\fs24 \cf11 \cb9 \strokec11 \{\cf8 \strokec12 \
+     \cf13 \strokec13 ClientId\cf11 \strokec11 :\cf8 \strokec12  \cf15 \strokec15 123\cf11 \strokec11 ,\cf8 \strokec12 \
+     \cf13 \strokec13 Tag\cf11 \strokec11 :\cf8 \strokec12  \cf14 \strokec14 "text"\cf8 \strokec12 \
+\cf11 \strokec11 \}\cf8 \strokec8 \
+\pard\pardeftab720\sa450\partightenfactor0
+
+\f1\b\fs30 \cf5 \cb3 \strokec5 Things to note:\'a0\cb1 \
+\pard\tx220\tx720\pardeftab720\li720\fi-720\sa200\partightenfactor0
+\ls4\ilvl0\cf5 \cb3 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec5 If the tag doesn't exist in the system, a new tag will be created.\cb1 \
+\ls4\ilvl0\cb3 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec5 If the client is already tagged with the provided tag, the endpoint will not perform any action and respond with 200 OK.\'a0\'a0\'a0\cb1 \
+\pard\pardeftab720\sa312\partightenfactor0
+
+\fs48 \cf2 \cb3 \strokec2 Remove a Tag from a Client\
+\pard\pardeftab720\sa450\partightenfactor0
+
+\f0\b0\fs30 \cf5 \strokec5 This method allows you untag a client.\
+\pard\pardeftab720\partightenfactor0
+
+\f2\fs24 \cf8 \cb9 \strokec8 [DELETE] https://intakeq.com/api/v1/clientTags?clientId=[clientId]&tag=[tag text]\
+\pard\pardeftab720\sa450\partightenfactor0
+
+\f0\fs30 \cf5 \cb3 \strokec5 Example: to remove the tag "veteran" from client 0234, issue an HTTP DELETE to the URL\'a0{\field{\*\fldinst{HYPERLINK "https://intakeq.com/api/v1/clientTags?clientId=234&tag=veteran"}}{\fldrslt \cf4 \strokec4 https://intakeq.com/api/v1/clientTags?clientId=234&tag=veteran}}.\
+If the tag doesn't exist in the client, the endpoint will still return a 200 OK response.\
+\pard\pardeftab720\sa312\partightenfactor0
+
+\f1\b\fs48 \cf2 \strokec2 Query Client Diagnoses\
+\pard\pardeftab720\sa450\partightenfactor0
+
+\f0\b0\fs30 \cf5 \strokec5 This method returns a list of client diagnoses.\
+\pard\pardeftab720\partightenfactor0
+
+\f2\fs24 \cf8 \cb9 \strokec8 [GET] /client/[clientId]/diagnoses\
+\pard\pardeftab720\sa450\partightenfactor0
+
+\f0\fs30 \cf5 \cb3 \strokec5 This method returns a JSON object representing an array of client diagnoses:\
+\pard\pardeftab720\partightenfactor0
+
+\f2\fs24 \cf11 \cb9 \strokec11 [\cf8 \strokec12 \
+	\cf11 \strokec11 \{\cf8 \strokec12 \
+	      \cf13 \strokec13 Code\cf11 \strokec11 :\cf14 \strokec14 "1"\cf11 \strokec11 ,\cf8 \strokec12 \
+	      \cf13 \strokec13 Description\cf11 \strokec11 :\cf14 \strokec14 "Alcohol Disorder"\cf11 \strokec11 ,\cf8 \strokec12 \
+	      \cf13 \strokec13 Date\cf11 \strokec11 :\cf14 \strokec14 "2021-12-08T23:00:00Z"\cf11 \strokec11 ,\cf8 \strokec12 \
+	      \cf13 \strokec13 EndDate\cf11 \strokec11 :\cf8 \strokec12  \cf17 \strokec17 null\cf11 \strokec11 ,\cf8 \strokec12  \
+              \cf13 \strokec13 NoteId\cf11 \strokec11 :\cf14 \strokec14 "82328bc2-3ff8-4ea8..."\cf8 \strokec12  \cf16 \strokec16 // Treatment Note		\cf8 \strokec12 \
+	\cf11 \strokec11 \}\cf8 \strokec12 \
+\cf11 \strokec11 ]\cf8 \strokec8 \
+}
