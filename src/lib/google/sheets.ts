@@ -118,6 +118,212 @@ export class GoogleSheetsService implements IGoogleSheetsService {
   public readonly cache: SheetsCacheService;
   
   /**
+   * Helper method to verify an appointment exists in a sheet
+   * Added to support enhanced appointment verification
+   */
+  private async verifyAppointmentExists(appointmentId: string, sheetName: string): Promise<boolean> {
+    try {
+      const values = await this.readSheet(`${sheetName}!A:A`);
+      return values?.some(row => row[0] === appointmentId) || false;
+    } catch (error) {
+      console.error(`Error verifying appointment ${appointmentId} in ${sheetName}:`, error);
+      return false;
+    }
+  }
+  
+  /**
+   * Enhanced appointment creation with verification
+   */
+  async addAppointmentWithVerification(appt: AppointmentRecord): Promise<{
+    success: boolean;
+    verification?: 'full' | 'partial' | 'none';
+    error?: string;
+  }> {
+    try {
+      // Normalize the appointment
+      const normalizedAppointment = normalizeAppointmentRecord(appt);
+      
+      // Ensure both old and new field values are set
+      const currentOfficeId = standardizeOfficeId(
+        normalizedAppointment.currentOfficeId || normalizedAppointment.officeId || 'TBD'
+      );
+      
+      const assignedOfficeId = standardizeOfficeId(
+        normalizedAppointment.assignedOfficeId || normalizedAppointment.suggestedOfficeId || currentOfficeId || 'TBD'
+      );
+  
+      // Prepare requirements JSON with error handling
+      let requirementsJson = '{"accessibility":false,"specialFeatures":[]}';
+      try {
+        if (normalizedAppointment.requirements) {
+          requirementsJson = JSON.stringify(normalizedAppointment.requirements);
+        }
+      } catch (jsonError) {
+        console.error('Error stringifying requirements, using default:', jsonError);
+      }
+  
+      // Format tags as comma-separated string
+      const tagsString = normalizedAppointment.tags && normalizedAppointment.tags.length > 0 ? 
+        normalizedAppointment.tags.join(',') : '';
+  
+      // Prepare row data
+      const rowData = [
+        normalizedAppointment.appointmentId,                     // Column A: appointmentId
+        normalizedAppointment.clientId,                          // Column B: clientId
+        normalizedAppointment.clientName,                        // Column C: clientName
+        normalizedAppointment.clientDateOfBirth || '',           // Column D: clientDateOfBirth
+        normalizedAppointment.clinicianId,                       // Column E: clinicianId
+        normalizedAppointment.clinicianName,                     // Column F: clinicianName
+        currentOfficeId,                                         // Column G: currentOfficeId
+        normalizedAppointment.sessionType,                       // Column H: sessionType
+        normalizedAppointment.startTime,                         // Column I: startTime
+        normalizedAppointment.endTime,                           // Column J: endTime
+        normalizedAppointment.status,                            // Column K: status
+        normalizedAppointment.source,                            // Column L: source
+        normalizedAppointment.lastUpdated || new Date().toISOString(), // Column M: lastUpdated
+        requirementsJson,                                        // Column N: requirements
+        normalizedAppointment.notes || '',                       // Column O: notes
+        assignedOfficeId,                                        // Column P: assignedOfficeId
+        normalizedAppointment.assignmentReason || '',            // Column Q: assignmentReason
+        tagsString                                               // Column R: tags (NEW)
+      ];
+      
+      // Step 1: Add to main Appointments tab
+      await this.appendRows(`${SHEET_NAMES.APPOINTMENTS}!A:R`, [rowData]);
+      
+      // Step 2: Check if it's for today and add to Active_Appointments if needed
+      const isForToday = this.isAppointmentForToday(normalizedAppointment);
+      
+      if (isForToday) {
+        try {
+          // Check if Active_Appointments exists
+          let activeSheetExists = true;
+          try {
+            await this.readSheet(`${SHEET_NAMES.ACTIVE_APPOINTMENTS}!A1`);
+          } catch (error) {
+            activeSheetExists = false;
+          }
+          
+          if (activeSheetExists) {
+            await this.appendRows(`${SHEET_NAMES.ACTIVE_APPOINTMENTS}!A:R`, [rowData]);
+            console.log(`Added appointment ${normalizedAppointment.appointmentId} to Active_Appointments`);
+          }
+        } catch (activeError) {
+          console.warn(`Could not add to Active_Appointments:`, activeError);
+        }
+      }
+      
+      // Step 3: Verify the appointment was actually added
+      // Wait a short time for Google Sheets to process
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Check if appointment exists in main tab
+      const mainVerification = await this.verifyAppointmentExists(normalizedAppointment.appointmentId, SHEET_NAMES.APPOINTMENTS);
+      
+      // If for today, also verify in Active_Appointments
+      let activeVerification = true;
+      if (isForToday) {
+        activeVerification = await this.verifyAppointmentExists(normalizedAppointment.appointmentId, SHEET_NAMES.ACTIVE_APPOINTMENTS);
+      }
+      
+      // Determine verification level
+      let verification: 'full' | 'partial' | 'none' = 'none';
+      if (mainVerification && (!isForToday || activeVerification)) {
+        verification = 'full';
+      } else if (mainVerification || activeVerification) {
+        verification = 'partial';
+      }
+      
+      // Log verification results
+      console.log(`Appointment ${normalizedAppointment.appointmentId} verification: ${verification} (main=${mainVerification}, active=${activeVerification})`);
+      
+      if (verification === 'none') {
+        // Log the failure for diagnostics
+        await this.addAuditLog({
+          timestamp: new Date().toISOString(),
+          eventType: AuditEventType.SYSTEM_ERROR,
+          description: `Failed to verify appointment ${normalizedAppointment.appointmentId} in sheets after adding`,
+          user: 'SYSTEM',
+          systemNotes: JSON.stringify({
+            appointmentId: normalizedAppointment.appointmentId,
+            clientName: normalizedAppointment.clientName,
+            mainVerification,
+            activeVerification,
+            isForToday
+          })
+        });
+        
+        return {
+          success: false,
+          verification,
+          error: 'Appointment was not found in sheets after adding'
+        };
+      }
+      
+      if (verification === 'partial') {
+        // Log partial success for diagnostics
+        console.warn(`Partial verification for appointment ${normalizedAppointment.appointmentId}: main=${mainVerification}, active=${activeVerification}`);
+        
+        // Try to fix the inconsistency
+        if (mainVerification && !activeVerification && isForToday) {
+          try {
+            await this.appendRows(`${SHEET_NAMES.ACTIVE_APPOINTMENTS}!A:R`, [rowData]);
+            console.log(`Repaired Active_Appointments for ${normalizedAppointment.appointmentId}`);
+          } catch (repairError) {
+            console.warn(`Failed to repair Active_Appointments for ${normalizedAppointment.appointmentId}:`, repairError);
+          }
+        }
+        
+        await this.addAuditLog({
+          timestamp: new Date().toISOString(),
+          eventType: AuditEventType.SYSTEM_WARNING,
+          description: `Partial verification for appointment ${normalizedAppointment.appointmentId}`,
+          user: 'SYSTEM',
+          systemNotes: JSON.stringify({
+            appointmentId: normalizedAppointment.appointmentId,
+            clientName: normalizedAppointment.clientName,
+            mainVerification,
+            activeVerification,
+            isForToday
+          })
+        });
+      }
+      
+      // Add audit log entry for successful creation
+      await this.addAuditLog({
+        timestamp: new Date().toISOString(),
+        eventType: AuditEventType.APPOINTMENT_CREATED,
+        description: `Added appointment for ${normalizedAppointment.clientName}`,
+        user: 'SYSTEM',
+        newValue: JSON.stringify(normalizedAppointment)
+      });
+      
+      // Invalidate caches
+      this.cache.invalidatePattern(`appointments:${normalizedAppointment.appointmentId}`);
+      
+      return {
+        success: true,
+        verification
+      };
+    } catch (error) {
+      console.error('Error adding appointment:', error);
+      await this.addAuditLog({
+        timestamp: new Date().toISOString(),
+        eventType: AuditEventType.SYSTEM_ERROR,
+        description: `Failed to add appointment ${appt.appointmentId}`,
+        user: 'SYSTEM',
+        systemNotes: error instanceof Error ? error.message : 'Unknown error'
+      });
+      
+      return {
+        success: false,
+        verification: 'none',
+        error: error instanceof Error ? error.message : 'Unknown error adding appointment'
+      };
+    }
+  }
+  
+  /**
    * Get the spreadsheet ID used by this service
    */
   public getSpreadsheetId(): string {
@@ -1311,105 +1517,11 @@ async getOfficeAppointments(officeId: string, date: string): Promise<Appointment
  * Add an appointment to both Appointments and Active_Appointments tabs if for today
  */
 async addAppointment(appt: AppointmentRecord): Promise<void> {
-  try {
-    // Normalize to ensure we have all required fields
-    const normalizedAppointment = normalizeAppointmentRecord(appt);
-    
-    // Ensure both old and new field values are set
-    const currentOfficeId = standardizeOfficeId(
-      normalizedAppointment.currentOfficeId || normalizedAppointment.officeId || 'TBD'
-    );
-    
-    const assignedOfficeId = standardizeOfficeId(
-      normalizedAppointment.assignedOfficeId || normalizedAppointment.suggestedOfficeId || currentOfficeId || 'TBD'
-    );
-
-    // Prepare requirements JSON with error handling
-    let requirementsJson = '{"accessibility":false,"specialFeatures":[]}';
-    try {
-      if (normalizedAppointment.requirements) {
-        requirementsJson = JSON.stringify(normalizedAppointment.requirements);
-      }
-    } catch (jsonError) {
-      console.error('Error stringifying requirements, using default:', jsonError);
-    }
-
-    // Format tags as comma-separated string
-    const tagsString = normalizedAppointment.tags && normalizedAppointment.tags.length > 0 ? 
-      normalizedAppointment.tags.join(',') : '';
-
-    // Prepare row data
-    const rowData = [
-      normalizedAppointment.appointmentId,                     // Column A: appointmentId
-      normalizedAppointment.clientId,                          // Column B: clientId
-      normalizedAppointment.clientName,                        // Column C: clientName
-      normalizedAppointment.clientDateOfBirth || '',           // Column D: clientDateOfBirth
-      normalizedAppointment.clinicianId,                       // Column E: clinicianId
-      normalizedAppointment.clinicianName,                     // Column F: clinicianName
-      currentOfficeId,                                         // Column G: currentOfficeId
-      normalizedAppointment.sessionType,                       // Column H: sessionType
-      normalizedAppointment.startTime,                         // Column I: startTime
-      normalizedAppointment.endTime,                           // Column J: endTime
-      normalizedAppointment.status,                            // Column K: status
-      normalizedAppointment.source,                            // Column L: source
-      normalizedAppointment.lastUpdated || new Date().toISOString(), // Column M: lastUpdated
-      requirementsJson,                                        // Column N: requirements
-      normalizedAppointment.notes || '',                       // Column O: notes
-      assignedOfficeId,                                        // Column P: assignedOfficeId
-      normalizedAppointment.assignmentReason || '',            // Column Q: assignmentReason
-      tagsString                                               // Column R: tags (NEW)
-    ];
-
-    // 1. Always add to main Appointments tab
-    await this.appendRows(`${SHEET_NAMES.APPOINTMENTS}!A:R`, [rowData]);
-
-    // 2. Also add to Active_Appointments if it's for today
-    const isForToday = this.isAppointmentForToday(normalizedAppointment);
-    if (isForToday) {
-      try {
-        // Check if Active_Appointments exists
-        let activeSheetExists = true;
-        try {
-          await this.readSheet(`${SHEET_NAMES.ACTIVE_APPOINTMENTS}!A1`);
-        } catch (error) {
-          activeSheetExists = false;
-        }
-        
-        if (activeSheetExists) {
-          await this.appendRows(`${SHEET_NAMES.ACTIVE_APPOINTMENTS}!A:R`, [rowData]);
-          console.log(`Added appointment ${normalizedAppointment.appointmentId} to Active_Appointments`);
-        }
-      } catch (activeError) {
-        console.warn(`Could not add to Active_Appointments:`, activeError);
-      }
-    }
-
-    await this.addAuditLog({
-      timestamp: new Date().toISOString(),
-      eventType: AuditEventType.APPOINTMENT_CREATED,
-      description: `Added appointment ${appt.appointmentId}`,
-      user: 'SYSTEM',
-      systemNotes: JSON.stringify({
-        ...normalizedAppointment,
-        currentOfficeId,
-        assignedOfficeId,
-        tags: tagsString
-      })
-    });
-
-    // Clear cache for both sheets
-    await this.refreshCache(`${SHEET_NAMES.APPOINTMENTS}!A2:R`);
-    await this.refreshCache(`${SHEET_NAMES.ACTIVE_APPOINTMENTS}!A2:R`);
-  } catch (error) {
-    console.error('Error adding appointment:', error);
-    await this.addAuditLog({
-      timestamp: new Date().toISOString(),
-      eventType: AuditEventType.SYSTEM_ERROR,
-      description: `Failed to add appointment ${appt.appointmentId}`,
-      user: 'SYSTEM',
-      systemNotes: error instanceof Error ? error.message : 'Unknown error'
-    });
-    throw new Error(`Failed to add appointment: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  // Call enhanced method and throw error if it fails
+  const result = await this.addAppointmentWithVerification(appt);
+  
+  if (!result.success) {
+    throw new Error(`Failed to add appointment: ${result.error}`);
   }
 }
 

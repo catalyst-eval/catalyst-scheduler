@@ -235,6 +235,19 @@ private generateIdempotencyKey(payload: any): string {
   
   if (payload.Appointment?.Id) {
     entityId = `appointment-${payload.Appointment.Id}`;
+    
+    // For appointment updates, include a hash of critical fields
+    // to distinguish between multiple updates to the same appointment
+    if (type.includes('Updated') || type.includes('Rescheduled')) {
+      const fieldsHash = this.hashAppointmentFields(payload.Appointment);
+      return `${type}-${entityId}-${fieldsHash}`;
+    }
+    
+    // For creation and cancellation, just use the ID as these should be processed only once
+    if (type.includes('Created') || type.includes('Cancelled') || type.includes('Canceled')) {
+      const timestamp = payload.DateCreated || payload.Appointment.DateCreated || new Date().toISOString();
+      return `${type}-${entityId}-${timestamp}`;
+    }
   } else if (payload.IntakeId || payload.formId) {
     entityId = `form-${payload.IntakeId || payload.formId}`;
   }
@@ -242,21 +255,48 @@ private generateIdempotencyKey(payload: any): string {
   // Add timestamp from payload if available
   const timestamp = payload.DateCreated || payload.Appointment?.DateCreated || '';
   
-  // Create a hash of the content for uniqueness
-  const contentString = JSON.stringify({
+  // Create a more reliable hash of the content
+  // Use critical fields that would differentiate this webhook from others
+  const criticalFields = {
     type,
     entityId,
     timestamp,
-    clientId: payload.ClientId
-  });
+    clientId: payload.ClientId,
+    startDate: payload.Appointment?.StartDateIso || '',
+    endDate: payload.Appointment?.EndDateIso || '',
+    status: payload.Appointment?.Status || ''
+  };
+  
+  const contentString = JSON.stringify(criticalFields);
   
   const contentHash = require('crypto')
-    .createHash('md5')
+    .createHash('sha256')
     .update(contentString)
     .digest('hex')
-    .substring(0, 8); // Just use first 8 chars for brevity
+    .substring(0, 12); // Use more characters for better uniqueness
   
-  return `${type}-${entityId}-${timestamp}-${contentHash}`;
+  return `${type}-${entityId}-${contentHash}`;
+}
+
+/**
+ * Hash critical appointment fields for more reliable idempotency
+ */
+private hashAppointmentFields(appointment: any): string {
+  // Extract the fields that constitute a meaningful change
+  const criticalFields = {
+    startDate: appointment.StartDateIso || '',
+    endTime: appointment.EndDateIso || '',
+    status: appointment.Status || '',
+    location: appointment.Location || '',
+    serviceType: appointment.ServiceType || '',
+    practitionerId: appointment.PractitionerId || ''
+  };
+  
+  return require('crypto')
+    .createHash('md5')
+    .update(JSON.stringify(criticalFields))
+    .digest('hex')
+    .substring(0, 8);
 }
 
 /**

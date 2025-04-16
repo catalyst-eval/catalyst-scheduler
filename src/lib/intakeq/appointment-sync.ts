@@ -486,7 +486,9 @@ private async handleAppointmentCancellation(
         // Clear cache before retrieval to ensure fresh data
         if (retryCount > 0) {
           console.log(`Clearing cache before retry ${retryCount + 1}`);
-          this.sheetsService.cache.invalidateAppointments();
+          this.sheetsService.cache.invalidatePattern(`appointments:${appointment.Id}`);
+          this.sheetsService.cache.invalidatePattern(`sheet:${SHEET_NAMES.APPOINTMENTS}`);
+          this.sheetsService.cache.invalidatePattern(`sheet:${SHEET_NAMES.ACTIVE_APPOINTMENTS}`);
           
           // Small delay before retry
           await new Promise(resolve => setTimeout(resolve, 500 * Math.pow(2, retryCount)));
@@ -511,6 +513,82 @@ private async handleAppointmentCancellation(
     
     if (!existingAppointment) {
       console.warn(`Appointment ${appointment.Id} not found for cancellation after ${maxRetries} attempts`);
+      
+      // Try broader search if we have client name and approximate time
+      if (appointment.ClientName && appointment.StartDateIso) {
+        console.log(`Trying broader search for appointment by client name: ${appointment.ClientName}`);
+        
+        try {
+          // Using getAppointments with filter as a fallback
+          const allAppointments = await this.sheetsService.getAllAppointments();
+          if (allAppointments && allAppointments.length > 0) {
+            // Filter appointments by client name (case insensitive)
+            const clientNameLower = appointment.ClientName.toLowerCase();
+            let clientAppointments = allAppointments.filter(a => 
+              a.clientName.toLowerCase().includes(clientNameLower) || 
+              clientNameLower.includes(a.clientName.toLowerCase())
+            );
+            
+            // Further filter by date (if available) - approximately same day
+            if (appointment.StartDateIso) {
+              const targetDate = new Date(appointment.StartDateIso);
+              const targetDay = targetDate.toISOString().split('T')[0]; // YYYY-MM-DD
+              
+              clientAppointments = clientAppointments.filter(a => {
+                const appDay = new Date(a.startTime).toISOString().split('T')[0];
+                return appDay === targetDay;
+              });
+            }
+            
+            if (clientAppointments.length > 0) {
+              console.log(`Found ${clientAppointments.length} possible matches for cancelled appointment by client name`);
+              
+              // Log potential matches for debugging
+              clientAppointments.forEach(app => {
+                console.log(`Potential match: ${app.appointmentId}, ${app.startTime}, ${app.status}`);
+              });
+              
+              // Handle the first matching appointment that isn't already cancelled
+              const activeAppointment = clientAppointments.find(a => a.status !== 'cancelled');
+              if (activeAppointment) {
+                console.log(`Found matching active appointment ${activeAppointment.appointmentId} to cancel`);
+                
+                // Cancel this appointment with cancellation reason from IntakeQ
+                await this.sheetsService.updateAppointmentStatus(activeAppointment.appointmentId, 'cancelled', {
+                  reason: appointment.CancellationReason || 'Cancelled via IntakeQ',
+                  notes: `Cancelled based on client match (original IntakeQ ID: ${appointment.Id})`
+                });
+                
+                // Log the successful alternative cancellation
+                await this.sheetsService.addAuditLog({
+                  timestamp: new Date().toISOString(),
+                  eventType: 'APPOINTMENT_CANCELLED',
+                  description: `Cancelled appointment ${activeAppointment.appointmentId} via client name matching`,
+                  user: 'SYSTEM',
+                  systemNotes: JSON.stringify({
+                    originalAppointmentId: appointment.Id,
+                    matchedAppointmentId: activeAppointment.appointmentId,
+                    reason: appointment.CancellationReason || 'Not specified',
+                    clientId: appointment.ClientId,
+                    clientName: appointment.ClientName
+                  })
+                });
+                
+                return {
+                  success: true,
+                  details: {
+                    appointmentId: activeAppointment.appointmentId,
+                    status: 'cancelled',
+                    matchMethod: 'client-name-time'
+                  }
+                };
+              }
+            }
+          }
+        } catch (searchError) {
+          console.error(`Error searching for appointment by client name:`, searchError);
+        }
+      }
       
       // Try to check if this is a recurring appointment
       const hasRecurrencePattern = appointment.RecurrencePattern || 
