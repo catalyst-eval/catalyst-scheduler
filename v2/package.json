@@ -1,0 +1,33 @@
+{
+  "name": "catalyst-scheduler",
+  "version": "2.0.0",
+  "description": "Catalyst Scheduler - Firestore based version",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
+    "start": "node dist/index.js",
+    "test": "jest",
+    "lint": "eslint --ext .js,.ts src/",
+    "firebase:emulators": "firebase emulators:start",
+    "firebase:deploy": "firebase deploy",
+    "deploy:functions": "firebase deploy --only functions"
+  },
+  "keywords": [
+    "scheduler",
+    "firebase",
+    "firestore",
+    "therapy",
+    "appointments"
+  ],
+  "author": "Bridge Family Therapy",
+  "license": "UNLICENSED",
+  "private": true,
+  "dependencies": {
+  },
+  "devDependencies": {
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

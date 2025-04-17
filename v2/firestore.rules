@@ -1,0 +1,39 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Only authenticated users can access the database
+    match /{document=**} {
+      allow read, write: if request.auth != null;
+    }
+    
+    // Public read-only access to public collections
+    match /offices/{document=**} {
+      allow read: if true;
+    }
+    
+    // Admin access rules
+    match /appointments/{document=**} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && (
+        request.auth.token.admin == true || 
+        request.auth.token.role == 'scheduler'
+      );
+    }
+    
+    // Clinician specific access
+    match /clinicians/{clinicianId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && (
+        request.auth.token.admin == true ||
+        request.auth.uid == clinicianId
+      );
+      
+      match /appointments/{appointmentId} {
+        allow read: if request.auth != null && (
+          request.auth.token.admin == true ||
+          request.auth.uid == clinicianId
+        );
+      }
+    }
+  }
+}
