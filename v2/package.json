@@ -11,7 +11,9 @@
     "lint": "eslint --ext .js,.ts src/",
     "firebase:emulators": "firebase emulators:start",
     "firebase:deploy": "firebase deploy",
-    "deploy:functions": "firebase deploy --only functions"
+    "deploy:functions": "firebase deploy --only functions",
+    "setup": "npm install && firebase use catalyst-scheduler-v2",
+    "migrate": "ts-node-dev src/lib/migration.ts"
   },
   "keywords": [
     "scheduler",
@@ -24,10 +26,20 @@
   "license": "UNLICENSED",
   "private": true,
   "dependencies": {
-  },
-  "devDependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.5.0",
+    "express": "^5.1.0",
+    "firebase-admin": "^13.2.0",
+    "firebase-functions": "^6.3.2",
+    "helmet": "^8.1.0"
   },
   "engines": {
     "node": ">=18.0.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.1",
+    "@types/node": "^22.14.1",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.8.3"
   }
 }
